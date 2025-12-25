@@ -33,7 +33,8 @@ class QrCodeController extends BaseController
         $response->headers->set('Content-Type', 'image/gif');
         $response->format = Response::FORMAT_RAW;
 
-        echo BillQRCode::generateGifData($data, 'H', 4, 2);
+        BillQRCode::setGifOptions('H', 4, 2);
+        echo BillQRCode::generateGifData($data);
         //\PHPQRCode\QRcode::png(trim($data), false, 'H', 4, 2);
     }
 
@@ -111,6 +112,7 @@ class QrCodeController extends BaseController
         $response->headers->set('Content-Type', 'image/gif');
         $response->format = Response::FORMAT_RAW;
 
-        echo BillQRCode::generateGifData($qrString, 'M', 3, 1);
+        BillQRCode::setGifOptions('M', 3, 1);
+        echo BillQRCode::generateGifData($qrString);
     }
 }

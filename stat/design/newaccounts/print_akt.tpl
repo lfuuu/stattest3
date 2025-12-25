@@ -33,7 +33,7 @@
                     ИНН/КПП покупателя: <strong>{$bill_client.inn} / {$bill_client.kpp}</strong><br />
                 </td>
                 {if $bill_no_qr}
-                    <td align="right"><br><img src="{if $is_pdf == '1'}{$WEB_PATH}{else}/{/if}utils/qr-code/get?data={$bill_no_qr.akt[$source]}"></td>
+                    <td align="right"><br><img src="{if $is_pdf == '1'}{$bill_no_qr_img.akt[$source]}{else}/utils/qr-code/get?data={$bill_no_qr.akt[$source]}{/if}"></td>
                 {/if}
             </tr>
         </table>

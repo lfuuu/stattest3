@@ -28,13 +28,17 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $qr_code = '';
 
     private $_language;
+    private $_qrDocType;
+    private $_isPdf;
 
     /**
      * @param Bill|uuBill $bill
      * @param Invoice $invoice
      * @param string $language
+     * @param string|null $qrDocType
+     * @param bool $isPdf
      */
-    public function __construct($bill, $invoice, $language)
+    public function __construct($bill, $invoice, $language, $qrDocType = null, $isPdf = false)
     {
         parent::__construct();
 
@@ -45,6 +49,8 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         }
 
         $this->_language = $language;
+        $this->_qrDocType = $qrDocType;
+        $this->_isPdf = $isPdf;
 
         $statBill = $this->_getStatBill($bill);
 
@@ -66,7 +72,10 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
         $this->client_id = $statBill->client_id;
 
-        $this->qr_code = BillQRCode::getImgUrl($statBill->bill_no);
+        $docType = $this->_getQrDocType($invoice);
+        $this->qr_code = $this->_isPdf
+            ? $this->_getInlineQrData($statBill->bill_no, $docType)
+            : $this->_getAbsoluteQrUrl($statBill->bill_no, $docType);
     }
 
     /**
@@ -187,4 +196,62 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $this->payment_type = \Yii::t('biller', $bill->nal, [], $this->_language);
     }
 
+    /**
+     * @param Invoice|null $invoice
+     * @return string
+     */
+    private function _getQrDocType($invoice)
+    {
+        if ($this->_qrDocType) {
+            return $this->_qrDocType;
+        }
+
+        if (!$invoice) {
+            return 'bill';
+        }
+
+        $typeId = $invoice->type_id;
+        $map = [
+            Invoice::TYPE_1 => 'upd-1',
+            Invoice::TYPE_2 => 'upd-2',
+            Invoice::TYPE_GOOD => 'upd-3',
+            Invoice::TYPE_PREPAID => 'upd-1',
+        ];
+
+        return $map[$typeId] ?? 'bill';
+    }
+
+    /**
+     * @param string $billNo
+     * @param string $docType
+     * @return string
+     */
+    private function _getAbsoluteQrUrl($billNo, $docType)
+    {
+        $qrUrl = BillQRCode::getImgUrl($billNo, $docType);
+        if ($qrUrl && strpos($qrUrl, 'http') !== 0) {
+            $qrUrl = \Yii::$app->params['SITE_URL'] . ltrim($qrUrl, '/');
+        }
+        return $qrUrl;
+    }
+
+    /**
+     * @param string $billNo
+     * @param string $docType
+     * @return string
+     */
+    private function _getInlineQrData($billNo, $docType)
+    {
+        $data = BillQRCode::encode($docType, $billNo);
+        if (!$data) {
+            return '';
+        }
+
+        $imageData = BillQRCode::generateGifData($data);
+        if ($imageData === '') {
+            return '';
+        }
+
+        return 'data:image/gif;base64,' . base64_encode($imageData);
+    }
 }

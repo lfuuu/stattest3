@@ -291,6 +291,7 @@ if (
     $invoiceDocument->setBill($bill);
     $invoiceDocument->setCountry($R['country_code']);
     $invoiceDocument->setTemplateType($templateTypeId);
+    $invoiceDocument->setQrDocType($R['document_type'] ?? null);
 
     $content = $invoiceDocument->render($isPdf, $isLandscape, $isIncludeSignatureStamp);
 

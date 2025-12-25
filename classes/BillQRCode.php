@@ -23,8 +23,10 @@ class BillQRCode
         "upd-1" => ["code" => "21", "c" => "upd", "s" => 1, "name" => "УПД 1"],
         "upd-2" => ["code" => "22", "c" => "upd", "s" => 2, "name" => "УПД 2"],
         "upd-3" => ["code" => "23", "c" => "upd", "s" => 3, "name" => "УПД Т"],
-        "upd2-1" => ["code" => "31", "c" => "upd", "s" => 1, "name" => "УПД2 1"],
-        "upd2-2" => ["code" => "32", "c" => "upd", "s" => 2, "name" => "УПД2 2"],
+        "upd2-1" => ["code" => "31", "c" => "upd2", "s" => 1, "name" => "УПД2 1"],
+        "upd2-2" => ["code" => "32", "c" => "upd2", "s" => 2, "name" => "УПД2 2"],
+        "upd2-3" => ["code" => "33", "c" => "upd2", "s" => 2, "name" => "УПД2 3"],
+        "upd2-4" => ["code" => "34", "c" => "upd2", "s" => 2, "name" => "УПД2 4"],
     ];
 
     public static function encode($docType, $billNo)
@@ -105,14 +107,25 @@ class BillQRCode
         return '';
     }
 
-    public static function generateGifData($data, $errorLevel = 'H', $size = 4, $margin = 2)
+    private static $gifErrorLevel = 'H';
+    private static $gifSize = 4;
+    private static $gifMargin = 2;
+
+    public static function setGifOptions($errorLevel = 'H', $size = 4, $margin = 2)
+    {
+        self::$gifErrorLevel = $errorLevel;
+        self::$gifSize = $size;
+        self::$gifMargin = $margin;
+    }
+
+    public static function generateGifData($data)
     {
         if (!$data) {
             return '';
         }
 
         ob_start();
-        QRcode::gif(trim($data), false, $errorLevel, $size, $margin);
+        QRcode::gif(trim($data), false, self::$gifErrorLevel, self::$gifSize, self::$gifMargin);
         $imageData = ob_get_clean();
 
         return $imageData === false ? '' : $imageData;
@@ -124,7 +137,7 @@ class BillQRCode
             return '';
         }
 
-        $imageData = self::generateGifData($data, 'H', 4, 2);
+        $imageData = self::generateGifData($data);
 
         if ($imageData === false || $imageData === '') {
             return '';

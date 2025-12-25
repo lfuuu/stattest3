@@ -39,7 +39,9 @@ class InvoiceLight extends Component
         $_language = Language::LANGUAGE_DEFAULT,
         $_templateType,
         $_country,
-        $_date;
+        $_date,
+        $_qrDocType,
+        $_isPdf;
 
     const TYPE_INVOICE = 1;
     const TYPE_INVOICE_STORNO = 2;
@@ -119,6 +121,16 @@ class InvoiceLight extends Component
     public function setTemplateType($templateTypeId)
     {
         $this->_templateType = $templateTypeId;
+        return $this;
+    }
+
+    /**
+     * @param string|null $docType
+     * @return $this
+     */
+    public function setQrDocType($docType)
+    {
+        $this->_qrDocType = $docType;
         return $this;
     }
 
@@ -220,7 +232,13 @@ class InvoiceLight extends Component
 
         if (count($items)) {
             // Данные о счете
-            $this->_bill = new InvoiceBillLight($this->_bill, $this->_invoice, $dataLanguage);
+            $this->_bill = new InvoiceBillLight(
+                $this->_bill,
+                $this->_invoice,
+                $dataLanguage,
+                $this->_qrDocType,
+                $this->_isPdf
+            );
             // Данные проводках
             $this->_items = (new InvoiceItemsLight($this->_clientAccount, $this->_bill, $items, $dataLanguage))->getAll();
         }
@@ -268,6 +286,7 @@ class InvoiceLight extends Component
     public function render($isPdf = false, $isLandscape = null, $isIncludeSignatureStamp = true)
     {
         $content = null;
+        $this->_isPdf = $isPdf;
 
         $smarty = Smarty::init();
         $smarty->assign($this->getProperties());
