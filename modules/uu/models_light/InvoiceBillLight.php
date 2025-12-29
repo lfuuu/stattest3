@@ -74,8 +74,8 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
         $docType = $this->_getQrDocType($invoice);
         $this->qr_code = $this->_isPdf
-            ? $this->_getInlineQrData($statBill->bill_no, $docType)
-            : $this->_getAbsoluteQrUrl($statBill->bill_no, $docType);
+            ? BillQRCode::getImgDataUri($statBill->bill_no, $docType)
+            : BillQRCode::getImgUrl($statBill->bill_no, $docType);
     }
 
     /**
@@ -221,23 +221,4 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         return $map[$typeId] ?? 'bill';
     }
 
-    /**
-     * @param string $billNo
-     * @param string $docType
-     * @return string
-     */
-    private function _getAbsoluteQrUrl($billNo, $docType)
-    {
-        return BillQRCode::getImgUrl($billNo, $docType);
-    }
-
-    /**
-     * @param string $billNo
-     * @param string $docType
-     * @return string
-     */
-    private function _getInlineQrData($billNo, $docType)
-    {
-        return BillQRCode::getImgDataUri($billNo, $docType);
-    }
 }
