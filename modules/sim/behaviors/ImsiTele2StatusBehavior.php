@@ -83,6 +83,7 @@ class ImsiTele2StatusBehavior extends Behavior
                 $oldMsisdn ? DateTimeZoneHelper::getUtcDateTime()->modify('+5 second')->format(DateTimeZoneHelper::DATETIME_FORMAT) : null
             );
         }
-        Imsi::dao()->getSubscriberStatus($model->imsi);
+
+        EventQueue::go(EventQueue::SYNC_TELE2_SET_GET_STATUS, ['imsi' => $model->imsi]);
     }
 }
