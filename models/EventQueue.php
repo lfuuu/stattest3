@@ -122,6 +122,7 @@ class EventQueue extends ActiveRecord
     const SYNC_TELE2_LINK_IMSI = 'sync_tele2_link_imsi';
     const SYNC_TELE2_UNSET_IMSI = 'sync_tele2_unset_imsi';
     const SYNC_TELE2_UNLINK_IMSI = 'sync_tele2_unlink_imsi';
+    const SYNC_TELE2_SET_GET_STATUS = 'sync_tele2_set_get_status';
     const SYNC_TELE2_GET_STATUS = 'sync_tele2_get_status';
     const SYNC_TELE2_SET_CFNRC = 'sync_tele2_set_cfnrc';
     const SYNC_TELE2_UNSET_CFNRC = 'sync_tele2_unset_cfnrc';
@@ -211,6 +212,8 @@ class EventQueue extends ActiveRecord
         self::SYNC_TELE2_LINK_IMSI => 'Теле2. Прикрепить номер к IMSI',
         self::SYNC_TELE2_UNSET_IMSI => 'Теле2. очистить IMSI',
         self::SYNC_TELE2_UNLINK_IMSI => 'Теле2. Открепить номер от IMSI',
+        self::SYNC_TELE2_SET_GET_STATUS => 'Теле2. Задача на получение статуса IMSI',
+        self::SYNC_TELE2_GET_STATUS => 'Теле2. Получение статуса IMSI',
         self::PORTED_NUMBER_ADD => 'Добавить портированный номер',
         self::NUMBER_HAS_BEEN_PORTED => 'Номер портирован к МСН Телеком',
         self::TROUBLE_NOTIFIER_EVENT => 'Оповещение о заявке',

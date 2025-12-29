@@ -50,6 +50,7 @@ use app\modules\nnp\models\NumberExample;
 use app\modules\nnp\Module as NnpModule;
 use app\modules\notifier\Module;
 use app\modules\sbisTenzor\helpers\SBISDataProvider;
+use app\modules\sim\models\Imsi;
 use app\modules\socket\classes\Socket;
 use app\modules\uu\behaviors\AccountTariffBiller;
 use app\modules\uu\behaviors\AccountTariffCheckHlr;
@@ -88,6 +89,7 @@ $nnpEvents = ['event' => [
     EventQueue::ADD_RESOURCE_ON_ACCOUNT_TARIFFS,
     EventQueue::UPDATE_BALANCE_MASS,
     EventQueue::KSIM_GET_STATISTIC,
+    EventQueue::SYNC_TELE2_SET_GET_STATUS,
 ]];
 
 $syncEvents = ['event' => [
@@ -669,6 +671,10 @@ function doEvents($eventQueueQuery, $uuSyncEvents)
 
                 case EventQueue::SYNC_TELE2_GET_STATUS:
                     $info = $isTele2Server ? AccountTariffCheckHlr::getSubscriberStatus($event->id, $param) : EventQueue::API_IS_SWITCHED_OFF;
+                    break;
+
+                case EventQueue::SYNC_TELE2_SET_GET_STATUS:
+                    $info = $isTele2Server ? Imsi::dao()->getSubscriberStatus($param['imsi']) : EventQueue::API_IS_SWITCHED_OFF;
                     break;
 
                 case EventQueue::SYNC_TELE2_SET_CFNRC:
