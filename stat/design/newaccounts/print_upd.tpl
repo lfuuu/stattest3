@@ -211,7 +211,9 @@ table.contract_table td {
                             </table>
                         </td>
                         <td align=center style="width: 100pt;">
-                            {if $bill_no_qr}<img src="{if $is_pdf == '1'}{$bill_no_qr_img.upd[$source]}{else}/utils/qr-code/get?data={$bill_no_qr.upd[$source]}{/if}">{else}&nbsp;{/if}</td>
+                            {if $bill}
+                                <img src="{qr_code_src bill_no=$bill.bill_no doc_type="upd" source=$source is_pdf=$is_pdf}">
+                            {else}&nbsp;{/if}</td>
                         </td>
                     </tr>
                 </table>

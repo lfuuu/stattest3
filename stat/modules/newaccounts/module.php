@@ -3141,23 +3141,6 @@ class m_newaccounts extends IModule
 
         if ($this->do_print_prepare($bill, $obj, $source, $curr, true, false, $invoiceId) || in_array($obj, ["order", "notice"])) {
 
-            $billNoQr = $bill->GetTs() >= strtotime("2013-05-01") ? BillQRCode::getNo($bill->GetNo()) : false;
-            $design->assign("bill_no_qr", $billNoQr);
-            if ($is_pdf && $billNoQr) {
-                $billNoQrImg = [];
-                foreach ($billNoQr as $key => $value) {
-                    if (is_array($value)) {
-                        foreach ($value as $subKey => $subValue) {
-                            $imageData = BillQRCode::generateGifData($subValue, 'H', 4, 2);
-                            $billNoQrImg[$key][$subKey] = $imageData === '' ? '' : 'data:image/gif;base64,' . base64_encode($imageData);
-                        }
-                    } else {
-                        $imageData = BillQRCode::generateGifData($value, 'H', 4, 2);
-                        $billNoQrImg[$key] = $imageData === '' ? '' : 'data:image/gif;base64,' . base64_encode($imageData);
-                    }
-                }
-                $design->assign("bill_no_qr_img", $billNoQrImg);
-            }
             $design->assign("source", $source);
 
             if ($source == 3 && $obj == 'akt') {

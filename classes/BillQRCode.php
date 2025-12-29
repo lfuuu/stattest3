@@ -98,7 +98,7 @@ class BillQRCode
 
     public static function getImgUrlByData($data)
     {
-        return $data ? '/utils/qr-code/get?data=' . $data : '';
+        return self::getImgByData($data, 'url');
     }
 
     public static function getImgTag($billNo, $docType = 'bill')
@@ -110,6 +110,28 @@ class BillQRCode
         }
 
         return '';
+    }
+
+    public static function getImgByData($data, $mode = 'url', $options = [], $mimeType = 'image/gif')
+    {
+        if (!$data) {
+            return '';
+        }
+
+        switch ($mode) {
+            case 'inline':
+                $imageData = self::generateGifData($data);
+                if (!$imageData) {
+                    return '';
+                }
+                $options['src'] = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                return Html::tag('img', '', $options);
+            case 'tag':
+                return '<img src="' . self::getImgUrlByData($data) . '" border="0"/>';
+            case 'url':
+            default:
+                return '/utils/qr-code/get?data=' . $data;
+        }
     }
 
     private static $qrCodeErrorCorrectionLevel = 'H';
@@ -138,19 +160,7 @@ class BillQRCode
 
     public static function getInlineImgTagByData($data, $options = [], $mimeType = 'image/gif')
     {
-        if (!$data) {
-            return '';
-        }
-
-        $imageData = self::generateGifData($data);
-
-        if (!$imageData) {
-            return '';
-        }
-
-        $options['src'] = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-
-        return Html::tag('img', '', $options);
+        return self::getImgByData($data, 'inline', $options, $mimeType);
     }
 
     private static function convertBillNo($billNo)

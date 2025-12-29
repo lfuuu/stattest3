@@ -32,8 +32,8 @@
                     Адрес: <strong>{$bill_client.address}</strong><br />
                     ИНН/КПП покупателя: <strong>{$bill_client.inn} / {$bill_client.kpp}</strong><br />
                 </td>
-                {if $bill_no_qr}
-                    <td align="right"><br><img src="{if $is_pdf == '1'}{$bill_no_qr_img.akt[$source]}{else}/utils/qr-code/get?data={$bill_no_qr.akt[$source]}{/if}"></td>
+                {if $bill}
+                    <td align="right"><br><img src="{qr_code_src bill_no=$bill.bill_no doc_type="akt" source=$source is_pdf=$is_pdf}"></td>
                 {/if}
             </tr>
         </table>

@@ -102,7 +102,7 @@ $isOsn = $payerCompany->getTaxRate() != 0;
                         <td colspan="2" align="center">
                             <?php
                             if (!$isCurrentStatement) {
-                                $qrData = $document->getQrCode();
+                                $qrData = BillQRCode::encode('bill', $document->bill->bill_no);
 
                                 if ($qrData) {
                                     if ($inline_img) {
