@@ -69,6 +69,8 @@ class ImsiTele2StatusBehavior extends Behavior
                     throw new ModelValidationException($card);
                 }
             }
+
+            EventQueue::go(EventQueue::SYNC_TELE2_GET_STATUS, ['imsi' => $model->imsi]);
         }
 
         if ($newMsisdn) {
@@ -82,6 +84,7 @@ class ImsiTele2StatusBehavior extends Behavior
                 false,
                 $oldMsisdn ? DateTimeZoneHelper::getUtcDateTime()->modify('+5 second')->format(DateTimeZoneHelper::DATETIME_FORMAT) : null
             );
+            EventQueue::go(EventQueue::SYNC_TELE2_GET_STATUS, ['imsi' => $model->imsi]);
         }
     }
 }
