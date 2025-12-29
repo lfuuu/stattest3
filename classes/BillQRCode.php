@@ -6,6 +6,10 @@ use app\classes\QRcode\QRcode;
 
 class BillQRCode
 {
+    const IMG_MODE_URL = 'url';
+    const IMG_MODE_TAG = 'tag';
+    const IMG_MODE_INLINE = 'inline';
+
     const NUMBER_FORMAT_LENGTH = 15; // new document number format
     const NUMBER_FORMAT_LENGTH_OLD = 13; // old format
     const NUMBER_FORMAT_LENGTH_UU = 12; // uu-format
@@ -98,7 +102,7 @@ class BillQRCode
 
     public static function getImgUrlByData($data)
     {
-        return self::getImgByData($data, 'url');
+        return self::getImgByData($data, self::IMG_MODE_URL);
     }
 
     public static function getImgTag($billNo, $docType = 'bill')
@@ -112,23 +116,42 @@ class BillQRCode
         return '';
     }
 
-    public static function getImgByData($data, $mode = 'url', $options = [], $mimeType = 'image/gif')
+    public static function getImgDataUriByData($data, $mimeType = 'image/gif')
+    {
+        if (!$data) {
+            return '';
+        }
+
+        $imageData = self::generateGifData($data);
+        if (!$imageData) {
+            return '';
+        }
+
+        return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+    }
+
+    public static function getImgDataUri($billNo, $docType = 'bill', $mimeType = 'image/gif')
+    {
+        $data = self::encode($docType, $billNo);
+        return self::getImgDataUriByData($data, $mimeType);
+    }
+
+    public static function getImgByData($data, $mode = self::IMG_MODE_URL, $options = [], $mimeType = 'image/gif')
     {
         if (!$data) {
             return '';
         }
 
         switch ($mode) {
-            case 'inline':
-                $imageData = self::generateGifData($data);
-                if (!$imageData) {
+            case self::IMG_MODE_INLINE:
+                $options['src'] = self::getImgDataUriByData($data, $mimeType);
+                if (!$options['src']) {
                     return '';
                 }
-                $options['src'] = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
                 return Html::tag('img', '', $options);
-            case 'tag':
+            case self::IMG_MODE_TAG:
                 return '<img src="' . self::getImgUrlByData($data) . '" border="0"/>';
-            case 'url':
+            case self::IMG_MODE_URL:
             default:
                 return '/utils/qr-code/get?data=' . $data;
         }
@@ -160,7 +183,7 @@ class BillQRCode
 
     public static function getInlineImgTagByData($data, $options = [], $mimeType = 'image/gif')
     {
-        return self::getImgByData($data, 'inline', $options, $mimeType);
+        return self::getImgByData($data, self::IMG_MODE_INLINE, $options, $mimeType);
     }
 
     private static function convertBillNo($billNo)

@@ -228,11 +228,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
      */
     private function _getAbsoluteQrUrl($billNo, $docType)
     {
-        $qrUrl = BillQRCode::getImgUrl($billNo, $docType);
-        if ($qrUrl && strpos($qrUrl, 'http') !== 0) {
-            $qrUrl = \Yii::$app->params['SITE_URL'] . ltrim($qrUrl, '/');
-        }
-        return $qrUrl;
+        return BillQRCode::getImgUrl($billNo, $docType);
     }
 
     /**
@@ -242,16 +238,6 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
      */
     private function _getInlineQrData($billNo, $docType)
     {
-        $data = BillQRCode::encode($docType, $billNo);
-        if (!$data) {
-            return '';
-        }
-
-        $imageData = BillQRCode::generateGifData($data);
-        if ($imageData === '') {
-            return '';
-        }
-
-        return 'data:image/gif;base64,' . base64_encode($imageData);
+        return BillQRCode::getImgDataUri($billNo, $docType);
     }
 }

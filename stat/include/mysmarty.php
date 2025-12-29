@@ -426,15 +426,11 @@ function smarty_function_qr_code_src($params)
         return '';
     }
 
-    if ($isPdf == '1' || $isPdf === 1 || $isPdf === true) {
-        $imageData = \app\classes\BillQRCode::generateGifData($qrData);
-        if (!$imageData) {
-            return '';
-        }
-        return 'data:image/gif;base64,' . base64_encode($imageData);
+    if ($isPdf) {
+        return \app\classes\BillQRCode::getImgDataUriByData($qrData);
     }
 
-    return \app\classes\BillQRCode::getImgByData($qrData, 'url');
+    return \app\classes\BillQRCode::getImgUrlByData($qrData);
 }
 
 function smarty_date_full($date)

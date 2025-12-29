@@ -2734,7 +2734,6 @@ class m_newaccounts extends IModule
                     'bill_no' => $bill->bill_no,
                     'isLink' => true,
                     'link' => '/bill.php?bill=' . Encrypt::encodeArray($obj),
-                    'bill_client' => $bill->client_id,
                 ];
                 $P .= ($P ? ',' : '') . '1';
             }
