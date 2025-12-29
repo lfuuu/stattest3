@@ -13,8 +13,8 @@ class QRCode
             "upd-3" => array("code" => "23", "c" => "upd", "s" => 3, "name" => "УПД Т"),
             "upd2-1" => ["code" => "31", "c" => "upd2", "s" => 1, "name" => "УПД2 1"],
             "upd2-2" => ["code" => "32", "c" => "upd2", "s" => 2, "name" => "УПД2 2"],
-            "upd2-3" => ["code" => "33", "c" => "upd2", "s" => 2, "name" => "УПД2 3"],
-            "upd2-4" => ["code" => "34", "c" => "upd2", "s" => 2, "name" => "УПД2 4"],
+            "upd2-3" => ["code" => "33", "c" => "upd2", "s" => 3, "name" => "УПД2 3"],
+            "upd2-4" => ["code" => "34", "c" => "upd2", "s" => 4, "name" => "УПД2 4"],
             );
 
     public static function encode($docType, $billNo)

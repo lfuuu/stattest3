@@ -25,8 +25,8 @@ class BillQRCode
         "upd-3" => ["code" => "23", "c" => "upd", "s" => 3, "name" => "УПД Т"],
         "upd2-1" => ["code" => "31", "c" => "upd2", "s" => 1, "name" => "УПД2 1"],
         "upd2-2" => ["code" => "32", "c" => "upd2", "s" => 2, "name" => "УПД2 2"],
-        "upd2-3" => ["code" => "33", "c" => "upd2", "s" => 2, "name" => "УПД2 3"],
-        "upd2-4" => ["code" => "34", "c" => "upd2", "s" => 2, "name" => "УПД2 4"],
+        "upd2-3" => ["code" => "33", "c" => "upd2", "s" => 3, "name" => "УПД2 3"],
+        "upd2-4" => ["code" => "34", "c" => "upd2", "s" => 4, "name" => "УПД2 4"],
     ];
 
     public static function encode($docType, $billNo)
@@ -96,6 +96,11 @@ class BillQRCode
         return $data ? '/utils/qr-code/get?data=' . $data : '';
     }
 
+    public static function getImgUrlByData($data)
+    {
+        return $data ? '/utils/qr-code/get?data=' . $data : '';
+    }
+
     public static function getImgTag($billNo, $docType = 'bill')
     {
         $url = self::getImgUrl($billNo, $docType);
@@ -107,13 +112,13 @@ class BillQRCode
         return '';
     }
 
-    private static $gifErrorLevel = 'H';
+    private static $qrCodeErrorCorrectionLevel = 'H';
     private static $gifSize = 4;
     private static $gifMargin = 2;
 
-    public static function setGifOptions($errorLevel = 'H', $size = 4, $margin = 2)
+    public static function setGifOptions($errorCorrectionLevel = 'H', $size = 4, $margin = 2)
     {
-        self::$gifErrorLevel = $errorLevel;
+        self::$qrCodeErrorCorrectionLevel = $errorCorrectionLevel;
         self::$gifSize = $size;
         self::$gifMargin = $margin;
     }
@@ -125,7 +130,7 @@ class BillQRCode
         }
 
         ob_start();
-        QRcode::gif(trim($data), false, self::$gifErrorLevel, self::$gifSize, self::$gifMargin);
+        QRcode::gif(trim($data), false, self::$qrCodeErrorCorrectionLevel, self::$gifSize, self::$gifMargin);
         $imageData = ob_get_clean();
 
         return $imageData === false ? '' : $imageData;
@@ -139,7 +144,7 @@ class BillQRCode
 
         $imageData = self::generateGifData($data);
 
-        if ($imageData === false || $imageData === '') {
+        if (!$imageData) {
             return '';
         }
 

@@ -129,7 +129,7 @@ $isOperatorBill = $document->getDocType() == DocumentReport::DOC_TYPE_BILL_OPERA
                                             ['border' => 0]
                                         );
                                     } else {
-                                        echo '<img src="/utils/qr-code/get?data=' . $qrData . '" border="0"/>';
+                                        echo '<img src="' . BillQRCode::getImgUrlByData($qrData) . '" border="0"/>';
                                     }
                                 }
                             }

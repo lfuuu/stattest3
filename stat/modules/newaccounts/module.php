@@ -2733,7 +2733,7 @@ class m_newaccounts extends IModule
                 $R[] = [
                     'bill_no' => $bill->bill_no,
                     'isLink' => true,
-                    'link' => '/bill.php?' . http_build_query($obj + $params),
+                    'link' => '/bill.php?bill=' . Encrypt::encodeArray($obj),
                     'bill_client' => $bill->client_id,
                 ];
                 $P .= ($P ? ',' : '') . '1';
@@ -3148,11 +3148,11 @@ class m_newaccounts extends IModule
                 foreach ($billNoQr as $key => $value) {
                     if (is_array($value)) {
                         foreach ($value as $subKey => $subValue) {
-                            $imageData = BillQRCode::generateGifData($subValue);
+                            $imageData = BillQRCode::generateGifData($subValue, 'H', 4, 2);
                             $billNoQrImg[$key][$subKey] = $imageData === '' ? '' : 'data:image/gif;base64,' . base64_encode($imageData);
                         }
                     } else {
-                        $imageData = BillQRCode::generateGifData($value);
+                        $imageData = BillQRCode::generateGifData($value, 'H', 4, 2);
                         $billNoQrImg[$key] = $imageData === '' ? '' : 'data:image/gif;base64,' . base64_encode($imageData);
                     }
                 }
