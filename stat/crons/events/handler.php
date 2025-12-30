@@ -89,7 +89,6 @@ $nnpEvents = ['event' => [
     EventQueue::ADD_RESOURCE_ON_ACCOUNT_TARIFFS,
     EventQueue::UPDATE_BALANCE_MASS,
     EventQueue::KSIM_GET_STATISTIC,
-    EventQueue::SYNC_TELE2_SET_GET_STATUS,
 ]];
 
 $syncEvents = ['event' => [
@@ -100,6 +99,15 @@ $syncEvents = ['event' => [
     UuModule::EVENT_ROBOCALL_INTERNAL_CREATE,
     UuModule::EVENT_ROBOCALL_INTERNAL_REMOVE,
     EventQueue::DADATA_BIK,
+
+    EventQueue::SYNC_TELE2_GET_IMSI,
+    EventQueue::SYNC_TELE2_LINK_IMSI,
+    EventQueue::SYNC_TELE2_UNSET_IMSI,
+    EventQueue::SYNC_TELE2_UNLINK_IMSI,
+    EventQueue::SYNC_TELE2_SET_GET_STATUS,
+    EventQueue::SYNC_TELE2_GET_STATUS,
+    EventQueue::SYNC_TELE2_SET_CFNRC,
+    EventQueue::SYNC_TELE2_UNSET_CFNRC,
 ]];
 
 $uuSyncEvents = ['event' => [
