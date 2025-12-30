@@ -99,7 +99,9 @@ $syncEvents = ['event' => [
     UuModule::EVENT_ROBOCALL_INTERNAL_CREATE,
     UuModule::EVENT_ROBOCALL_INTERNAL_REMOVE,
     EventQueue::DADATA_BIK,
+]];
 
+$syncT2Events = ['event' => [
     EventQueue::SYNC_TELE2_GET_IMSI,
     EventQueue::SYNC_TELE2_LINK_IMSI,
     EventQueue::SYNC_TELE2_UNSET_IMSI,
@@ -128,11 +130,12 @@ $kafkaEvents = ['event' => [
 
 $map = [
     'with_account_tariff' => [['NOT', ['account_tariff_id' => null]], ['NOT', $uuSyncEvents], ['NOT', $kafkaEvents]], // account_tariff_id => not null =>> already ['NOT', $syncEvents] && ['NOT', $nnpEvents]
-    'without_account_tariff' => [['account_tariff_id' => null], ['NOT', $nnpEvents], ['NOT', $syncEvents], ['NOT', $uuSyncEvents], ['NOT', $kafkaEvents]],
+    'without_account_tariff' => [['account_tariff_id' => null], ['NOT', $nnpEvents], ['NOT', $syncEvents], ['NOT', $syncT2Events], ['NOT', $uuSyncEvents], ['NOT', $kafkaEvents]],
 
     'kafka' => [$kafkaEvents], // kafka events
     'uu_sync' => [$uuSyncEvents],
     'ats3_sync' => [$syncEvents], // all sync events
+    'sync_t2' => [$syncT2Events], // all sync events
     'nnp' => [$nnpEvents],
 
     'no_nnp' => [['NOT', $nnpEvents]], //для служебного пользования
