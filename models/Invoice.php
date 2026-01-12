@@ -486,6 +486,33 @@ class Invoice extends ActiveRecord
     }
 
     /**
+     * Возвращает тип QR-документа для счета-фактуры.
+     *
+     * @param string|null $overrideDocType
+     * @return string
+     */
+    public function getQrDocType($overrideDocType = null)
+    {
+        if ($overrideDocType) {
+            return $overrideDocType;
+        }
+
+        $invoiceDate = new \DateTimeImmutable($this->date);
+        if ($invoiceDate >= new \DateTimeImmutable('2026-01-01')) {
+            return 'upd-2';
+        }
+
+        $map = [
+            self::TYPE_1 => 'upd-1',
+            self::TYPE_2 => 'upd-2',
+            self::TYPE_GOOD => 'upd-3',
+            self::TYPE_PREPAID => 'upd-1',
+        ];
+
+        return $map[$this->type_id] ?? 'bill';
+    }
+
+    /**
      * Получаем Invoice, который сторнировали
      *
      * @return Invoice

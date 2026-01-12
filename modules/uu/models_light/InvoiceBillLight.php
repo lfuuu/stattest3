@@ -28,7 +28,6 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $qr_code = '';
 
     private $_language;
-    private $_qrDocType;
     private $_isPdf;
 
     /**
@@ -49,7 +48,6 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         }
 
         $this->_language = $language;
-        $this->_qrDocType = $qrDocType;
         $this->_isPdf = $isPdf;
 
         $statBill = $this->_getStatBill($bill);
@@ -72,7 +70,9 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
         $this->client_id = $statBill->client_id;
 
-        $docType = $this->_getQrDocType($invoice);
+        $docType = $invoice
+            ? $invoice->getQrDocType($qrDocType)
+            : 'bill';
         $this->qr_code = $this->_isPdf
             ? BillQRCode::getImgDataUri($statBill->bill_no, $docType)
             : BillQRCode::getImgUrl($statBill->bill_no, $docType);
@@ -196,29 +196,4 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $this->payment_type = \Yii::t('biller', $bill->nal, [], $this->_language);
     }
 
-    /**
-     * @param Invoice|null $invoice
-     * @return string
-     */
-    private function _getQrDocType($invoice)
-    {
-        if ($this->_qrDocType) {
-            return $this->_qrDocType;
-        }
-
-        if (!$invoice) {
-            return 'bill';
-        }
-
-        $typeId = $invoice->type_id;
-        $map = [
-            Invoice::TYPE_1 => 'upd-1',
-            Invoice::TYPE_2 => 'upd-2',
-            Invoice::TYPE_GOOD => 'upd-3',
-            Invoice::TYPE_PREPAID => 'upd-1',
-        ];
-
-        return $map[$typeId] ?? 'bill';
-    }
-
-}
+} 
