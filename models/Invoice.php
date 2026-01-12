@@ -75,6 +75,18 @@ class Invoice extends ActiveRecord
     public $isAsInsert = false;
 
     public const dateField = 'date';
+    private const QR_DOC_TYPE_MAP = [
+        self::TYPE_1 => 'upd-1',
+        self::TYPE_2 => 'upd-2',
+        self::TYPE_GOOD => 'upd-3',
+        self::TYPE_PREPAID => 'upd-1',
+    ];
+    private const QR_DOC_TYPE_MAP_2026 = [
+        self::TYPE_1 => 'upd2-1',
+        self::TYPE_2 => 'upd2-2',
+        self::TYPE_GOOD => 'upd2-3',
+        self::TYPE_PREPAID => 'upd2-1',
+    ];
 
     /**
      * Название таблицы
@@ -499,17 +511,10 @@ class Invoice extends ActiveRecord
 
         $invoiceDate = new \DateTimeImmutable($this->date);
         if ($invoiceDate >= new \DateTimeImmutable('2026-01-01')) {
-            return 'upd-2';
+            return self::QR_DOC_TYPE_MAP_2026[$this->type_id] ?? 'bill';
         }
 
-        $map = [
-            self::TYPE_1 => 'upd-1',
-            self::TYPE_2 => 'upd-2',
-            self::TYPE_GOOD => 'upd-3',
-            self::TYPE_PREPAID => 'upd-1',
-        ];
-
-        return $map[$this->type_id] ?? 'bill';
+        return self::QR_DOC_TYPE_MAP[$this->type_id] ?? 'bill';
     }
 
     /**
