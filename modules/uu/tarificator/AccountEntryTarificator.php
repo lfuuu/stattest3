@@ -383,7 +383,12 @@ SQL;
 
             // специальная папка "Госники - 20% НДС"
             if ($contract->business_process_status_id == BusinessProcessStatus::TELEKOM_MAINTENANCE_GOVERNMENT_AGENCIES) {
-                $vatRate = 20;
+//                $vatRate = 20;
+                $contract = $clientAccount->getContract($row['date']);
+
+                $clientDateVatKey = $row['client_account_id'] . '_' . $row['date'];
+                $clientDateVatCache[$clientDateVatKey] = ClientContract::dao()->getEffectiveVATRate($contract, $row['date']);
+                $vatRate = $clientDateVatCache[$clientDateVatKey];
             }
 
             // В тарифе установлен агентский НДС

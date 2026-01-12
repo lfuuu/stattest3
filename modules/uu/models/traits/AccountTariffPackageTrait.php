@@ -160,6 +160,7 @@ trait AccountTariffPackageTrait
             $msg = 'Не найден базовый пакет для услуги ' . $this->id;
             HandlerLogger::me()->add($msg);
             Yii::error($msg, 'uu');
+            throw new \LogicException($msg);
             return;
         }
 
