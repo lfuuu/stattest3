@@ -99,6 +99,7 @@ $syncEvents = ['event' => [
     UuModule::EVENT_ROBOCALL_INTERNAL_CREATE,
     UuModule::EVENT_ROBOCALL_INTERNAL_REMOVE,
     EventQueue::DADATA_BIK,
+    EventQueue::SYNC_TELE2_SET_GET_STATUS,
 ]];
 
 $syncT2Events = ['event' => [
@@ -106,7 +107,6 @@ $syncT2Events = ['event' => [
     EventQueue::SYNC_TELE2_LINK_IMSI,
     EventQueue::SYNC_TELE2_UNSET_IMSI,
     EventQueue::SYNC_TELE2_UNLINK_IMSI,
-    EventQueue::SYNC_TELE2_SET_GET_STATUS,
     EventQueue::SYNC_TELE2_GET_STATUS,
     EventQueue::SYNC_TELE2_SET_CFNRC,
     EventQueue::SYNC_TELE2_UNSET_CFNRC,

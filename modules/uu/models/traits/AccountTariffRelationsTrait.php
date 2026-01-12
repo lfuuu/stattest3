@@ -30,8 +30,6 @@ use yii\db\ActiveQuery;
 use yii\db\Expression;
 
 /**
- * @property string iccid
- * @property-read string iccid_saved_at_utc
  * @property-read ClientAccount $clientAccount
  * @property-read ServiceType $serviceType
  * @property-read ResourceModel[] $resources
@@ -64,6 +62,9 @@ use yii\db\Expression;
  * @property-read AccountTariffHelper $helper
  * @property-read AccountTariffExtVoip $extVoip
  * @property-read Card $iccidModel
+ *
+ * @property string iccid
+ * @property-read string iccid_saved_at_utc
  *
  * @method ActiveQuery hasMany($class, array $link) see [[BaseActiveRecord::hasMany()]] for more info
  * @method ActiveQuery hasOne($class, array $link) see [[BaseActiveRecord::hasOne()]] for more info
