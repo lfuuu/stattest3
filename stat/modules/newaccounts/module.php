@@ -28,7 +28,6 @@ use app\models\CurrencyRate;
 use app\models\filter\PartnerRewardsFilter;
 use app\models\GoodPriceType;
 use app\models\Invoice;
-use app\models\document\PaymentTemplateType;
 use app\models\Language;
 use app\models\OperationType;
 use app\models\Organization;
@@ -2688,6 +2687,7 @@ class m_newaccounts extends IModule
 
             foreach ($printDocs as $printDocId) {
                 $templateTypeId = \app\models\document\PaymentTemplateType::TYPE_ID_UPD;
+
                 if ($printDocId == 'upd2-1') {
                     $invoiceTypeId = Invoice::TYPE_1;
                 } elseif ($printDocId == 'upd2-2') {
@@ -2697,8 +2697,6 @@ class m_newaccounts extends IModule
                 } else {
                     continue;
                 }
-
-                $documentType = $printDocId;
 
                 /** @var Invoice $invoiceObject */
                 $invoiceObject = Invoice::find()->where(['bill_no' => $bill->bill_no, 'type_id' => $invoiceTypeId])->orderBy(['id' => SORT_DESC])->one();
@@ -2714,27 +2712,20 @@ class m_newaccounts extends IModule
                     'template_type_id' => $templateTypeId,
                     'country_code' => $bill->clientAccount->getUuCountryId(),
                     'include_signature_stamp' => false,
-                    'document_type' => $documentType,
-                    'is_pdf' => $isPDF,
                 ];
 
                 $printObjects[] = $printObject;
-                $printObjects[] = array_merge($printObject, ['include_signature_stamp' => true]);
+//                $printObjects['include_signature_stamp'] = true;
+//                $printObjects[] = $printObject;
             }
 
             foreach ($printObjects as $idx => $obj) {
-                $params = [
-                    'to_print' => 'true',
-                ];
-                if (!empty($obj['include_signature_stamp'])) {
-                    $params['include_signature_stamp'] = 1;
-                }
-
                 $R[] = [
-                    'bill_no' => $bill->bill_no,
                     'isLink' => true,
-                    'link' => '/bill.php?bill=' . Encrypt::encodeArray($obj),
+                    'link' => \Yii::$app->params['SITE_URL'] . 'bill.php?bill=' . Encrypt::encodeArray($obj)
+//                    'link' => \Yii::$app->params['SITE_URL'] . 'bill.php?' . http_build_query($obj)
                 ];
+
                 $P .= ($P ? ',' : '') . '1';
             }
         }
@@ -3140,6 +3131,8 @@ class m_newaccounts extends IModule
 
         if ($this->do_print_prepare($bill, $obj, $source, $curr, true, false, $invoiceId) || in_array($obj, ["order", "notice"])) {
 
+            $design->assign("bill_no_qr",
+                ($bill->GetTs() >= strtotime("2013-05-01") ? BillQRCode::getNo($bill->GetNo()) : false));
             $design->assign("source", $source);
 
             if ($source == 3 && $obj == 'akt') {
