@@ -48,7 +48,14 @@ if ($R) {
 }
 
 
-$isPdf = isset($R['is_pdf']) && $R['is_pdf'] == 1;
+if (isset($R['renderMode'])) {
+    $isPdf = ($R['renderMode'] === 'pdf');
+} elseif (isset($R['is_pdf'])) {
+    $isPdf = ((int)$R['is_pdf'] === 1);
+} else {
+    $isPdf = false;
+}
+$isPdf = (bool)$isPdf;
 $isEmailed = get_param_raw('emailed', 1);
 $isLandscape = (bool)($R['is_portrait'] ?? false);
 $isIncludeSignatureStamp = isset($R['include_signature_stamp']) && (bool)$R['include_signature_stamp'] ? true : false;
@@ -284,14 +291,21 @@ if (
     $invoiceDocument->setBill($bill);
     $invoiceDocument->setCountry($R['country_code']);
     $invoiceDocument->setTemplateType($templateTypeId);
+    $invoiceDocument->setQrDocType($R['document_type'] ?? null);
 
-    $pdfContent = $invoiceDocument->render(true, $isLandscape, $isIncludeSignatureStamp);
+    $content = $invoiceDocument->render($isPdf, $isLandscape, $isIncludeSignatureStamp);
 
     $attachmentName = $clientAccount->id . '-' . $R['document_number'] . '.pdf';
 
-    Yii::$app->response->format = Response::FORMAT_RAW;
-    Yii::$app->response->content = $pdfContent;
-    Yii::$app->response->setDownloadHeaders($attachmentName, 'application/pdf', true);
+    Yii::$app->response->content = $content;
+
+    if ($isPdf) {
+        Yii::$app->response->format = Response::FORMAT_RAW;
+        Yii::$app->response->setDownloadHeaders($attachmentName, 'application/pdf', true);
+    } else {
+        Yii::$app->response->format = Response::FORMAT_HTML;
+        Yii::$app->response->headers->set('Content-Type', 'text/html; charset=utf-8');
+    }
 
     \Yii::$app->end();
 }
