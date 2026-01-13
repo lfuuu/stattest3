@@ -331,7 +331,16 @@ if (
         $isEmailed
     );
 
-    echo $isPdf ? $report->renderAsPDF() : $report->render();
+    if ($isPdf) {
+        $pdfContent = $report->renderAsPDF();
+        Yii::$app->response->format = Response::FORMAT_RAW;
+        Yii::$app->response->content = $pdfContent;
+        Yii::$app->response->headers->set('Content-Type', 'application/pdf');
+        Yii::$app->response->setDownloadHeaders('bill.pdf', 'application/pdf', true);
+        \Yii::$app->end();
+    }
+
+    echo $report->render();
 } else {
     global $design;
 
