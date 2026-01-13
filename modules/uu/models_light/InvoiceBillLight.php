@@ -28,13 +28,16 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $qr_code = '';
 
     private $_language;
+    private $_isPdf;
 
     /**
      * @param Bill|uuBill $bill
      * @param Invoice $invoice
      * @param string $language
+     * @param string|null $qrDocType
+     * @param bool $isPdf
      */
-    public function __construct($bill, $invoice, $language)
+    public function __construct($bill, $invoice, $language, $qrDocType = null, $isPdf = false)
     {
         parent::__construct();
 
@@ -45,6 +48,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         }
 
         $this->_language = $language;
+        $this->_isPdf = $isPdf;
 
         $statBill = $this->_getStatBill($bill);
 
@@ -66,7 +70,12 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
         $this->client_id = $statBill->client_id;
 
-        $this->qr_code = BillQRCode::getImgTag($statBill->bill_no);
+        $docType = $invoice
+            ? $invoice->getQrDocType($qrDocType)
+            : 'bill';
+        $this->qr_code = $this->_isPdf
+            ? BillQRCode::getImgDataUri($statBill->bill_no, $docType)
+            : BillQRCode::getImgUrl($statBill->bill_no, $docType);
     }
 
     /**
@@ -187,4 +196,4 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $this->payment_type = \Yii::t('biller', $bill->nal, [], $this->_language);
     }
 
-}
+} 
