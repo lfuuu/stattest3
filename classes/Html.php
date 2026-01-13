@@ -35,6 +35,23 @@ class Html extends \yii\helpers\Html
     }
 
     /**
+     * @param string $data
+     * @param array $options
+     * @param string $mimeType
+     * @return string
+     */
+    public static function inlineImgFromBinaryData($data, $options = [], $mimeType = 'image/gif')
+    {
+        if ($data === '' || $data === false || $data === null) {
+            return '';
+        }
+
+        $options['src'] = 'data:' . $mimeType . ';base64,' . base64_encode($data);
+
+        return static::tag('img', '', $options);
+    }
+
+    /**
      * @param string $text
      * @param array $options
      * @return string
