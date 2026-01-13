@@ -313,11 +313,11 @@ echo \yii\widgets\Breadcrumbs::widget([
                                         break;
 
                                     case NumberLog::ACTION_WITH_DISCOUNT:
-                                        echo 'Продается <b>со скидкой</b>';
+                                        echo '<b>Установлена скидка</b> при продаже номера';
                                         break;
 
                                     case NumberLog::ACTION_NO_DISCOUNT:
-                                        echo 'Продается <b>без скидки</b>';
+                                        echo '<b>Убрата скидка</b> при продаже номера';
                                         break;
                                         ?>
                                     <?php } ?>
