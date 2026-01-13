@@ -23,6 +23,7 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
         "lading",
         "new_director_info",
         "upd",
+        "upd2",
         "notice_mcm_telekom",
         "sogl_mcm_telekom",
         "sogl_mcn_service",
@@ -69,7 +70,10 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
 
 
             $addWhere = [];
-            if ($bill->clientAccount->organization->country_id == \app\models\Country::RUSSIA) {
+            if (
+                $bill->clientAccount->organization->country_id == \app\models\Country::RUSSIA
+                && in_array($R['obj'], ['invoice', 'akt'], true)
+            ) {
                 $addWhere = [($R['obj'] == 'invoice' ? 'is_invoice' : 'is_act') => 1];
             }
 //            if ($bill->clientAccount->organization->country_id != \app\models\Country::RUSSIA) {
@@ -101,4 +105,3 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
         }
     }
 }
-

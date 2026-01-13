@@ -321,13 +321,10 @@ class MailJob {
 
             isset($invoices[1]) && $invoice1 = $invoices[1];
             isset($invoices[2]) && $invoice2 = $invoices[2];
-
-
             if ($this->countryId == \app\models\Country::RUSSIA) {
-                /* @TODO upd2 */
                 [$b_akt, $b_sf, $b_upd, $b_upd2] = m_newaccounts::get_bill_docs_static($bill->bill_no);
             } else {
-                $b_akt = $b_sf = $b_upd = [null, false, false];
+                $b_akt = $b_sf = $b_upd = $b_upd2 = [null, false, false];
                 $b_sf[1] = true;
                 $b_sf[2] = true;
             }
@@ -340,6 +337,8 @@ class MailJob {
                 $b_akt[2] && $invoice2 && $msg .= $this->_getMsgline($invoice2, 'act', 2, $isPdf);
                 $b_upd[1] && $invoice1 && $msg .= $this->_getMsgline($invoice1, 'upd', 1, $isPdf);
                 $b_upd[2] && $invoice2 && $msg .= $this->_getMsgline($invoice2, 'upd', 2, $isPdf);
+                $b_upd2[1] && $invoice1 && $msg .= $this->_getMsgline($invoice1, 'upd2', 1, $isPdf);
+                $b_upd2[2] && $invoice2 && $msg .= $this->_getMsgline($invoice2, 'upd2', 2, $isPdf);
                 $msg .= "\n******************\n";
             }
 
@@ -347,6 +346,8 @@ class MailJob {
             $b_sf[2] && $invoice2 && ++$count && $this->_get_file_by_invoice($invoice2, 'invoice') && $this->_isInvoice = true;
             $b_akt[1] && $invoice1 && ++$count && $this->_get_file_by_invoice($invoice1, 'act') && $this->_isInvoice = true;
             $b_akt[2] && $invoice2 && ++$count && $this->_get_file_by_invoice($invoice2, 'act') && $this->_isInvoice = true;
+            $b_upd2[1] && $invoice1 && ++$count && $this->_get_file_by_invoice($invoice1, 'upd2') && $this->_isInvoice = true;
+            $b_upd2[2] && $invoice2 && ++$count && $this->_get_file_by_invoice($invoice2, 'upd2') && $this->_isInvoice = true;
         }
 
         if (!$this->_isInvoice) {
