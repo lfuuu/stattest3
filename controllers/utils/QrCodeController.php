@@ -8,7 +8,6 @@ use app\models\Organization;
 use Yii;
 use yii\web\Response;
 use app\classes\BaseController;
-use app\classes\BillQRCode;
 use app\classes\QRcode\QRcode;
 
 class QrCodeController extends BaseController
@@ -33,8 +32,7 @@ class QrCodeController extends BaseController
         $response->headers->set('Content-Type', 'image/gif');
         $response->format = Response::FORMAT_RAW;
 
-        $response->content = BillQRCode::generateGifData($data);
-        Yii::$app->end();
+        QRcode::gif(trim($data), false, 'H', 4, 2);
         //\PHPQRCode\QRcode::png(trim($data), false, 'H', 4, 2);
     }
 
@@ -112,8 +110,6 @@ class QrCodeController extends BaseController
         $response->headers->set('Content-Type', 'image/gif');
         $response->format = Response::FORMAT_RAW;
 
-        BillQRCode::setGifOptions('M', 3, 1);
-        $response->content = BillQRCode::generateGifData($qrString);
-        Yii::$app->end();
+        QRcode::gif(trim($qrString), false, 'M', 3, 1);
     }
 }
