@@ -174,9 +174,14 @@ class BillQRCode
             return '';
         }
 
-        ob_start();
-        QRcode::gif(trim($data), false, self::$qrCodeErrorCorrectionLevel, self::$gifSize, self::$gifMargin);
-        $imageData = ob_get_clean();
+        $tmpFile = tempnam(sys_get_temp_dir(), 'bill_qr_');
+        if ($tmpFile === false) {
+            return '';
+        }
+
+        QRcode::gif(trim($data), $tmpFile, self::$qrCodeErrorCorrectionLevel, self::$gifSize, self::$gifMargin);
+        $imageData = @file_get_contents($tmpFile);
+        @unlink($tmpFile);
 
         return $imageData === false ? '' : $imageData;
     }
