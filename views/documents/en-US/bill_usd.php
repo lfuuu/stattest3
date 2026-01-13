@@ -7,7 +7,6 @@ use app\classes\Html;
 use app\helpers\MediaFileHelper;
 use app\models\Currency;
 use app\models\Language;
-use app\classes\BillQRCode;
 
 $organization = $document->organization;
 $bill = $document->bill;
@@ -119,22 +118,14 @@ $isOperatorBill = $document->getDocType() == DocumentReport::DOC_TYPE_BILL_OPERA
                     <tr>
                         <td colspan="2" align="center">
                             <?php
-                            if (!$isCurrentStatement) {
-                                $qrData = BillQRCode::encode('bill', $document->bill->bill_no);
-
-                                if ($qrData) {
-                                    if ($inline_img) {
-                                        echo Html::inlineImgFromBinaryData(
-                                            BillQRCode::generateGifData($qrData),
-                                            ['border' => 0]
-                                        );
-                                    } else {
-                                        echo '<img src="' . BillQRCode::getImgUrlByData($qrData) . '" border="0"/>';
-                                    }
-                                }
-                            }
-                            ?>
-                            </td>
+                            if (!$isCurrentStatement):
+                                if ($inline_img):
+                                    echo Html::inlineImg(Yii::$app->request->hostInfo . '/utils/qr-code/get?data=' . $document->getQrCode(), [], 'image/gif');
+                                else: ?>
+                                    <img src="/utils/qr-code/get?data=<?= $document->getQrCode(); ?>" border="0"/>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 </table>
             <?php endif; ?>

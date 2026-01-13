@@ -408,31 +408,6 @@ function smarty_modifier_currencySymbol($currency)
 	return Currency::symbol($currency);
 }
 
-function smarty_function_qr_code_src($params)
-{
-    $billNo = $params['bill_no'] ?? null;
-    $docType = $params['doc_type'] ?? null;
-    $source = $params['source'] ?? null;
-    $isPdf = $params['is_pdf'] ?? null;
-
-    if (!$billNo || !$docType) {
-        return '';
-    }
-
-    $docTypeKey = $source ? $docType . '-' . $source : $docType;
-    $qrData = \app\classes\BillQRCode::encode($docTypeKey, $billNo);
-
-    if (!$qrData) {
-        return '';
-    }
-
-    if ($isPdf) {
-        return \app\classes\BillQRCode::getImgDataUriByData($qrData);
-    }
-
-    return \app\classes\BillQRCode::getImgUrlByData($qrData);
-}
-
 function smarty_date_full($date)
 {
 	if (!$date || $date == "0000-00-00 00:00:00") {
@@ -473,7 +448,6 @@ class MySmarty extends SmartyStat {
 		$this->register_function('get_region_by_dgroups','__get_region_by_dgroups');
 		$this->register_function('get_minutes_by_seconds','__get_minutes_by_seconds');
 		$this->register_function('get_time','__get_time');
-		$this->register_function('qr_code_src','smarty_function_qr_code_src');
 		$this->register_modifier('money','smarty_modifier_money');
 		$this->register_modifier('time_period','time_period');
 		$this->register_modifier('hl','smarty_modifier_hl');
