@@ -23,6 +23,7 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
         "lading",
         "new_director_info",
         "upd",
+        "upd2",
         "notice_mcm_telekom",
         "sogl_mcm_telekom",
         "sogl_mcn_service",
@@ -70,14 +71,27 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
 
             $addWhere = [];
             if ($bill->clientAccount->organization->country_id == \app\models\Country::RUSSIA) {
-                $addWhere = [($R['obj'] == 'invoice' ? 'is_invoice' : 'is_act') => 1];
+                if ($R['obj'] == 'invoice') {
+                    $addWhere = ['is_invoice' => 1];
+                } elseif ($R['obj'] == 'akt') {
+                    $addWhere = ['is_act' => 1];
+                }
             }
 //            if ($bill->clientAccount->organization->country_id != \app\models\Country::RUSSIA) {
             /** @var \app\models\Invoice $invoice */
             $invoice = \app\models\Invoice::find()->where(['bill_no' => $bill->bill_no, 'type_id' => $R['source']])->andWhere($addWhere)->one();
             $documentStr = $bill->clientAccount->organization->country_id != \app\models\Country::RUSSIA ? 'invoice' : ($R['obj'] == 'akt' ? 'act' : $R['obj']);
+            if ($documentStr === 'upd2') {
+                $fileName = $invoice->getFileName($documentStr);
+                header('Content-Type: application/pdf');
+                header('Content-disposition: inline; filename="' . $fileName . '"');
+                $content = $invoice->renderUpd2Pdf(true);
+                if ($content) {
+                    echo $content;
+                }
+                exit;
+            }
             $path = $invoice->getFilePath($documentStr);
-
             $info = pathinfo($path);
             header('Content-Type: application/pdf');
             header('Content-disposition: inline; filename="' . $info['basename'] . '"');
@@ -101,4 +115,3 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
         }
     }
 }
-

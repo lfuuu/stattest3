@@ -313,6 +313,7 @@ class MailJob {
 
         /** @var \app\models\Bill $bill */
         foreach ($billQuery->each() as $bill) {
+            $invoice1 = $invoice2 = null;
             $invoices = $bill->invoices;
 
             if (!$invoices) {
@@ -324,10 +325,10 @@ class MailJob {
 
 
             if ($this->countryId == \app\models\Country::RUSSIA) {
-                /* @TODO upd2 */
                 [$b_akt, $b_sf, $b_upd, $b_upd2] = m_newaccounts::get_bill_docs_static($bill->bill_no);
             } else {
                 $b_akt = $b_sf = $b_upd = [null, false, false];
+                $b_upd2 = [null, false, false, false];
                 $b_sf[1] = true;
                 $b_sf[2] = true;
             }
@@ -340,6 +341,8 @@ class MailJob {
                 $b_akt[2] && $invoice2 && $msg .= $this->_getMsgline($invoice2, 'act', 2, $isPdf);
                 $b_upd[1] && $invoice1 && $msg .= $this->_getMsgline($invoice1, 'upd', 1, $isPdf);
                 $b_upd[2] && $invoice2 && $msg .= $this->_getMsgline($invoice2, 'upd', 2, $isPdf);
+                $b_upd2[1] && $invoice1 && $msg .= $this->_getMsgline($invoice1, 'upd2', 1, $isPdf);
+                $b_upd2[2] && $invoice2 && $msg .= $this->_getMsgline($invoice2, 'upd2', 2, $isPdf);
                 $msg .= "\n******************\n";
             }
 
@@ -347,6 +350,8 @@ class MailJob {
             $b_sf[2] && $invoice2 && ++$count && $this->_get_file_by_invoice($invoice2, 'invoice') && $this->_isInvoice = true;
             $b_akt[1] && $invoice1 && ++$count && $this->_get_file_by_invoice($invoice1, 'act') && $this->_isInvoice = true;
             $b_akt[2] && $invoice2 && ++$count && $this->_get_file_by_invoice($invoice2, 'act') && $this->_isInvoice = true;
+            $b_upd2[1] && $invoice1 && ++$count && $this->_get_file_by_invoice($invoice1, 'upd2') && $this->_isInvoice = true;
+            $b_upd2[2] && $invoice2 && ++$count && $this->_get_file_by_invoice($invoice2, 'upd2') && $this->_isInvoice = true;
         }
 
         if (!$this->_isInvoice) {
@@ -370,7 +375,8 @@ class MailJob {
      */
     private function _getMsgline($invoice, $type, $typeId, $isPdf)
     {
-        return "\n" . Yii::t('biller', $type, [], $this->lang) . " " . $invoice->number . ": " . $this->get_object_link($type, $invoice->bill_no, $typeId, $isPdf) .
+        $labelType = $type === 'upd2' ? 'upd' : $type;
+        return "\n" . Yii::t('biller', $labelType, [], $this->lang) . " " . $invoice->number . ": " . $this->get_object_link($type, $invoice->bill_no, $typeId, $isPdf) .
             ($this->_get_file_by_invoice($invoice, $type) ? ' - OK' : ' - нет печатной версии документа');
 	}
 
@@ -383,6 +389,12 @@ class MailJob {
 
         $path = $invoice->getFilePath($document);
         $info = pathinfo($path);
+        if ($document === 'upd2' && !file_exists($path)) {
+            $content = $invoice->renderUpd2Pdf(false);
+            if ($content) {
+                file_put_contents($path, $content);
+            }
+        }
         if (!file_exists($path)) {
             return false;
         }

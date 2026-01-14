@@ -13,6 +13,7 @@ use app\exceptions\ModelValidationException;
 use app\helpers\DateTimeZoneHelper;
 use app\modules\sbisTenzor\models\SBISGeneratedDraft;
 use app\modules\uu\models_light\InvoiceLight;
+use app\models\document\PaymentTemplateType;
 use yii\base\InvalidCallException;
 use yii\db\Expression;
 use yii\helpers\Url;
@@ -827,10 +828,16 @@ class Invoice extends ActiveRecord
             return null;
         }
 
-        if (in_array($this->organization_id, [Organization::TEL2TEL_KFT, Organization::TEL2TEL_GMBH])) {
+        if ($document === 'upd2') {
+            $pdf = $this->renderUpd2Pdf(false);
+        } elseif (in_array($this->organization_id, [Organization::TEL2TEL_KFT, Organization::TEL2TEL_GMBH])) {
             $pdf = $this->getContentTemplate1Pdf();
         } else {
             $pdf = $this->downloadPdfContent($document);
+        }
+
+        if (!$pdf) {
+            return false;
         }
 
         return file_put_contents($filePath, $pdf);
@@ -886,6 +893,37 @@ class Invoice extends ActiveRecord
         }
 
         return $req->content;
+    }
+
+    /**
+     * @param bool $includeSignatureStamp
+     * @return string|null
+     */
+    public function renderUpd2Pdf($includeSignatureStamp = false)
+    {
+        $bill = $this->bill;
+        if (!$bill) {
+            return null;
+        }
+
+        $clientAccount = $bill->clientAccount;
+        if (!$clientAccount) {
+            return null;
+        }
+
+        $templateType = PaymentTemplateType::findOne(['id' => PaymentTemplateType::TYPE_ID_UPD]);
+        $isLandscape = $templateType ? !(bool)$templateType->is_portrait : null;
+        $countryCode = $clientAccount->getUuCountryId() ?: \app\models\Country::RUSSIA;
+        $docType = self::QR_DOC_TYPE_MAP_2026[$this->type_id] ?? null;
+
+        $invoiceDocument = (new InvoiceLight($clientAccount))
+            ->setInvoice($this)
+            ->setBill($bill)
+            ->setCountry($countryCode)
+            ->setTemplateType(PaymentTemplateType::TYPE_ID_UPD)
+            ->setQrDocType($docType);
+
+        return $invoiceDocument->render(true, $isLandscape, $includeSignatureStamp);
     }
 
     /**
