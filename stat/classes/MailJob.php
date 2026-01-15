@@ -383,6 +383,7 @@ class MailJob {
             return false;
         }
 
+        /** @var \app\models\Invoice $invoice */
         $path = $invoice->getFilePath($document);
         $info = pathinfo($path);
         if (!file_exists($path)) {

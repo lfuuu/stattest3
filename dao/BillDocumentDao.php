@@ -98,7 +98,8 @@ class BillDocumentDao extends Singleton
         $doctypes = [
             'a1' => 0, 'a2' => 0, 'a3' => 0,
             'i1' => 0, 'i2' => 0, 'i3' => 0, 'i4' => 0, 'i5' => 0, 'i6' => 0, 'i7' => 0,
-            'ia1' => 0, 'ia2' => 0
+            'ia1' => 0, 'ia2' => 0,
+            'upd2_1' => 0, 'upd2_2' => 0
         ];
 
         $organizationCountryId = Organization::find()
@@ -124,7 +125,12 @@ class BillDocumentDao extends Singleton
 
             for ($i = 1; $i <= 2; $i++) {
                 $v = $this->_isSF($accountId, BillDocument::TYPE_UPD, $this->_getDocumentDateByLines($bill_invoice_akts[$i], $billTs));
-                $doctypes['ia' . $i] = $v === null ? 0 : (int)!$v;
+                $doctypes['ia' . $i] = (int)$v;
+            }
+
+            for ($i = 1; $i <= 2; $i++) {
+                $v = $this->_isSF($accountId, BillDocument::TYPE_UPD2, $this->_getDocumentDateByLines($bill_invoice_akts[$i], $billTs));
+                $doctypes['upd2_' . $i] = (int)$v;
             }
         }
 
@@ -134,7 +140,6 @@ class BillDocumentDao extends Singleton
             $docs->bill_no = $billNo;
         }
 
-        $data['bill_no'] = $billNo;
         $docs->ts = date(DateTimeZoneHelper::DATETIME_FORMAT);
         $docs->setAttributes($doctypes, false);
 
@@ -191,6 +196,15 @@ class BillDocumentDao extends Singleton
             return $taxRate ? BillDocument::SUBID_GOODS_UPDT : BillDocument::SUBID_GOODS_LADING; // 1 - УПДТ, 2 - Товарная накладная
         }
 
+        // далее отработка ЛС с основной системой налогооблажения (ОСН)
+        $period1 = strtotime("2014-07-01"); // переход на УПД
+        $period2 = strtotime("2017-01-01"); // возврат на с/ф и акт
+        $period3 = strtotime("2025-12-01"); // возврат на УПД - всех. УПД2.
+
+        if ($documentDate >= $period3) {
+            return $type == BillDocument::TYPE_UPD2;
+        }
+
         if (!$taxRate) {
             if ($type != BillDocument::TYPE_AKT) { // в упрощенке только акты
                 return null;
@@ -198,10 +212,6 @@ class BillDocumentDao extends Singleton
 
             return true; // если мы здесь, значит в документе должен быть доступен
         }
-
-        // далее отработка ЛС с основной системой налогооблажения (ОСН)
-        $period1 = strtotime("2014-07-01"); // переход на УПД
-        $period2 = strtotime("2017-01-01"); // возврат на с/ф и акт
 
 
         if ($documentDate >= $period2) {

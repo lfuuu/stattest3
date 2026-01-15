@@ -18,6 +18,7 @@ class BillDocument extends ActiveRecord
     const TYPE_LADING = 'lading';
     const TYPE_GDS = 'gds';
     const TYPE_UPD = 'upd';
+    const TYPE_UPD2 = 'upd2';
 
     const ID_PERIOD = 1; // абонентская плата
     const ID_RESOURCE = 2; // потребленные ресурсы
