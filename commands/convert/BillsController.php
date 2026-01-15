@@ -162,6 +162,10 @@ class BillsController extends Controller
     {
         $invoiceQuery = Invoice::find()//->where(['is_invoice' => 0, 'is_act' => 0])
         ->with('bill', 'lines');
+        $invoiceQuery->where(['like', 'bill_no', '202601-%', false]);
+
+//        echo $invoiceQuery->createCommand()->rawSql;
+//        exit();
 
         /** @var Invoice $invoice */
         foreach ($invoiceQuery->each() as $invoice) {
@@ -169,6 +173,7 @@ class BillsController extends Controller
             $invoiceDate = new \DateTimeImmutable($invoice->date);
             $invoice->is_invoice = (int)(bool)BillDocument::dao()->me()->_isSF($invoice->bill->client_id, BillDocument::TYPE_INVOICE, $invoiceDate->getTimestamp(), $invoice->type_id);
             $invoice->is_act = (int)(bool)BillDocument::dao()->me()->_isSF($invoice->bill->client_id, BillDocument::TYPE_AKT, $invoiceDate->getTimestamp());
+            $invoice->is_upd2 = (bool)BillDocument::dao()->me()->_isSF($invoice->bill->client_id, BillDocument::TYPE_UPD2, $invoiceDate->getTimestamp());
 
             // no actions on save
             $invoice->detachBehaviors();
@@ -177,12 +182,16 @@ class BillsController extends Controller
                 throw new ModelValidationException($invoice);
             }
 
-            if ($invoice->is_invoice) {
-                EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_INVOICE]);
-            }
+//            if ($invoice->is_invoice) {
+//                EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_INVOICE]);
+//            }
+//
+//            if ($invoice->is_act) {
+//                EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_ACT]);
+//            }
 
-            if ($invoice->is_act) {
-                EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_ACT]);
+            if ($invoice->is_upd2) {
+                EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_UPD2]);
             }
 
         }

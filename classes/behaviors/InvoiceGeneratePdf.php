@@ -46,6 +46,10 @@ class InvoiceGeneratePdf extends Behavior
                 EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_INVOICE]);
             }
 
+            if ($invoice->is_upd2) {
+                EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_UPD2]);
+            }
+
             if ($invoice->is_act) {
                 EventQueue::go(EventQueue::INVOICE_GENERATE_PDF, ['id' => $invoice->id, 'document' => BillDocument::TYPE_ACT]);
             }

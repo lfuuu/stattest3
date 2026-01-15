@@ -206,6 +206,9 @@ class SBISGeneratedDraft extends ActiveRecord
         if ($this->invoice->is_invoice) {
             $invoiceHas[] = 'С/ф';
         }
+        if ($this->invoice->is_upd2) {
+            $invoiceHas[] = 'УПД';
+        }
 
         $toGenerate = array_map(
             function ($value) {

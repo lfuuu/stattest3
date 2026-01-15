@@ -1300,7 +1300,7 @@ class m_newaccounts extends IModule
                 $bill_upd[$i] = $doctypes['ia' . $i];
             }
             for ($i = 1; $i <= 3; $i++) {
-                $bill_upd2[$i] = $doctypes['upd2-' . $i];
+                $bill_upd2[$i] = $doctypes['upd2_' . $i] ?? 0;
             }
         }
 

@@ -777,6 +777,10 @@ class Invoice extends ActiveRecord
      */
     public function getFileName(string $document = 'invoice'): string
     {
+        if ($document == 'upd2') {
+            $document = 'upd'; // ... а что делать... что делать
+        }
+
         return $this->bill->client_id
         . '-' . $document . '-' . $this->number
         . ($this->is_reversal ? 'R' : '')
@@ -921,7 +925,11 @@ class Invoice extends ActiveRecord
             return false;
         }
 
-        return $this->is_act || $this->is_invoice;
+        if ($this->is_upd2 && !file_exists($this->getFilePath(BillDocument::TYPE_UPD2))) {
+            return false;
+        }
+
+        return $this->is_act || $this->is_invoice || $this->is_upd2;
     }
 
     /**
