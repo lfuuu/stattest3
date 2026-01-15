@@ -828,9 +828,7 @@ class Invoice extends ActiveRecord
             return null;
         }
 
-        if ($document === 'upd2') {
-            $pdf = $this->renderUpd2Pdf(false);
-        } elseif (in_array($this->organization_id, [Organization::TEL2TEL_KFT, Organization::TEL2TEL_GMBH])) {
+        if (in_array($this->organization_id, [Organization::TEL2TEL_KFT, Organization::TEL2TEL_GMBH])) {
             $pdf = $this->getContentTemplate1Pdf();
         } else {
             $pdf = $this->downloadPdfContent($document);
@@ -868,15 +866,28 @@ class Invoice extends ActiveRecord
      * @throws NotAcceptableHttpException
      * @throws \HttpResponseException
      */
-    protected function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
+    public function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
     {
-        $data = [
-            'bill' => $this->bill_no,
-            'object' => $document . '-' . $this->type_id,
-            'client' => (string)$this->bill->client_id,
-            'is_pdf' => '1',
-            'emailed' => '1',
-        ];
+        if ($document === 'upd2') {
+            $data = [
+                'tpl1' => 3,
+                'account_id' => $this->bill->client_id,
+                'document_number' => $this->number,
+                'template_type_id' => PaymentTemplateType::TYPE_ID_UPD,
+                'country_code' => $this->bill->clientAccount->getUuCountryId() ?: Country::RUSSIA,
+                'include_signature_stamp' => 1,
+                'document_type' => 'upd2-' . $this->type_id,
+                'is_pdf' => '1',
+            ];
+        } else {
+            $data = [
+                'bill' => $this->bill_no,
+                'object' => $document . '-' . $this->type_id,
+                'client' => (string)$this->bill->client_id,
+                'is_pdf' => '1',
+                'emailed' => '1',
+            ];
+        }
 
         $link = Encrypt::encodeArray($data);
 
@@ -893,37 +904,6 @@ class Invoice extends ActiveRecord
         }
 
         return $req->content;
-    }
-
-    /**
-     * @param bool $includeSignatureStamp
-     * @return string|null
-     */
-    public function renderUpd2Pdf($includeSignatureStamp = false)
-    {
-        $bill = $this->bill;
-        if (!$bill) {
-            return null;
-        }
-
-        $clientAccount = $bill->clientAccount;
-        if (!$clientAccount) {
-            return null;
-        }
-
-        $templateType = PaymentTemplateType::findOne(['id' => PaymentTemplateType::TYPE_ID_UPD]);
-        $isLandscape = $templateType ? !(bool)$templateType->is_portrait : null;
-        $countryCode = $clientAccount->getUuCountryId() ?: \app\models\Country::RUSSIA;
-        $docType = self::QR_DOC_TYPE_MAP_2026[$this->type_id] ?? null;
-
-        $invoiceDocument = (new InvoiceLight($clientAccount))
-            ->setInvoice($this)
-            ->setBill($bill)
-            ->setCountry($countryCode)
-            ->setTemplateType(PaymentTemplateType::TYPE_ID_UPD)
-            ->setQrDocType($docType);
-
-        return $invoiceDocument->render(true, $isLandscape, $includeSignatureStamp);
     }
 
     /**

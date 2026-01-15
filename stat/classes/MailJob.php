@@ -327,8 +327,7 @@ class MailJob {
             if ($this->countryId == \app\models\Country::RUSSIA) {
                 [$b_akt, $b_sf, $b_upd, $b_upd2] = m_newaccounts::get_bill_docs_static($bill->bill_no);
             } else {
-                $b_akt = $b_sf = $b_upd = [null, false, false];
-                $b_upd2 = [null, false, false, false];
+                $b_akt = $b_sf = $b_upd = $b_upd2 = [null, false, false];
                 $b_sf[1] = true;
                 $b_sf[2] = true;
             }
@@ -375,8 +374,7 @@ class MailJob {
      */
     private function _getMsgline($invoice, $type, $typeId, $isPdf)
     {
-        $labelType = $type === 'upd2' ? 'upd' : $type;
-        return "\n" . Yii::t('biller', $labelType, [], $this->lang) . " " . $invoice->number . ": " . $this->get_object_link($type, $invoice->bill_no, $typeId, $isPdf) .
+        return "\n" . Yii::t('biller', $type, [], $this->lang) . " " . $invoice->number . ": " . $this->get_object_link($type, $invoice->bill_no, $typeId, $isPdf) .
             ($this->_get_file_by_invoice($invoice, $type) ? ' - OK' : ' - нет печатной версии документа');
 	}
 
@@ -389,12 +387,6 @@ class MailJob {
 
         $path = $invoice->getFilePath($document);
         $info = pathinfo($path);
-        if ($document === 'upd2' && !file_exists($path)) {
-            $content = $invoice->renderUpd2Pdf(false);
-            if ($content) {
-                file_put_contents($path, $content);
-            }
-        }
         if (!file_exists($path)) {
             return false;
         }
