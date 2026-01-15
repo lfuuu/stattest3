@@ -322,8 +322,6 @@ class MailJob {
 
             isset($invoices[1]) && $invoice1 = $invoices[1];
             isset($invoices[2]) && $invoice2 = $invoices[2];
-
-
             if ($this->countryId == \app\models\Country::RUSSIA) {
                 [$b_akt, $b_sf, $b_upd, $b_upd2] = m_newaccounts::get_bill_docs_static($bill->bill_no);
             } else {
