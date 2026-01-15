@@ -313,6 +313,7 @@ class MailJob {
 
         /** @var \app\models\Bill $bill */
         foreach ($billQuery->each() as $bill) {
+            $invoice1 = $invoice2 = null;
             $invoices = $bill->invoices;
 
             if (!$invoices) {

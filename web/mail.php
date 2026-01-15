@@ -70,18 +70,29 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
 
 
             $addWhere = [];
-            if (
-                $bill->clientAccount->organization->country_id == \app\models\Country::RUSSIA
-                && in_array($R['obj'], ['invoice', 'akt'], true)
-            ) {
-                $addWhere = [($R['obj'] == 'invoice' ? 'is_invoice' : 'is_act') => 1];
+            if ($bill->clientAccount->organization->country_id == \app\models\Country::RUSSIA) {
+                if ($R['obj'] == 'invoice') {
+                    $addWhere = ['is_invoice' => 1];
+                } elseif ($R['obj'] == 'akt') {
+                    $addWhere = ['is_act' => 1];
+                }
             }
 //            if ($bill->clientAccount->organization->country_id != \app\models\Country::RUSSIA) {
             /** @var \app\models\Invoice $invoice */
             $invoice = \app\models\Invoice::find()->where(['bill_no' => $bill->bill_no, 'type_id' => $R['source']])->andWhere($addWhere)->one();
             $documentStr = $bill->clientAccount->organization->country_id != \app\models\Country::RUSSIA ? 'invoice' : ($R['obj'] == 'akt' ? 'act' : $R['obj']);
-            $path = $invoice->getFilePath($documentStr);
 
+            if ($documentStr === 'upd2') {
+                $content = $invoice->downloadPdfContent($documentStr);
+                $path = $invoice->getFilePath($documentStr);
+                $info = pathinfo($path);
+                header('Content-Type: application/pdf');
+                header('Content-disposition: inline; filename="' . $info['basename'] . '"');
+                echo $content;
+                exit;
+            }
+
+            $path = $invoice->getFilePath($documentStr);
             $info = pathinfo($path);
             header('Content-Type: application/pdf');
             header('Content-disposition: inline; filename="' . $info['basename'] . '"');

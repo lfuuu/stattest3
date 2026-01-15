@@ -13,6 +13,7 @@ use app\exceptions\ModelValidationException;
 use app\helpers\DateTimeZoneHelper;
 use app\modules\sbisTenzor\models\SBISGeneratedDraft;
 use app\modules\uu\models_light\InvoiceLight;
+use app\models\document\PaymentTemplateType;
 use yii\base\InvalidCallException;
 use yii\db\Expression;
 use yii\helpers\Url;
@@ -834,6 +835,10 @@ class Invoice extends ActiveRecord
             $pdf = $this->downloadPdfContent($document);
         }
 
+        if (!$pdf) {
+            return false;
+        }
+
         return file_put_contents($filePath, $pdf);
     }
 
@@ -862,15 +867,28 @@ class Invoice extends ActiveRecord
      * @throws NotAcceptableHttpException
      * @throws \HttpResponseException
      */
-    protected function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
+    public function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
     {
-        $data = [
-            'bill' => $this->bill_no,
-            'object' => $document . '-' . $this->type_id,
-            'client' => (string)$this->bill->client_id,
-            'is_pdf' => '1',
-            'emailed' => '1',
-        ];
+        if ($document === 'upd2') {
+            $data = [
+                'tpl1' => 3,
+                'account_id' => $this->bill->client_id,
+                'document_number' => $this->number,
+                'template_type_id' => PaymentTemplateType::TYPE_ID_UPD,
+                'country_code' => $this->bill->clientAccount->getUuCountryId() ?: Country::RUSSIA,
+                'include_signature_stamp' => 1,
+                'document_type' => 'upd2-' . $this->type_id,
+                'is_pdf' => '1',
+            ];
+        } else {
+            $data = [
+                'bill' => $this->bill_no,
+                'object' => $document . '-' . $this->type_id,
+                'client' => (string)$this->bill->client_id,
+                'is_pdf' => '1',
+                'emailed' => '1',
+            ];
+        }
 
         $link = Encrypt::encodeArray($data);
 
