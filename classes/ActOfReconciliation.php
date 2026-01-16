@@ -169,8 +169,13 @@ WHERE b.client_id = ' . $account->id . '
             $sum = $isInvoice ? $item['sum'] : -$item['sum'];
 
             if ($lang == Language::LANGUAGE_RUSSIAN) {
-                $description = $isInvoice
-                    ? ($item['payment_type'] == Invoice::TYPE_GOOD ? 'Накладная' : 'Акт') . ' (' . $date . ', №' . $item['number'] . ')'
+
+                $descrType = ($item['payment_type'] == Invoice::TYPE_GOOD ? 'Накладная' : 'Акт');
+                if ($isInvoice && $item['date'] >= '2026-01-01') {
+                    $descrType = 'УПД';
+                }
+
+                $description = $isInvoice ? $descrType . ' (' . $date . ', №' . $item['number'] . ')'
                     : (
                     ($item['payment_type'] == 'creditnote')
                         ? 'Кредит-нота от ' . $date
@@ -350,6 +355,17 @@ WHERE b.client_id = ' . $account->id . '
         }
 
         $findDate = null;
+
+
+        if (!$isNotRussia) {
+            foreach ($data as $idx => &$row) {
+                if ($row['type'] == 'act' || $row['type'] == 'invoice') {
+                    if ($row['bill_date'] >= '2026-01-01') {
+                        $row['type'] = 'upd';
+                    }
+                }
+            }
+        }
 
         $this->addingLinks($account, $data, !$isNotRussia, $countryCode);
         $this->addingLinks($account, $result, !$isNotRussia, $countryCode);
@@ -535,6 +551,12 @@ WHERE b.client_id = ' . $account->id . '
                         'a' => $account->id,
                         'is_pdf' => 1,
                     ] + $countryCodeAddLink);
+            } elseif($row['type'] == 'upd') {
+                $invoice = Invoice::findOne(['number' => $row['number']]);
+                if (!$invoice) {
+                    continue;
+                }
+                $row['link'] = Encrypt::encodeArray($invoice->getDocumentLinkData());
             }
         }
     }
