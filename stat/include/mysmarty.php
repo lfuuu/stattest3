@@ -354,7 +354,7 @@ function smarty_function_objCurrency($params,&$smarty) {
 	}
 }
 
-function smarty_modifier_money($value, $currency, $round = 2) {
+function smarty_modifier_money($value, $currency = '', $round = 2) {
     return Utils::money($value, $currency, $round);
 }
 

@@ -4284,60 +4284,17 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 		
 		$vpbx_id = get_param_integer('vpbx', 0);
 		$design->assign('vpbx_id', $vpbx_id);
-		$vpbx_id = 0;
 		$design->assign('client_id', $fixclient);
 
 		list($stats, $stat_detailed) = $this->getReportVpbxStatSpace($clientAccount, $vpbx_id, $from, $to);
 		$design->assign('stats', $stats);
 		$design->assign('stat_detailed', $stat_detailed);
 
-		$options = array();
-		$options['select'] = 'C.id as client_id, UV.id, UV.client, UNIX_TIMESTAMP(LT.date_activation) as actual, T.description as tarif ';
-		$options['from'] = 'usage_virtpbx as UV';
-		$options['joins'] = '
-			LEFT JOIN log_tarif AS LT ON UV.id = LT.id_service 
-			LEFT JOIN tarifs_virtpbx as T ON LT.id_tarif = T.id 
-			LEFT JOIN clients AS C ON UV.client = C.client ';
-		$options['order'] = 'UV.id desc';
-		$condition_string = "
-			LT.id = (
-				SELECT id 
-				FROM log_tarif as b
-				WHERE
-					date_activation = (
-						SELECT MAX(date_activation)
-						FROM log_tarif 
-						WHERE 
-							CAST(NOW() as DATE) >= date_activation AND 
-							service = 'usage_virtpbx' AND 
-							id_service = b.id_service
-						) AND 
-					id_service = LT.id_service
-				ORDER BY
-						ts desc
-				LIMIT 0,1
-			) 
-                        AND LT.service = ? 
-                        AND UV.actual_from <= ? 
-                        AND UV.actual_to >= ?";
-			
-		$condition_values = array(
-			'usage_virtpbx',
-                        $to,
-                        $from
-		);
-		if ($clientAccount !== null)
-		{
-			$condition_string .=' AND UV.client = ?';
-			$condition_values[] = $clientAccount->client;
-		}
-		$options['conditions'] = array($condition_string);
-		foreach ($condition_values as $v) 
-		{
-			$options['conditions'][] = $v;
-		}
-		
-		$vpbxs = UsageVirtpbx::find('all', $options);
+        $vpbxs = \app\modules\uu\models\AccountTariff::find()
+            ->where(['client_account_id' => $clientAccount->id, 'service_type_id' => \app\modules\uu\models\ServiceType::ID_VPBX])
+            ->select(['id', 'tariff_period_id'])
+            ->indexBy('id')
+            ->all();
 		$design->assign('vpbxs', $vpbxs);
 
 		$design->AddMain('stats/vpbx_stat_space_form.tpl');
@@ -4371,21 +4328,26 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 				MAX(stat.ext_did_count) as max_ext_did_count,
 				MIN(stat.ext_did_count) as min_ext_did_count,
 				AVG(stat.ext_did_count) as avg_ext_did_count,
+				
+				null as actual,
+				null as tarif,
+				null as tarif_id
+				/*,
 
 				UNIX_TIMESTAMP(LT.date_activation) as actual,
 				T.description as tarif,
-				T.id as tarif_id';
+				T.id as tarif_id */';
 
 		$options['from'] = 'virtpbx_stat as stat';
 
-		$options['joins'] = 
-			'LEFT JOIN clients as C ON C.id = stat.client_id ' . 
-            'LEFT JOIN usage_virtpbx as UV ON UV.id = stat.usage_id ' .
-			'LEFT JOIN log_tarif as LT ON UV.id = LT.id_service  ' . 
-			'LEFT JOIN tarifs_virtpbx as T ON LT.id_tarif = T.id '
-			;
+//		$options['joins'] =
+//			'LEFT JOIN clients as C ON C.id = stat.client_id ' .
+//            'LEFT JOIN usage_virtpbx as UV ON UV.id = stat.usage_id ' .
+//			'LEFT JOIN log_tarif as LT ON UV.id = LT.id_service  ' .
+//			'LEFT JOIN tarifs_virtpbx as T ON LT.id_tarif = T.id '
+//			;
 
-		$options['group'] = 'stat.client_id';
+		$options['group'] = 'stat.usage_id';
 		
 		$condition_string = "
 			LT.id = (
@@ -4411,12 +4373,15 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
                         AND UV.actual_from <= ? 
                         AND UV.actual_to >= ?";
 
+        $condition_string = "
+                            true
+                        AND stat.date >= ?
+                        AND stat.date <= ?
+                        ";
+
         $condition_values = array(
             $from,
             $to,
-            'usage_virtpbx',
-            $to,
-            $from
         );
 		if ($vpbx_id)
 		{
@@ -4428,7 +4393,7 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 			$condition_string .=' AND stat.client_id = ?';
 			$condition_values[] = $clientAccount->id;
 		} else {
-			$options['select'] .= ',UV.client';
+//			$options['select'] .= ',UV.client';
 		}
 		$options['conditions'] = array($condition_string);
 		foreach ($condition_values as $v) 
@@ -4436,6 +4401,7 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 			$options['conditions'][] = $v;
 		}
 		$stats = VirtpbxStat::find('all', $options);
+
 
 		if ($clientAccount !== null && !empty($stats))
 		{
