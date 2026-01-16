@@ -865,13 +865,7 @@ class Invoice extends ActiveRecord
         return $invoiceDocument->render($isPdf = true);
     }
 
-    /**
-     * @param $document
-     * @return mixed
-     * @throws NotAcceptableHttpException
-     * @throws \HttpResponseException
-     */
-    public function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
+    public function getDocumentLinkData($document = BillDocument::TYPE_INVOICE)
     {
         if ($document === 'upd2') {
             $data = [
@@ -893,6 +887,19 @@ class Invoice extends ActiveRecord
                 'emailed' => '1',
             ];
         }
+
+        return $data;
+    }
+
+    /**
+     * @param $document
+     * @return mixed
+     * @throws NotAcceptableHttpException
+     * @throws \HttpResponseException
+     */
+    public function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
+    {
+        $data = $this->getDocumentLinkData($document);
 
         $link = Encrypt::encodeArray($data);
 
