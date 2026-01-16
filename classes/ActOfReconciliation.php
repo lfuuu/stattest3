@@ -8,6 +8,7 @@ use app\dao\TroubleDao;
 use app\helpers\DateTimeZoneHelper;
 use app\models\BalanceByMonth;
 use app\models\Bill;
+use app\models\BillDocument;
 use app\models\BillLine;
 use app\models\ClientAccount;
 use app\models\Country;
@@ -556,7 +557,7 @@ WHERE b.client_id = ' . $account->id . '
                 if (!$invoice) {
                     continue;
                 }
-                $row['link'] = Encrypt::encodeArray($invoice->getDocumentLinkData());
+                $row['link'] = Encrypt::encodeArray($invoice->getDocumentLinkData(BillDocument::TYPE_UPD2));
             }
         }
     }
