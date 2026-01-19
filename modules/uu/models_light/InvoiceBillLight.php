@@ -25,6 +25,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $payment_type = '',
         $original_id = '',
         $client_id,
+        $pageCount = 1,
         $qr_code = '';
 
     private $_language;
@@ -113,6 +114,12 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
     public function setSummaryWithVat($value)
     {
         $this->summary_with_vat += $value;
+        return $this;
+    }
+
+    public function setPageCount($count)
+    {
+        $this->pageCount = $count;
         return $this;
     }
 
