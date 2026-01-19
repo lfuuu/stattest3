@@ -27,6 +27,7 @@ class InvoiceSellerLight extends Component implements InvoiceLightInterface
         $accountant,
         $bank,
         $stamp,
+        $stamp_file_name,
         $logo_image = '';
 
     /**
@@ -76,13 +77,14 @@ class InvoiceSellerLight extends Component implements InvoiceLightInterface
             $image_options = [
                 'width' => 200,
                 'border' => 0,
-                'style' => ['position' => 'absolute', 'left' => '160px', 'top' => '-40px', 'z-index' => '-10'],
+                'style' => ['position' => 'absolute', 'left' => '10px', 'top' => '-140px', 'z-index' => '-10'],
             ];
 
             //if ($inline_img) {
             //    echo Html::inlineImg(MediaFileHelper::getFile('STAMP_DIR', $organization->stamp_file_name), $image_options);
             //} else {
 
+            $this->stamp_file_name = $organization->stamp_file_name;
             $this->stamp = Html::tag('div',
                 Html::img(MediaFileHelper::getFile('STAMP_DIR', $organization->stamp_file_name), $image_options),
                 ['style' => ['position' => 'relative', 'display' => 'block', 'width' => 0, 'height' => 0]]

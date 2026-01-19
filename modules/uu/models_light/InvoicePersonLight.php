@@ -15,6 +15,7 @@ class InvoicePersonLight extends Component implements InvoiceLightInterface
         $name_genitive,
         $post_nominative,
         $post_genitive,
+        $signature_file_name,
         $signature;
 
     /**
@@ -28,6 +29,7 @@ class InvoicePersonLight extends Component implements InvoiceLightInterface
         $this->name_genitive = $person->name_genitive;
         $this->post_nominative = $person->post_nominative;
         $this->post_genitive = $person->post_genitive;
+        $this->signature_file_name = $person->signature_file_name;
         $this->signature = $this->getSignature($person);
     }
 
