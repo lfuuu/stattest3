@@ -66,6 +66,8 @@ class InvoiceItemsLight extends Component implements InvoiceLightInterface
                 'vat' =>  $vat,
             ];
         }
+
+        $bill->setPageCount(\printUPD::getInfo(count($items)));
     }
 
     /**

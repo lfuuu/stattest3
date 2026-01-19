@@ -77,7 +77,7 @@ class InvoiceSellerLight extends Component implements InvoiceLightInterface
             $image_options = [
                 'width' => 200,
                 'border' => 0,
-                'style' => ['position' => 'absolute', 'left' => '10px', 'top' => '-140px', 'z-index' => '-10'],
+                'style' => ['position' => 'absolute', 'left' => '10px', 'top' => '-165px', 'z-index' => '-10'],
             ];
 
             //if ($inline_img) {
