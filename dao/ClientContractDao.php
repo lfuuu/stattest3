@@ -129,6 +129,12 @@ class ClientContractDao extends Singleton
                 ->last();
         }
 
+        if (!$contractDoc) {
+            $contractDoc = new ClientDocument;
+            $contractDoc->contract_no = 'б/н';
+            $contractDoc->contract_date = (new \DateTime($contract->offer_date ?: $contract->created_at))->format(DateTimeZoneHelper::DATE_FORMAT);
+        }
+
         return $contractDoc;
     }
 
