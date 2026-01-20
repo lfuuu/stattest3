@@ -62,6 +62,8 @@ use yii\db\Expression;
  *
  * @property-read string $managerName
  * @property-read string $accountManagerName
+ * @property-read string $created_at
+ * @property-read string $updated_at
  */
 class ClientContract extends HistoryActiveRecord
 {
