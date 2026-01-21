@@ -325,6 +325,7 @@ class ActaulizerVoipNumbers extends Singleton
 
         $paramIsGeoSubstitute = null;
         $isForSiptrunkOrVpbxOnly = null;
+        $isCallRecord = null;
         if (!$usage) {
             /** @var AccountTariff $usage */
             $usage = AccountTariff::find()
@@ -335,6 +336,7 @@ class ActaulizerVoipNumbers extends Singleton
             if ($usage) {
                 $paramIsGeoSubstitute = $usage->getResourceValue(ResourceModel::ID_VOIP_GEO_REPLACE);
                 $isForSiptrunkOrVpbxOnly = $usage->getResourceValue(ResourceModel::ID_VOIP_ONLY_FOR_TRUNK_VATS);
+                $isCallRecord = $usage->getResourceValue(ResourceModel::ID_VOIP_CALL_RECORDING);
                 if ($usage->calltracking_params) {
                     $params = json_decode($usage->calltracking_params, true) ?: [];
                 }
@@ -360,7 +362,8 @@ class ActaulizerVoipNumbers extends Singleton
             $params['is_create_user'] ?? null,
             $params['request_id'] ?? null,
             $paramIsGeoSubstitute,
-            $isForSiptrunkOrVpbxOnly
+            $isForSiptrunkOrVpbxOnly,
+            $isCallRecord
         );
     }
 
@@ -497,9 +500,11 @@ class ActaulizerVoipNumbers extends Singleton
             $isRobocallEnabled = $accountTariff && $accountTariff->tariff_period_id && $accountTariff->tariffPeriod->tariff->isAutodial();
             $isGeoSubstitute = null;
             $isForSiptrunkOrVpbxOnly = null;
+            $isCallRecord = null;
             if ($accountTariff) {
                 $isGeoSubstitute = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_GEO_REPLACE);
                 $isForSiptrunkOrVpbxOnly = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_ONLY_FOR_TRUNK_VATS);
+                $isCallRecord = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_CALL_RECORDING);
             }
 
             $this->_getPhoneApi()->editDid(
@@ -514,7 +519,8 @@ class ActaulizerVoipNumbers extends Singleton
                 isset($changedFields['number7800']) ? $changedFields['number7800'] : null,
                 $isRobocallEnabled,
                 $isGeoSubstitute,
-                $isForSiptrunkOrVpbxOnly
+                $isForSiptrunkOrVpbxOnly,
+                $isCallRecord
             );
         }
     }
