@@ -917,6 +917,7 @@ function doEvents($eventQueueQuery, $uuSyncEvents)
                             $param['is_smart'],
                             $param['is_geo_substitute'] ?? null,
                             $param['is_for_siptrunk_or_vpbx_only'] ?? null,
+                            $param['is_call_record'] ?? null,
                         );
                     } else {
                         $info = EventQueue::API_IS_SWITCHED_OFF;

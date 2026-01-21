@@ -110,6 +110,7 @@ class SyncResourceTarificator extends Tarificator
             'is_smart' => $accountTariff->getResourceValue(ResourceModel::ID_VOIP_IS_SMART),
             'is_geo_substitute' => $accountTariff->getResourceValue(ResourceModel::ID_VOIP_GEO_REPLACE),
             'is_for_siptrunk_or_vpbx_only' => $accountTariff->getResourceValue(ResourceModel::ID_VOIP_ONLY_FOR_TRUNK_VATS),
+            'is_call_record' => $accountTariff->getResourceValue(ResourceModel::ID_VOIP_CALL_RECORDING),
         ]);
     }
 }
