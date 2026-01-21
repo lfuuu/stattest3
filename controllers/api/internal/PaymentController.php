@@ -22,6 +22,7 @@ use app\classes\ApiInternalController;
 use app\classes\DynamicModel;
 use app\classes\validators\AccountIdValidator;
 use app\models\PaymentApiInfo;
+use app\dao\CurrencyRateDao;
 
 class PaymentController extends ApiInternalController
 {
@@ -31,6 +32,89 @@ class PaymentController extends ApiInternalController
     public function actionIndex()
     {
         throw new NotImplementedHttpException;
+    }
+
+    /**
+     * @SWG\Get(tags={"Payments"}, path="/internal/payment/get-rate/", summary="Получение кросс-курса валют, с преобразованием суммы", operationId="GetRate",
+     *   @SWG\Parameter(name="currency_from", type="string", description="Исходная валюта", in="query", default="RUB", required=true),
+     *   @SWG\Parameter(name="currency_to", type="string", description="Целевая валюта", in="query", default="RUB", required=true),
+     *   @SWG\Parameter(name="sum", type="number", description="Сумма для конвертации", in="query", default=""),
+     *   @SWG\Parameter(name="date", type="string", description="Дата курса (формат YYYY-MM-DD)", in="query", default=""),
+     *
+     *   @SWG\Response(response=200, description="Данные о курсе и конвертации",
+     *     @SWG\Schema(type="object",
+     *       @SWG\Property(property="currency_from", type="string", description="Исходная валюта"),
+     *       @SWG\Property(property="currency_to", type="string", description="Целевая валюта"),
+     *       @SWG\Property(property="rate", type="number", description="Кросс-курс (currencyFrom к currencyTo)"),
+     *       @SWG\Property(property="original_sum", type="number", description="Исходная сумма (если указана)"),
+     *       @SWG\Property(property="sum", type="number", description="Конвертированная сумма (если указана исходная сумма)"),
+     *       @SWG\Property(property="date", type="string", description="Дата курса"),
+     *     )
+     *   ),
+     *   @SWG\Response(response="default", description="Ошибки",
+     *     @SWG\Schema(ref="#/definitions/error_result")
+     *   )
+     * )
+     */
+    public function actionGetRate()
+    {
+        $requestData = $this->requestData;
+
+        $model = DynamicModel::validateData(
+            $requestData,
+            [
+                [['currency_from', 'currency_to'], 'required'],
+                ['currency_rom', 'in', 'range' => Currency::enum()],
+                ['currency_to', 'in', 'range' => Currency::enum()],
+                ['sum', 'filter', 'filter' => function($value) {
+                    if ($value === null || $value === '') {
+                        return null;
+                    }
+                    // Очистка строки: удаляем пробелы и заменяем запятые на точки
+                    $cleaned = trim(str_replace(',', '.', (string)$value));
+                    // Удаляем все символы, кроме цифр, точки и минуса
+                    $cleaned = preg_replace('/[^\d\.\-]/', '', $cleaned);
+                    return $cleaned === '' ? null : (float)$cleaned;
+                }],
+                ['sum', 'number', 'min' => 0, 'when' => function($model) {
+                    return $model->sum !== null;
+                }],
+                ['date', 'match', 'pattern' => '/^\d{4}-\d{2}-\d{2}$/', 'message' => 'Неверный формат даты. Используйте YYYY-MM-DD'],
+            ]
+        );
+
+        if ($model->hasErrors()) {
+            throw new ExceptionValidationForm($model);
+        }
+
+        // Устанавливаем значения по умолчанию
+        $currencyFrom = $model->currency_from ?: Currency::RUB;
+        $currencyTo = $model->currency_to ?: Currency::RUB;
+        $date = $model->date ?: '';
+        $sum = $model->sum;
+
+        // Получаем кросс-курс
+        $rate = CurrencyRateDao::crossRate($currencyFrom, $currencyTo, $date);
+        
+        if ($rate === null) {
+            throw new \InvalidArgumentException('Не удалось получить курс для указанных валют и даты');
+        }
+
+        // Подготавливаем результат
+        $result = [
+            'currency_from' => $currencyFrom,
+            'currency_to' => $currencyTo,
+            'rate' => (float)$rate,
+            'date' => $date ?: date('Y-m-d'),
+        ];
+
+        // Если указана сумма, производим конвертацию
+        if ($sum !== null && $sum > 0) {
+            $result['original_sum'] = (float)$sum;
+            $result['sum'] = (float)($sum * $rate);
+        }
+
+        return $result;
     }
 
     /**
