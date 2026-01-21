@@ -227,4 +227,7 @@ if (!$operator->isNewRecord) {
     <?php endif ?>
 
     <?php ActiveForm::end(); ?>
+    <?php if (!$operator->isNewRecord) : ?>
+        <?= $this->render('//layouts/_showHistory', ['model' => $operator]) ?>
+    <?php endif; ?>
 </div>
