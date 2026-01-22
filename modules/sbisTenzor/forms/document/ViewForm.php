@@ -119,11 +119,21 @@ class ViewForm extends \app\classes\Form
 
     public static function getShowReCreateButton_st($document)
     {
+        // Проверяем, есть ли связанный черновик
+        $hasDraft = SBISGeneratedDraft::find()
+            ->where(['sbis_document_id' => $document->id])
+            ->exists();
+
+        if (!$hasDraft) {
+            return false;
+        }
+
         return
             $document->state == SBISDocumentStatus::NEGOTIATED
             || $document->state == SBISDocumentStatus::ERROR
             || $document->state == SBISDocumentStatus::SENT
             || $document->state == SBISDocumentStatus::SENT_ERROR
+            || $document->state == SBISDocumentStatus::DELIVERED
             ;
     }
 
