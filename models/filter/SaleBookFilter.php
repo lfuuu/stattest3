@@ -6,6 +6,7 @@ namespace app\models\filter;
 use app\helpers\DateTimeZoneHelper;
 use app\models\Business;
 use app\models\BusinessProcessStatus;
+use app\models\ClientAccountOptions;
 use app\models\ClientContract;
 use app\models\ClientContragent;
 use app\models\Country;
@@ -52,7 +53,8 @@ class SaleBookFilter extends Invoice
         $is_euro_format = 0,
         $is_excel_eu_bmd = 0,
         $is_register = 0,
-        $is_register_vp = 0;
+        $is_register_vp = 0,
+        $is_invoice_off = 0;
 
     public function __construct()
     {
@@ -67,7 +69,7 @@ class SaleBookFilter extends Invoice
     {
         return [
             [['date_from', 'date_to', 'organization_id', /*'filter', */ 'currency'], 'required'],
-            [['is_euro_format', 'is_euro_format_bmd', 'is_register', 'is_register_vp'], 'integer'],
+            [['is_euro_format', 'is_euro_format_bmd', 'is_register', 'is_register_vp', 'is_invoice_off'], 'integer'],
             [['date_from', 'date_to'], 'date'],
             [['organization_id'], 'in', 'range' => array_keys(Organization::dao()->getList())],
 //            ['filter', 'in', 'range' => array_keys(self::$filters)],
@@ -81,6 +83,7 @@ class SaleBookFilter extends Invoice
                 'is_euro_format_bmd' => 'ЕвроФормат (BMD)',
                 'is_register' => 'Реестр МСН Телеком (ВАТС)',
                 'is_register_vp' => 'Реестр АбСервис (ВАТС+ТелСистема)',
+                'is_invoice_off' => 'Галочка "Выгружать с/ф ЛС в книгу продаж" не стоит',
             ];
     }
 
@@ -149,6 +152,14 @@ class SaleBookFilter extends Invoice
             ]);
         }
 
+        if ($this->is_invoice_off) {
+            // Добавляем фильтр по upload_to_sales_book
+            $query->joinWith('bill.clientAccountModel.options options');
+            $query->andWhere(['options.option' => ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK, 'options.value' => '0']);
+        }
+
+//        throw new \Exception($query->createCommand()->rawSql);
+
         /*
         switch ($this->filter) {
             case self::FILTER_ALL:
@@ -162,7 +173,6 @@ class SaleBookFilter extends Invoice
             case self::FILTER_REVERSAL:
                 $query->andWhere(['is_reversal' => 1]);
                 break;
-
             default:
                 throw new NotSupportedException('Не готово');
         }

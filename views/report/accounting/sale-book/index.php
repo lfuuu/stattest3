@@ -34,6 +34,9 @@ $printSum = function ($sum, $len = 2) {
         <div class="col-sm-1">
             <?=\app\classes\Html::activeCheckbox($filter, 'is_register_vp')?>
         </div>
+        <div class="col-sm-1">
+            <?=\app\classes\Html::activeCheckbox($filter, 'is_invoice_off')?>
+        </div>
     </div>
 
     <div class="row">

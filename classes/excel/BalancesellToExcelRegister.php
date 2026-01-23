@@ -25,7 +25,8 @@ class BalancesellToExcelRegister extends Excel
         $dateTo,
         $filter,
         $skipping_bps,
-        $is_register_vp;
+        $is_register_vp,
+        $is_invoice_off;
 
 
     public function init()
