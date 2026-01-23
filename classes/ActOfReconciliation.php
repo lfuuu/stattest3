@@ -557,7 +557,7 @@ WHERE b.client_id = ' . $account->id . '
                 if (!$invoice) {
                     continue;
                 }
-                $row['link'] = Encrypt::encodeArray($invoice->getDocumentLinkData(BillDocument::TYPE_UPD2));
+                $row['link'] = Encrypt::encodeArray($invoice->getDocumentLinkData(BillDocument::TYPE_UPD2, true, true));
             }
         }
     }
