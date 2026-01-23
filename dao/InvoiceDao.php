@@ -8,6 +8,7 @@ use app\classes\Singleton;
 use app\exceptions\ModelValidationException;
 use app\helpers\DateTimeZoneHelper;
 use app\models\Bill;
+use app\models\BillDocument;
 use app\models\BillLine;
 use app\models\EventQueue;
 use app\models\Invoice;
@@ -223,5 +224,31 @@ class InvoiceDao extends Singleton
 
         $event->log_error .= 'Done';
         $event->save();
+    }
+
+    public function getDocumentUrlData($printDocId, $bill_no, $isStamp, $isPdf)
+    {
+        if ($printDocId == 'upd2-1') {
+            $invoiceTypeId = Invoice::TYPE_1;
+        } elseif ($printDocId == 'upd2-2') {
+            $invoiceTypeId = Invoice::TYPE_2;
+        } elseif ($printDocId == 'upd2-3') {
+            $invoiceTypeId = Invoice::TYPE_GOOD;
+        } else {
+            return false;
+        }
+
+
+        /** @var Invoice $invoiceObject */
+        $invoiceObject = Invoice::find()->where(['bill_no' => $bill_no, 'type_id' => $invoiceTypeId])->orderBy(['id' => SORT_DESC])->one();
+
+        if (!$invoiceObject) {
+            return false;
+        }
+
+        $printObject = $invoiceObject->getDocumentLinkData(BillDocument::TYPE_UPD2, $isStamp, $isPdf);
+
+        return $printObject;
+
     }
 }

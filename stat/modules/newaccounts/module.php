@@ -2088,7 +2088,7 @@ class m_newaccounts extends IModule
                 'Накладная' => ['lading'],
                 'Приказ о назначении' => ["order"],
                 'Уведомление о назначении' => ["notice"],
-                'УПД' => ['upd-1', 'upd-2', 'upd-3'],
+                'УПД' => ['upd-1', 'upd-2', 'upd-3', 'upd2-1', 'upd2-2', 'upd2-3'],
                 'Уведомление о передачи прав' => ['notice_mcm_telekom'],
                 'Соглашение о передачи прав' => ['sogl_mcm_telekom'],
                 'Соглашение о передачи прав (МСМ=>МСН Ретайл)' => ['sogl_mcn_telekom'],
@@ -2101,39 +2101,56 @@ class m_newaccounts extends IModule
             $allowTypes = array_merge($D['Счет-фактура'], $D['Акт'], $D['УПД']);
 
             $isMultipleDocs = false;
+            $preUrl = Yii::$app->params['LK_PATH'] . 'docs/';
 
             foreach ($D as $k => $rs) {
                 $counter = 1;
                 foreach ($rs as $r) {
                     if (get_param_protected($r)) {
                         if (in_array($r, $allowTypes) && !$this->isActionEnabled($r, $docs)) {
+                            echo $r;
                             continue;
                         }
+
                         $isMultipleDocs = $counter > 1;
 
                         if (
-                        in_array($r, ['notice_mcm_telekom', 'sogl_mcm_telekom', 'sogl_mcn_telekom', 'sogl_mcn_service', 'sogl_mcn_telekom_to_service', 'sogl_mcn_service_to_abonservice'])
+                            in_array($r, ['notice_mcm_telekom', 'sogl_mcm_telekom', 'sogl_mcn_telekom', 'sogl_mcn_service', 'sogl_mcn_telekom_to_service', 'sogl_mcn_service_to_abonservice',
+                                'upd2-1', 'upd2-2', 'upd2-3'])
                         ) {
                             $is_pdf = 1;
                         }
 
-                        $R = [
-                            'bill' => $bill_no,
-                            'object' => $r,
-                            'client' => $bill->Get('client_id'),
-                            'is_pdf' => $is_pdf
-                        ];
-                        if (isset($_REQUEST['without_date'])) {
-                            $R['without_date'] = 1;
-                            $R['without_date_date'] = $_REQUEST['without_date_date'];
-                        }
-                        if (in_array($r, ["notice", "order"])) {
-                            $link['with_stamp'][] = "https://stat.mcn.ru/client/pdf/" . $r . ".pdf";
-                            $link['without_stamp'][] = "https://stat.mcn.ru/client/pdf/" . $r . ".pdf";
-                        }
+                        if (in_array($r, ['upd2-1', 'upd2-2', 'upd2-3'])) {
+                            $idx = str_replace('upd2-', '', $r);
+                            $link['with_stamp'][] = [
+                                'url' => $preUrl . '?bill=' . Encrypt::encodeArray(Invoice::dao()->getDocumentUrlData($r, $bill_no, true, $is_pdf)),
+                                'description' => $k . ($isMultipleDocs ? ' №' . $idx : '') . ($is_doc_date ? ' от ' . $doc_date . ' ' : ' ')
+                            ];
+                            $link['without_stamp'][] = [
+                                'url' => $preUrl . '?bill=' . Encrypt::encodeArray(Invoice::dao()->getDocumentUrlData($r, $bill_no, false, $is_pdf)),
+                                'description' => $k . ($isMultipleDocs ? ' №' . $idx : '') . ($is_doc_date ? ' от ' . $doc_date . ' ' : ' ')
+                            ];
+                        } else {
 
-                        $link['with_stamp'][] = ['url' => Yii::$app->params['LK_PATH'] . 'docs/?bill=' . Encrypt::encodeArray($R + ['emailed' => 1]), 'description' => $k . ($isMultipleDocs ? ' №' . $counter : '') . ($is_doc_date ? ' от ' . $doc_date . ' ' : ' ')];
-                        $link['without_stamp'][] = ['url' => Yii::$app->params['LK_PATH'] . 'docs/?bill=' . Encrypt::encodeArray($R + ['emailed' => 0]), 'description' => $k . ($isMultipleDocs ? ' №' . $counter : '') . ($is_doc_date ? ' от ' . $doc_date . ' ' : ' ')];
+                            $R = [
+                                'bill' => $bill_no,
+                                'object' => $r,
+                                'client' => $bill->Get('client_id'),
+                                'is_pdf' => $is_pdf
+                            ];
+                            if (isset($_REQUEST['without_date'])) {
+                                $R['without_date'] = 1;
+                                $R['without_date_date'] = $_REQUEST['without_date_date'];
+                            }
+                            if (in_array($r, ["notice", "order"])) {
+                                $link['with_stamp'][] = "https://stat.mcn.ru/client/pdf/" . $r . ".pdf";
+                                $link['without_stamp'][] = "https://stat.mcn.ru/client/pdf/" . $r . ".pdf";
+                            }
+
+                            $link['with_stamp'][] = ['url' => $preUrl . '?bill=' . Encrypt::encodeArray($R + ['emailed' => 1]), 'description' => $k . ($isMultipleDocs ? ' №' . $counter : '') . ($is_doc_date ? ' от ' . $doc_date . ' ' : ' ')];
+                            $link['without_stamp'][] = ['url' => $preUrl . '?bill=' . Encrypt::encodeArray($R + ['emailed' => 0]), 'description' => $k . ($isMultipleDocs ? ' №' . $counter : '') . ($is_doc_date ? ' от ' . $doc_date . ' ' : ' ')];
+                        }
                     }
                     ++$counter;
                 }
@@ -2302,6 +2319,7 @@ class m_newaccounts extends IModule
         $one_pdf = get_param_raw("one_pdf", 0);
         $invoiceId = get_param_raw("invoice_id", 0);
         $isDirectLink = (bool)get_param_raw("isDirectLink", 0);
+        $isForPrint = (bool)get_param_raw("is_for_print", 0);
 
 
         $this->do_include();
@@ -2359,7 +2377,7 @@ class m_newaccounts extends IModule
             $v && $upd2storage[$upd2Name] = $upd2Name;
         }
         if ($upd2storage) {
-            return $this->printmTpl3($upd2storage, $bills, $is_pdf);
+            return $this->printmTpl3($upd2storage, $bills, $is_pdf, $isForPrint);
         }
 
 
@@ -2571,6 +2589,10 @@ class m_newaccounts extends IModule
                 return $enabledActions['ia1'];
             case 'upd-2':
                 return $enabledActions['ia2'];
+            case 'upd2-1':
+                return $enabledActions['upd2_1'];
+            case 'upd2-2':
+                return $enabledActions['upd2_2'];
             default:
                 return false;
         }
@@ -2654,7 +2676,7 @@ class m_newaccounts extends IModule
      * @param array $bills
      * @param bool $isPDF
      */
-    function printmTpl3($printDocs = [], $bills = [], $isPDF = false)
+    function printmTpl3($printDocs = [], $bills = [], $isPDF = false, $isForPrint = false)
     {
         global $design;
 
@@ -2687,39 +2709,12 @@ class m_newaccounts extends IModule
             $printObjects = [];
 
             foreach ($printDocs as $printDocId) {
-                $templateTypeId = \app\models\document\PaymentTemplateType::TYPE_ID_UPD;
-                if ($printDocId == 'upd2-1') {
-                    $invoiceTypeId = Invoice::TYPE_1;
-                } elseif ($printDocId == 'upd2-2') {
-                    $invoiceTypeId = Invoice::TYPE_2;
-                } elseif ($printDocId == 'upd2-3') {
-                    $invoiceTypeId = Invoice::TYPE_GOOD;
-                } else {
-                    continue;
-                }
-
-                $documentType = $printDocId;
-
-                /** @var Invoice $invoiceObject */
-                $invoiceObject = Invoice::find()->where(['bill_no' => $bill->bill_no, 'type_id' => $invoiceTypeId])->orderBy(['id' => SORT_DESC])->one();
-
-                if (!$invoiceObject) {
-                    continue;
-                }
-
-                $printObject = [
-                    'tpl1' => 3,
-                    'account_id' => $bill->client_id,
-                    'document_number' => $invoiceObject->number,
-                    'template_type_id' => $templateTypeId,
-                    'country_code' => $bill->clientAccount->getUuCountryId(),
-                    'include_signature_stamp' => false,
-                    'document_type' => $documentType,
-                    'is_pdf' => $isPDF,
-                ];
+                $printObject = Invoice::dao()->getDocumentUrlData($printDocId, $bill->bill_no, false, $isPDF);
 
                 $printObjects[] = $printObject;
-                $printObjects[] = array_merge($printObject, ['include_signature_stamp' => true]);
+                if ($isForPrint) {
+                    $printObjects[] = $printObject;
+                }
             }
 
             foreach ($printObjects as $idx => $obj) {

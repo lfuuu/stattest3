@@ -46,6 +46,7 @@ class m_stats_head extends IModuleHead{
             array('Телефония (Маржа)',      'voip_profit'),
             array('Телефония (Маржа), новая',      'voip_profit_new'),
             array('Телефония Пакеты',       function() { return '/report/voip-package/use-report'; }),
+            array('ВАТС', 'report_vpbx_stat_space'),
             array('Интернет',		'internet'),
             array('Collocation',	'internet','&is_coll=1'),
             array('PPP',			'ppp'),
@@ -74,7 +75,6 @@ class m_stats_head extends IModuleHead{
             array('Вознаграждения партнеров v2', function(){ return '/stats/partner-rewards-new'; }),
             array('Настройка агента', 'agent_settings'),
             array('Региональные представители', 'report_sale_channel'),
-            array('ВАТС: свободное про-во', 'report_vpbx_stat_space'),
             array('Статистика: звонки-IP', 'ip'),
         );
     }

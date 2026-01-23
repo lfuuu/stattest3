@@ -865,7 +865,7 @@ class Invoice extends ActiveRecord
         return $invoiceDocument->render($isPdf = true);
     }
 
-    public function getDocumentLinkData($document = BillDocument::TYPE_INVOICE)
+    public function getDocumentLinkData($document = BillDocument::TYPE_UPD2, $isStamp = false,  $isPdf = false)
     {
         if ($document === 'upd2') {
             $data = [
@@ -874,16 +874,16 @@ class Invoice extends ActiveRecord
                 'document_number' => $this->number,
                 'template_type_id' => PaymentTemplateType::TYPE_ID_UPD,
                 'country_code' => $this->bill->clientAccount->getUuCountryId() ?: Country::RUSSIA,
-                'include_signature_stamp' => 1,
+                'include_signature_stamp' => (int)$isStamp,
                 'document_type' => 'upd2-' . $this->type_id,
-                'is_pdf' => '1',
+                'is_pdf' => (int)$isPdf,
             ];
         } else {
             $data = [
                 'bill' => $this->bill_no,
                 'object' => $document . '-' . $this->type_id,
                 'client' => (string)$this->bill->client_id,
-                'is_pdf' => '1',
+                'is_pdf' => (int)$isPdf,
                 'emailed' => '1',
             ];
         }
