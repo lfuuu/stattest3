@@ -87,7 +87,7 @@
                     $linesSum16 += abs($line['sum_tax']) > 0 ? 0 : $line['sum'];
                 }
 
-                if (abs($linesSum16) < 0.05) {
+                if (abs($linesSum16) < 0.001) {
                     continue;
                 }
 
