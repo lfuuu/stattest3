@@ -28,8 +28,9 @@
                 <a href="{$LINK_START}module=newaccounts&action=bill_create_income">Создать доходный счёт</a> /
                 <a href="{$LINK_START}module=newaccounts&action=bill_create_outcome">Создать расходный счёт</a> /
             {/if}
-            <a href="{$LINK_START}module=newaccounts&action=bill_balance">Обновить баланс</a>&nbsp;
-            <a style="padding-left: 200px;" href="{$LINK_START}module=newaccounts&action=bill_balance2" title="Разносит отдельно по доходные и расходные платежи">Обновить баланс (с учетом сальдо) <div class="glyphicon glyphicon-refresh"></div></a>
+            <a href="{$LINK_START}module=newaccounts&action=bill_balance">Обновить баланс22</a>&nbsp;
+            <a style="padding-left: 200px;" href="{$LINK_START}module=newaccounts&action=bill_balance2" title="Обновить баланс (с учетом сальдо) ">Обновить баланс (с учетом сальдо) <div class="glyphicon glyphicon-refresh"></div></a>
+            <a style="padding-left: 200px;" href="{$LINK_START}module=newaccounts&action=bill_balance_minus" title="Разносит отдельно по доходные и расходные платежи">Обновить баланс (Разносит отдельно по доходные и расходные платежи) <div class="glyphicon glyphicon-refresh"></div></a>
             <br/><br/>
         </td>
         <td style="text-align: right">

@@ -25,7 +25,8 @@
     <a href="{$LINK_START}module=newaccounts&action=bill_create_outcome">Создать расходный счёт</a> /
 {/if}
 <a href="{$LINK_START}module=newaccounts&action=bill_balance">Обновить баланс</a>
-<a style="padding-left: 200px;" href="{$LINK_START}module=newaccounts&action=bill_balance2" title="Разносит отдельно по доходные и расходные платежи">Обновить баланс (с учетом сальдо)<div class="glyphicon glyphicon-refresh"></div></a>
+<a style="padding-left: 200px;" href="{$LINK_START}module=newaccounts&action=bill_balance2" title="Обновить баланс (с учетом сальдо) ">Обновить баланс (с учетом сальдо) <div class="glyphicon glyphicon-refresh"></div></a>
+<a style="padding-left: 200px;" href="{$LINK_START}module=newaccounts&action=bill_balance_minus" title="Разносит отдельно по доходные и расходные платежи">Обновить баланс (Разносит отдельно по доходные и расходные платежи)<div class="glyphicon glyphicon-refresh"></div></a>
 <br/><br/>
 
 <span title="Клиент должен нам">Входящее сальдо</span>:
