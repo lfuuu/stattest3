@@ -64,19 +64,19 @@
             <table width="100%" border="0">
                 <tr style="background-color: #eaeaea;">
                     <td>Всего залогов:</td>
-                    <td align="right"> <b>{$sum_l.zalog.RUB|money:'RUB'}</b> </td>
+                    <td align="right"> <b>{$sum_l.zalog.RUB|money:$currency}</b> </td>
                     <td></td>
                     <td align="right"> <b>{$sum_l.zalog.USD|money:'USD'}</b> </td>
                 </tr>
                 <tr>
                     <td>Всего платежей:</td>
-                    <td align="right"> <b>{$sum_l.payments|default:'0.00'|money:'RUB'}</b></td>
+                    <td align="right"> <b>{$sum_l.payments|default:'0.00'|money:$currency}</b></td>
                     <td></td>
                     <td></td>
                 </tr>
                 <tr  style="background-color: #eaeaea;">
                     <td>Общая сумма оказанных услуг:</td>
-                    <td align="right"><b>{if $fixclient_data.currency=='USD'}{$sum.RUB.bill|money:'RUB'}{else}{$sum_l.service.RUB|money:'RUB'}{/if}</b></td>
+                    <td align="right"><b>{$sum_l.service.$currency|money:$currency}</b></td>
                     <td></td>
                     <td align="right"><b>{if $fixclient_data.currency=='USD'}{$sum_cur.bill|money:'USD'}{else}{$sum.USD.bill|money:'USD'}{/if}</b></td>
                 </tr>
@@ -84,11 +84,7 @@
                     <td>Общая сумма <span title="Клиент должен нам">долга</span> (с учётом сальдо) (счета "минус" платежи):</td>
                     <td align="right">
                         <b>
-                            {if $fixclient_data.currency!='USD'}
-                                {if isset($sum_cur.saldo)}{$sum_cur.delta+$sum_cur.saldo|money:'RUB'}{else}{$sum_cur.delta|money:'RUB'}{/if}
-                            {else}
-                                {if isset($sum.RUB.saldo)}{$sum.RUB.delta+$sum.RUB.saldo|money:'RUB'}{else}{$sum.RUB.delta|money:'RUB'}{/if}
-                            {/if}
+                            {if isset($sum_cur.saldo)}{$sum_cur.delta+$sum_cur.saldo|money:$currency}{else}{$sum_cur.delta|money:$currency}{/if}
                         </b>
                     </td>
                     <td></td>
