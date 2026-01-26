@@ -2,13 +2,13 @@
 
 namespace app\classes\excel;
 
+use app\classes\model\HistoryActiveRecord;
 use app\helpers\DateTimeZoneHelper;
 use app\models\ClientContragent;
 use app\models\filter\SaleBookFilter;
 use app\models\Invoice;
 use DateTime;
 use app\models\Organization;
-use app\modules\uu\models\ServiceType;
 use app\helpers\SaleBookHelper;
 
 /** @var SaleBookFilter $filter */
@@ -25,6 +25,12 @@ class BalanceSellToExcel extends Excel
         $dateTo,
         $filter,
         $skipping_bps;
+
+
+    /**
+     * Размер batch для обработки (оптимально 100-500)
+     */
+    private const BATCH_SIZE = 200;
 
 
     public function init()
@@ -51,85 +57,120 @@ class BalanceSellToExcel extends Excel
     {
         $data = [];
         $query = $this->filter->search();
-//if($query){
-    //$query->andWhere(['inv.number' => ['1251001-0984', '2250901-3329', '1251101-0668', '1251001-1088','1251001-0984','1251101-0668', '1251101-2452']]);
-    //$query->limit(10);
-    //}
-        foreach ($query->each() as $invoice) {
+        $processedCount = 0;
 
-            if (!$this->filter->check($invoice)) {
-                continue;
-            }
-
-            /** @var \app\models\filter\SaleBookFilter $invoice */
-            $account = $invoice->bill->clientAccount;
-            $contract = $account->contract;
-            $currencyModel = $account->currencyModel;
-
-            $contragent = $contract->contragent;
-            $currencyId = $currencyModel->id;
-            $currencyName = $currencyModel->name;
-            $currencyCode = $currencyModel->code;
-//            $taxRate = $account->getTaxRate();
-            $paymentsStr = $invoice->getPaymentsStr();
-
-            $sumTax = 0;
-
-            $lineData = [
-                'sum20' => 0, 'tax20' => 0,
-                'sum18' => 0, 'tax18' => 0,
-                'sum10' => 0, 'tax10' => 0,
-                'sum7' => 0, 'tax7' => 0,
-                'sum5' => 0, 'tax5' => 0,
-                'sum0' => 0, 'tax0' => 0,
-                'sum0_agent' => 0,
-            ];
-            foreach ($invoice->lines as $line) {
-                if ($line->tax_rate > 0) {
-                    $sumTax += $line['sum'];
+        // Используем batch() вместо each() для лучшего управления памятью
+        foreach ($query->batch(self::BATCH_SIZE) as $invoices) {
+            foreach ($invoices as $invoice) {
+                if (!$this->filter->check($invoice)) {
+                    continue;
                 }
 
-                $taxRate  = (int)$line->tax_rate;
-                $isVatsTs = SaleBookHelper::isTelephonyService($line, $this->filter);
-
-                if ($taxRate === 0) {
-                    if ($isVatsTs) {
-                        $lineData['sum0'] += $line->sum_without_tax;
-                        $lineData['tax0'] += $line->sum_tax;
-                    } else {
-                        $lineData['sum0_agent'] += $line->sum_without_tax;
-                    }
-                } else {
-                    if (!isset($lineData['sum' . $taxRate])) {
-                        $lineData['sum' . $taxRate] = 0;
-                        $lineData['tax' . $taxRate] = 0;
-                    }
-                    $lineData['sum' . $taxRate] += $line->sum_without_tax;
-                    $lineData['tax' . $taxRate] += $line->sum_tax;
+                $row = $this->_processInvoice($invoice);
+                if ($row) {
+                    $data[] = $row;
                 }
             }
 
-            $data[] = [
-                'code' => $invoice->type_id == Invoice::TYPE_PREPAID ? '02' : '01',
-                'sum' => $invoice->sum,
-                'sum_without_tax' => $invoice->type_id !== Invoice::TYPE_PREPAID ? $invoice->sum_without_tax : null,
-                'sum_tax' => $invoice->sum_tax,
-                'company_full' => trim($contragent->name_full),
-                'inn' => trim($contragent->inn),
-                'kpp' => trim($contragent->kpp),
-                'inv_no' => $invoice->number . '; ' . $invoice->getDateImmutable()->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
-                'type' => $contragent->legal_type,
-                'correction' => ($invoice->correction_idx ? $invoice->correction_idx . '; ' . $invoice->getDateImmutable()->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) : ''),
-                'currency_id' => $currencyId,
-                'currency_name' => $currencyName,
-                'currency_code' => $currencyCode,
-                'payments_str' => $paymentsStr,
-                'sumTax' => $sumTax,
-                'tax_regime' => ClientContragent::$taxRegtimeTypes[$contragent->tax_regime],
-                'lineData' => $lineData,
-            ];
+            $processedCount += count($invoices);
+
+            // Очищаем кэш каждые N записей для освобождения памяти
+            if ($processedCount % (self::BATCH_SIZE * 5) === 0) {
+                HistoryActiveRecord::clearHistoryVersionCache();
+                gc_collect_cycles();
+            }
         }
+
         return $data;
+    }
+
+    /**
+     * Обработка одного invoice
+     *
+     * @param Invoice $invoice
+     * @return array|null
+     */
+    private function _processInvoice($invoice)
+    {
+        /** @var \app\models\filter\SaleBookFilter $invoice */
+        $account = $invoice->bill->clientAccount;
+        if (!$account) {
+            return null;
+        }
+
+        $contract = $account->contract;
+        if (!$contract) {
+            return null;
+        }
+
+        $currencyModel = $account->currencyModel;
+        $contragent = $contract->contragent;
+
+        if (!$currencyModel || !$contragent) {
+            return null;
+        }
+
+        $currencyId = $currencyModel->id;
+        $currencyName = $currencyModel->name;
+        $currencyCode = $currencyModel->code;
+        $paymentsStr = $invoice->getPaymentsStr();
+
+        $sumTax = 0;
+
+        $lineData = [
+            'sum20' => 0, 'tax20' => 0,
+            'sum18' => 0, 'tax18' => 0,
+            'sum10' => 0, 'tax10' => 0,
+            'sum7' => 0, 'tax7' => 0,
+            'sum5' => 0, 'tax5' => 0,
+            'sum0' => 0, 'tax0' => 0,
+            'sum0_agent' => 0,
+        ];
+
+        foreach ($invoice->lines as $line) {
+            if ($line->tax_rate > 0) {
+                $sumTax += $line['sum'];
+            }
+
+            $taxRate = (int)$line->tax_rate;
+            $isVatsTs = SaleBookHelper::isTelephonyService($line, $this->filter);
+
+            if ($taxRate === 0) {
+                if ($isVatsTs) {
+                    $lineData['sum0'] += $line->sum_without_tax;
+                    $lineData['tax0'] += $line->sum_tax;
+                } else {
+                    $lineData['sum0_agent'] += $line->sum_without_tax;
+                }
+            } else {
+                if (!isset($lineData['sum' . $taxRate])) {
+                    $lineData['sum' . $taxRate] = 0;
+                    $lineData['tax' . $taxRate] = 0;
+                }
+                $lineData['sum' . $taxRate] += $line->sum_without_tax;
+                $lineData['tax' . $taxRate] += $line->sum_tax;
+            }
+        }
+
+        return [
+            'code' => $invoice->type_id == Invoice::TYPE_PREPAID ? '02' : '01',
+            'sum' => $invoice->sum,
+            'sum_without_tax' => $invoice->type_id !== Invoice::TYPE_PREPAID ? $invoice->sum_without_tax : null,
+            'sum_tax' => $invoice->sum_tax,
+            'company_full' => trim($contragent->name_full),
+            'inn' => trim($contragent->inn),
+            'kpp' => trim($contragent->kpp),
+            'inv_no' => $invoice->number . '; ' . $invoice->getDateImmutable()->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
+            'type' => $contragent->legal_type,
+            'correction' => ($invoice->correction_idx ? $invoice->correction_idx . '; ' . $invoice->getDateImmutable()->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) : ''),
+            'currency_id' => $currencyId,
+            'currency_name' => $currencyName,
+            'currency_code' => $currencyCode,
+            'payments_str' => $paymentsStr,
+            'sumTax' => $sumTax,
+            'tax_regime' => ClientContragent::$taxRegtimeTypes[$contragent->tax_regime],
+            'lineData' => $lineData,
+        ];
     }
 
     
