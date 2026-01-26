@@ -30,6 +30,7 @@ class HistoryActiveRecord extends ActiveRecord
 
     private static $_cache = [];
     private static $_cacheHolder = [];
+    private static $_historyVersionCache = [];
 
     /**
      * @return null|string Дата сохранения версии
@@ -193,6 +194,18 @@ class HistoryActiveRecord extends ActiveRecord
         }
 
         $modelName = $this->getClassName();
+        $cacheKey = $modelName . ':' . $this->primaryKey . ':' . $date;
+
+        // Проверяем кэш истории версий
+        if (isset(self::$_historyVersionCache[$cacheKey])) {
+            $cached = self::$_historyVersionCache[$cacheKey];
+            if ($cached['historyModel']) {
+                $this->fillHistoryDataInModel($cached['decodedData']);
+                $this->setHistoryVersionStoredDate($cached['storedDate']);
+            }
+            $this->setHistoryVersionRequestedDate($date);
+            return $this;
+        }
 
         $historyModel = HistoryVersion::find()
             ->andWhere(['model' => $modelName])
@@ -203,8 +216,14 @@ class HistoryActiveRecord extends ActiveRecord
             ->one();
 
         if ($historyModel) {
-            $this->fillHistoryDataInModel($this->_historyModelJsonDecode($historyModel));
+            $decodedData = $this->_historyModelJsonDecode($historyModel);
+            $this->fillHistoryDataInModel($decodedData);
             $this->setHistoryVersionStoredDate($historyModel['date']);
+            self::$_historyVersionCache[$cacheKey] = [
+                'historyModel' => true,
+                'decodedData' => $decodedData,
+                'storedDate' => $historyModel['date'],
+            ];
         } else {
             // если нет истории на вызыванную дату, то берем первое сохранение версии
             $historyModel = HistoryVersion::find()
@@ -216,8 +235,16 @@ class HistoryActiveRecord extends ActiveRecord
                 ->one();
 
             if ($historyModel) {
-                $this->fillHistoryDataInModel($this->_historyModelJsonDecode($historyModel));
+                $decodedData = $this->_historyModelJsonDecode($historyModel);
+                $this->fillHistoryDataInModel($decodedData);
                 $this->setHistoryVersionStoredDate($date);
+                self::$_historyVersionCache[$cacheKey] = [
+                    'historyModel' => true,
+                    'decodedData' => $decodedData,
+                    'storedDate' => $date,
+                ];
+            } else {
+                self::$_historyVersionCache[$cacheKey] = ['historyModel' => false];
             }
         }
 
@@ -378,5 +405,16 @@ class HistoryActiveRecord extends ActiveRecord
         }
 
         unset(self::$_cacheHolder[$className][$id]);
+    }
+
+    /**
+     * Очистка кэша истории версий
+     * Используется для освобождения памяти при batch-операциях
+     */
+    public static function clearHistoryVersionCache()
+    {
+        self::$_historyVersionCache = [];
+        self::$_cache = [];
+        self::$_cacheHolder = [];
     }
 }
