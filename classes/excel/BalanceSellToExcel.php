@@ -90,7 +90,7 @@ class BalanceSellToExcel extends Excel
                 }
 
                 $taxRate  = (int)$line->tax_rate;
-                $isVatsTs = SaleBookHelper::isTelephonyService($line);
+                $isVatsTs = SaleBookHelper::isTelephonyService($line, $this->filter);
 
                 if ($taxRate === 0) {
                     if ($isVatsTs) {

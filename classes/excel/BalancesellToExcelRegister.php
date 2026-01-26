@@ -3,6 +3,7 @@
 namespace app\classes\excel;
 
 use app\helpers\DateTimeZoneHelper;
+use app\helpers\SaleBookHelper;
 use app\models\filter\SaleBookFilter;
 use app\models\Invoice;
 use DateTime;
@@ -71,6 +72,12 @@ class BalancesellToExcelRegister extends Excel
 
             $sum16 = 0;
             foreach($invoice->lines as $line) {
+
+                $isVatsTs = SaleBookHelper::isTelephonyService($line, $this->filter);
+                if (!$isVatsTs) {
+                    continue;
+                }
+
 //                if (!(
 //                    $line->date_to <= $this->filter->dateTo->format(DateTimeZoneHelper::DATE_FORMAT)
 //                    && $line->date_from >= $this->filter->dateFrom->format(DateTimeZoneHelper::DATE_FORMAT)
@@ -79,29 +86,29 @@ class BalancesellToExcelRegister extends Excel
 //                    continue;
 //                }
 
-                if ($line->line->id_service) {
-                    if (
-                        ($this->filter->is_register && $line->line->accountTariff->service_type_id == ServiceType::ID_VPBX)
-                        || ($this->filter->is_register_vp && in_array($line->line->accountTariff->service_type_id, [ServiceType::ID_VPBX, ServiceType::ID_VOIP]))
-                    ) {
-                        // pass
-                    } else {
-                        continue;
-                    }
-                } else {
-                    if ($this->filter->is_register && strpos($line->item, 'ВАТС') !== false) {
-                        // pass
-                    } elseif ($this->filter->is_register_vp && (strpos($line->item, 'ВАТС') !== false || strpos($line->item, 'Телефон') !== false)) {
-                        // pass
-                    } else {
-                        continue;
-                    }
-                }
+//                if ($line->line->id_service) {
+//                    if (
+//                        ($this->filter->is_register && $line->line->accountTariff->service_type_id == ServiceType::ID_VPBX)
+//                        || ($this->filter->is_register_vp && in_array($line->line->accountTariff->service_type_id, [ServiceType::ID_VPBX, ServiceType::ID_VOIP]))
+//                    ) {
+//                        // pass
+//                    } else {
+//                        continue;
+//                    }
+//                } else {
+//                    if ($this->filter->is_register && strpos($line->item, 'ВАТС') !== false) {
+//                        // pass
+//                    } elseif ($this->filter->is_register_vp && (strpos($line->item, 'ВАТС') !== false || strpos($line->item, 'Телефон') !== false)) {
+//                        // pass
+//                    } else {
+//                        continue;
+//                    }
+//                }
 
                 $sum16 += abs($line['sum_tax']) > 0  ? 0 : $line['sum'];
             }
 
-            if (abs($sum16) < 0.05) {
+            if (abs($sum16) < 0.001) {
                 continue;
             }
 
