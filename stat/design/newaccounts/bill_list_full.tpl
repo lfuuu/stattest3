@@ -146,7 +146,7 @@
                     <td>RT Баланс:</td>
                     <td align="right">
                         <b>
-                            {$fixclient_data.balance|money:'RUB'}
+                            {$fixclient_data.balance|money:$currency}
                         </b>
                     </td>
                     <td></td>
