@@ -109,24 +109,22 @@ class SaleBookFilter extends Invoice
             return false;
         }
 
+        $dateFromStr = $this->dateFrom->format(DateTimeZoneHelper::DATE_FORMAT);
+        $dateToStr = $this->dateTo->format(DateTimeZoneHelper::DATE_FORMAT);
+
         $query = self::find()
             ->alias('inv')
             ->where([
                 'inv.organization_id' => $this->organization_id,
             ])
-//            ->andWhere(['OR', ['between',
-//                'inv.date',
-//                $this->dateFrom->format(DateTimeZoneHelper::DATE_FORMAT),
-//                $this->dateTo->format(DateTimeZoneHelper::DATE_FORMAT)
-//            ], ['between',
-//                'inv.invoice_date',
-//                $this->dateFrom->format(DateTimeZoneHelper::DATE_FORMAT),
-//                $this->dateTo->format(DateTimeZoneHelper::DATE_FORMAT)
-//            ]])
-            ->andWhere(['between',
-                (new Expression('COALESCE(inv.invoice_date, inv.date)')),
-                $this->dateFrom->format(DateTimeZoneHelper::DATE_FORMAT),
-                $this->dateTo->format(DateTimeZoneHelper::DATE_FORMAT)
+            ->andWhere(['OR',
+                // invoice_date в диапазоне
+                ['between', 'inv.invoice_date', $dateFromStr, $dateToStr],
+                // или invoice_date NULL и date в диапазоне
+                ['AND',
+                    ['inv.invoice_date' => null],
+                    ['between', 'inv.date', $dateFromStr, $dateToStr]
+                ]
             ])
             ->andWhere(['NOT', ['number' => null]])
             ->orderBy([
@@ -135,12 +133,14 @@ class SaleBookFilter extends Invoice
             ]);
 
         $query->joinWith('bill bill', true, 'INNER JOIN');
-        $query->with('bill');
-        $query->with('bill.clientAccountModel');
-        $query->with('bill.payments');
-        $query->with('lines');
-        $query->with('lines.line');
-        $query->with('lines.line.accountTariff');
+        $query->with([
+            'bill',
+            'bill.clientAccountModel',
+            'bill.payments',
+            'lines',
+            'lines.line',
+            'lines.line.accountTariff',
+        ]);
 
         $this->currency && $query->andWhere(['bill.currency' => $this->currency]);
 

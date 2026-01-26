@@ -280,20 +280,32 @@ class Bill extends ActiveRecord
     public function getClientAccount()
     {
         static $cache = [];
+        static $accountCache = [];
 
-        if (array_key_exists($this->client_id, $cache)) {
-            $account = $cache[$this->client_id];
-        } else {
-            /** @var ClientAccount $account */
-            $account = ClientAccount::findOne(['id' => $this->client_id]);
-            $cache[$this->client_id] = $account;
+        $cacheKey = $this->client_id . ':' . $this->bill_date;
+
+        // Проверяем кэш с учётом даты
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
         }
 
-        if (!$account) {
+        // Кэшируем базовый объект ClientAccount отдельно
+        if (!array_key_exists($this->client_id, $accountCache)) {
+            $accountCache[$this->client_id] = ClientAccount::findOne(['id' => $this->client_id]);
+        }
+
+        $baseAccount = $accountCache[$this->client_id];
+
+        if (!$baseAccount) {
+            $cache[$cacheKey] = null;
             return null;
         }
 
+        /** @var ClientAccount $account */
+        $account = clone $baseAccount;
         $account->loadVersionOnDate($this->bill_date);
+
+        $cache[$cacheKey] = $account;
 
         return $account;
     }

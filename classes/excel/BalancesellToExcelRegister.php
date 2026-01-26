@@ -2,13 +2,11 @@
 
 namespace app\classes\excel;
 
+use app\classes\model\HistoryActiveRecord;
 use app\helpers\DateTimeZoneHelper;
 use app\helpers\SaleBookHelper;
 use app\models\filter\SaleBookFilter;
-use app\models\Invoice;
-use DateTime;
 use app\models\Organization;
-use app\modules\uu\models\ServiceType;
 use DateTimeImmutable;
 use PHPExcel_RichText;
 
@@ -29,6 +27,8 @@ class BalancesellToExcelRegister extends Excel
         $is_register_vp,
         $is_invoice_off;
 
+
+    private const BATCH_SIZE = 200;
 
     public function init()
     {
@@ -53,77 +53,84 @@ class BalancesellToExcelRegister extends Excel
     private function _dataConversionToStandard()
     {
         $data = [];
-        foreach ($this->filter->search()->each() as $invoice) {
+        $processedCount = 0;
 
-            if (!$this->filter->check($invoice)) {
-                continue;
-            }
-
-            /** @var \app\models\filter\SaleBookFilter $invoice */
-            $account = $invoice->bill->clientAccount;
-            $contract = $account->contract;
-            $contractDate = $contract->document->contract_date ?? $contract->offer_date;
-            $contractDate = $contractDate ?: '2021-09-01';
-            if (strtotime($contractDate) < strtotime('2021-09-01')) {
-                $contractDate = '2021-09-01';
-            }
-
-            $contragent = $contract->contragent;
-
-            $sum16 = 0;
-            foreach($invoice->lines as $line) {
-
-                $isVatsTs = SaleBookHelper::isTelephonyService($line, $this->filter);
-                if (!$isVatsTs) {
+        foreach ($this->filter->search()->batch(self::BATCH_SIZE) as $invoices) {
+            foreach ($invoices as $invoice) {
+                if (!$this->filter->check($invoice)) {
                     continue;
                 }
 
-//                if (!(
-//                    $line->date_to <= $this->filter->dateTo->format(DateTimeZoneHelper::DATE_FORMAT)
-//                    && $line->date_from >= $this->filter->dateFrom->format(DateTimeZoneHelper::DATE_FORMAT)
-//                )
-//                ) {
-//                    continue;
-//                }
-
-//                if ($line->line->id_service) {
-//                    if (
-//                        ($this->filter->is_register && $line->line->accountTariff->service_type_id == ServiceType::ID_VPBX)
-//                        || ($this->filter->is_register_vp && in_array($line->line->accountTariff->service_type_id, [ServiceType::ID_VPBX, ServiceType::ID_VOIP]))
-//                    ) {
-//                        // pass
-//                    } else {
-//                        continue;
-//                    }
-//                } else {
-//                    if ($this->filter->is_register && strpos($line->item, 'ВАТС') !== false) {
-//                        // pass
-//                    } elseif ($this->filter->is_register_vp && (strpos($line->item, 'ВАТС') !== false || strpos($line->item, 'Телефон') !== false)) {
-//                        // pass
-//                    } else {
-//                        continue;
-//                    }
-//                }
-
-                $sum16 += abs($line['sum_tax']) > 0  ? 0 : $line['sum'];
+                $row = $this->_processInvoiceRegister($invoice);
+                if ($row) {
+                    $data[] = $row;
+                }
             }
 
-            if (abs($sum16) < 0.001) {
+            $processedCount += count($invoices);
+
+            // Очищаем кэш каждые N записей
+            if ($processedCount % (self::BATCH_SIZE * 5) === 0) {
+                HistoryActiveRecord::clearHistoryVersionCache();
+                gc_collect_cycles();
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param $invoice
+     * @return array|null
+     */
+    private function _processInvoiceRegister($invoice)
+    {
+        /** @var \app\models\filter\SaleBookFilter $invoice */
+        $account = $invoice->bill->clientAccount;
+        if (!$account) {
+            return null;
+        }
+
+        $contract = $account->contract;
+        if (!$contract) {
+            return null;
+        }
+
+        $contractDate = $contract->document->contract_date ?? $contract->offer_date;
+        $contractDate = $contractDate ?: '2021-09-01';
+        if (strtotime($contractDate) < strtotime('2021-09-01')) {
+            $contractDate = '2021-09-01';
+        }
+
+        $contragent = $contract->contragent;
+        if (!$contragent) {
+            return null;
+        }
+
+        $sum16 = 0;
+        foreach ($invoice->lines as $line) {
+            $isVatsTs = SaleBookHelper::isTelephonyService($line, $this->filter);
+            if (!$isVatsTs) {
                 continue;
             }
 
-            $data[] = [
-                'company_full' => trim($contragent->name_full),
-                'inn' => trim($contragent->inn),
-                'kpp' => trim($contragent->kpp),
-                'inv_no' => $invoice->number,
-                'inv_date' => $invoice->getDateImmutable()->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
-                'sum16' => $sum16,
-                'contract_number' => $contract->number,
-                'contract_date' => date('d.m.Y', strtotime($contractDate)),
-            ];
+            $sum16 += abs($line['sum_tax']) > 0 ? 0 : $line['sum'];
         }
-        return $data;
+
+        if (abs($sum16) < 0.001) {
+            return null;
+        }
+
+        return [
+            'company_full' => trim($contragent->name_full),
+            'inn' => trim($contragent->inn),
+            'kpp' => trim($contragent->kpp),
+            'inv_no' => $invoice->number,
+            'inv_date' => $invoice->getDateImmutable()->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
+            'sum16' => $sum16,
+            'contract_number' => $contract->number,
+            'contract_date' => date('d.m.Y', strtotime($contractDate)),
+        ];
     }
 
 
