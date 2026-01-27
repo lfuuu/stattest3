@@ -67,6 +67,7 @@ use yii\helpers\Url;
  * @property integer $is_verified
  * @property integer $is_with_discount
  * @property integer $is_in_msteams
+ * @property string $forced_status
  *
  * @property-read City $city
  * @property-read AccountTariff $accountTariff
@@ -100,6 +101,8 @@ class Number extends ActiveRecord
     const STATUS_ACTIVE_TESTED = 'active_tested';
     const STATUS_ACTIVE_COMMERCIAL = 'active_commercial';
     const STATUS_ACTIVE_MSTEAMS = 'active_msteams';
+    const STATUS_BLOCKED_BY_SUBSCRIBER = 'blocked_by_subscriber';
+    const STATUS_BLOCKED_BY_OPERATOR = 'blocked_by_operator';
     const STATUS_NOTACTIVE_RESERVED = 'notactive_reserved';
     const STATUS_NOTACTIVE_HOLD = 'notactive_hold';
     const STATUS_RELEASED = 'released';
@@ -133,6 +136,8 @@ class Number extends ActiveRecord
         self::STATUS_ACTIVE_COMMERCIAL => 'Используется. В коммерции.',
         self::STATUS_ACTIVE_CONNECTED => 'Подключение запланировано',
         self::STATUS_ACTIVE_MSTEAMS => 'Используется. MS Teams',
+        self::STATUS_BLOCKED_BY_SUBSCRIBER => 'Заблокирован абонентом',
+        self::STATUS_BLOCKED_BY_OPERATOR => 'Заблокирован оператором',
         self::STATUS_NOTACTIVE_RESERVED => 'В резерве',
         self::STATUS_NOTACTIVE_HOLD => 'В отстойнике',
         self::STATUS_RELEASED => 'Откреплен',
@@ -144,7 +149,9 @@ class Number extends ActiveRecord
             self::STATUS_ACTIVE_TESTED,
             self::STATUS_ACTIVE_COMMERCIAL,
             self::STATUS_NOT_VERFIED,
-            self::STATUS_ACTIVE_MSTEAMS
+            self::STATUS_ACTIVE_MSTEAMS,
+            self::STATUS_BLOCKED_BY_SUBSCRIBER,
+            self::STATUS_BLOCKED_BY_OPERATOR
         ],
         self::STATUS_GROUP_NOTACTIVE => [
             self::STATUS_NOTACTIVE_RESERVED,
