@@ -102,11 +102,11 @@ WITH calls0 AS (
 ), cdr AS (
     SELECT distinct d.*
     FROM calls_cdr.cdr d
-    JOIN calls0 c ON d.server_id = c.server_id and d.id = c.cdr_id
+    JOIN calls0 c ON d.instance_id = c.instance_id and d.id = c.cdr_id
     WHERE d.connect_time BETWEEN '{$fromStr}' AND '{$toStr}'
 ), calls AS (
     SELECT c.* FROM calls_raw.calls_raw c
-    JOIN cdr d ON d.server_id = c.server_id and d.id = c.cdr_id
+    JOIN cdr d ON d.instance_id = c.instance_id and d.id = c.cdr_id
     WHERE (c.connect_time BETWEEN '{$fromStr}' AND '{$toStr}')
 )
 
@@ -115,8 +115,8 @@ SELECT cdr.server_id, cdr.id as cdr_id, cdr.mcn_callid,
 , c_orig.src_number as orig_num_a, c_orig.dst_number as orig_num_b, c_orig.account_id as orig_account
 , c_term.src_number as term_num_a, c_term.dst_number as term_num_b, c_term.account_id as term_account
 FROM cdr
-LEFT JOIN calls c_orig on cdr.server_id = c_orig.server_id and cdr.id = c_orig.cdr_id and c_orig.orig
-LEFT JOIN calls c_term on cdr.server_id = c_term.server_id and cdr.id = c_term.cdr_id and not c_term.orig
+LEFT JOIN calls c_orig on cdr.instance_id = c_orig.instance_id and cdr.id = c_orig.cdr_id and c_orig.orig
+LEFT JOIN calls c_term on cdr.instance_id = c_term.instance_id and cdr.id = c_term.cdr_id and not c_term.orig
 WHERE True
 SQL;
 
