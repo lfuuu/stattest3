@@ -550,7 +550,7 @@ class VoipController extends ApiInternalController
 
 
     /**
-     * @SWG\Post(tags = {"Numbers"}, path = "/internal/voip/set-number-as-verfied/", summary = "Установка статуса у номера, что он проверен", operationId = "set-number-as-verfied",
+     * @SWG\Post(tags = {"Numbers"}, path = "/internal/voip/set-number-as-verfied/", summary = "Установка статуса у номера, что верифиукация пройдена", operationId = "set-number-as-verfied",
      *   @SWG\Parameter(name="number",type="string",description="номер телефона",in="formData",default=""),
      *   @SWG\Response(response = 200, description = "Получение информации о номере",
      *   )
@@ -614,13 +614,12 @@ class VoipController extends ApiInternalController
     }
 
     /**
-     * @SWG\Post(tags = {"Numbers"}, path = "/internal/voip/set-number-to-verfied/", summary = "Установка статуса у номера, необходима проверен", operationId = "set-number-to-verfied",
+     * @SWG\Post(tags = {"Numbers"}, path = "/internal/voip/set-number-to-verfied/", summary = "Установка статуса у номера, что необходима верефикация", operationId = "set-number-to-verfied",
      *   @SWG\Parameter(name="number",type="string",description="номер телефона",in="formData",default=""),
      *   @SWG\Response(response = 200, description = "Получение информации о номере",
      *   )
      * )
      */
-
     public function actionSetNumberToVerfied()
     {
         $requestData = Yii::$app->request->post() ?: [];
@@ -701,6 +700,114 @@ class VoipController extends ApiInternalController
             ->andWhere(['service_type_id' => ServiceType::ID_VOIP])
             ->asArray()
             ->all();
+    }
+
+
+    /**
+     * @SWG\Post(tags = {"Numbers"}, path = "/internal/voip/set-number-status/",
+     *   summary = "Установка статуса номера",
+     *   operationId = "set-number-status",
+     *   @SWG\Parameter(name="number", type="string", description="номер телефона", in="formData", required=true, default=""),
+     *   @SWG\Parameter(name="status", type="string",
+     *     description="статус номера: blocked_by_subscriber - заблокирован абонентом, blocked_by_operator - заблокирован оператором, not_verfied - не верифицирован, active или пустой - сброс статуса",
+     *     in="formData",
+     *     enum={"blocked_by_subscriber", "blocked_by_operator", "not_verfied", "active", ""}
+     *   ),
+     *   @SWG\Response(response = 200, description = "Результат операции")
+     * )
+     */
+    public function actionSetNumberStatus()
+    {
+        $requestData = Yii::$app->request->post() ?: [];
+
+        $model = DynamicModel::validateData(
+            $requestData,
+            [
+                ['number', 'string'],
+                ['number', 'trim'],
+                ['number', 'required'],
+                ['status', 'string'],
+                ['status', 'in', 'range' => ['', 'active', 'blocked_by_subscriber', 'blocked_by_operator', 'not_verfied']],
+            ]
+        );
+
+        if ($model->hasErrors()) {
+            $errors = $model->getFirstErrors();
+            throw new \InvalidArgumentException(reset($errors));
+        }
+
+        $lockKey = 'number_status_' . $model['number'];
+        if (!Yii::$app->mutex->acquire($lockKey, self::DEFAULT_TIMEOUT)) {
+            throw new \RuntimeException("Can't get number lock", 500);
+        }
+
+        try {
+            $number = Number::findOne(['number' => $model['number']]);
+
+            if (!$number) {
+                throw new InvalidParamException('Number not found');
+            }
+
+            if (!in_array($number->status, Number::$statusGroup[Number::STATUS_GROUP_ACTIVE])) {
+                throw new \InvalidArgumentException('Number not in active status');
+            }
+
+            $status = $model['status'] ?? '';
+
+            // Определяем новые значения
+            $newForcedStatus = null;
+            $newIsVerified = $number->is_verified;
+
+            switch ($status) {
+                case Number::STATUS_BLOCKED_BY_SUBSCRIBER:
+                    $newForcedStatus = Number::STATUS_BLOCKED_BY_SUBSCRIBER;
+                    break;
+                case Number::STATUS_BLOCKED_BY_OPERATOR:
+                    $newForcedStatus = Number::STATUS_BLOCKED_BY_OPERATOR;
+                    break;
+                case Number::STATUS_NOT_VERFIED:
+                    $newForcedStatus = Number::STATUS_NOT_VERFIED;
+                    $newIsVerified = 0;
+                    break;
+                default:
+                    $newIsVerified = 1;
+                    break;
+            }
+
+            // Проверяем, изменились ли значения
+            if ($number->forced_status === $newForcedStatus && $number->is_verified === $newIsVerified) {
+                return [
+                    'number' => $model['number'],
+                    'current_status' => $number->status
+                ];
+            }
+
+            $transaction = Number::getDb()->beginTransaction();
+            try {
+                $number->forced_status = $newForcedStatus;
+                $number->is_verified = $newIsVerified;
+
+                if (!$number->save()) {
+                    throw new ModelValidationException($number);
+                }
+
+                Number::dao()->actualizeStatus($number);
+                $transaction->commit();
+            } catch (\Exception $e) {
+                Yii::error($e);
+                $transaction->rollBack();
+                throw $e;
+            }
+
+            $number->refresh();
+
+            return [
+                'number' => $model['number'],
+                'current_status' => $number->status
+            ];
+        } finally {
+            Yii::$app->mutex->release($lockKey);
+        }
     }
 
 

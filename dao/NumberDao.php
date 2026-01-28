@@ -108,9 +108,13 @@ class NumberDao extends Singleton
                 Number::STATUS_ACTIVE_COMMERCIAL
             );
 
-        if ($number->is_verified === 0) {
+        if ($number->forced_status === Number::STATUS_BLOCKED_BY_SUBSCRIBER) {
+            $newStatus = Number::STATUS_BLOCKED_BY_SUBSCRIBER;
+        } elseif ($number->forced_status === Number::STATUS_BLOCKED_BY_OPERATOR) {
+            $newStatus = Number::STATUS_BLOCKED_BY_OPERATOR;
+        } elseif ($number->is_verified === 0) {
             $newStatus = Number::STATUS_NOT_VERFIED;
-        }elseif ($number->is_in_msteams) {
+        } elseif ($number->is_in_msteams) {
             $newStatus = Number::STATUS_ACTIVE_MSTEAMS;
         }
 
@@ -140,6 +144,12 @@ class NumberDao extends Singleton
             case Number::STATUS_ACTIVE_MSTEAMS:
                 $logStatus = NumberLog::ACTION_MSTEAMS;
                 break;
+            case Number::STATUS_BLOCKED_BY_SUBSCRIBER:
+                $logStatus = NumberLog::ACTION_BLOCKED_BY_SUBSCRIBER;
+                break;
+            case Number::STATUS_BLOCKED_BY_OPERATOR:
+                $logStatus = NumberLog::ACTION_BLOCKED_BY_OPERATOR;
+                break;
         }
 
         Number::dao()->log(
@@ -157,6 +167,9 @@ class NumberDao extends Singleton
         if (!in_array($number->status, Number::$statusGroup[Number::STATUS_GROUP_ACTIVE])) {
             return;
         }
+
+        $number->forced_status = null;
+        $number->is_verified = 1;
 
         if ($number->is_ported) {
             Number::dao()->toRelease($number);

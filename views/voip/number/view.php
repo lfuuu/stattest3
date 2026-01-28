@@ -280,6 +280,10 @@ echo \yii\widgets\Breadcrumbs::widget([
                                             <b>Используется. <?= Number::$statusList[Number::STATUS_NOT_VERFIED] ?></b><?php
                                         } elseif ($log['addition'] == NumberLog::ACTION_MSTEAMS) { ?>
                                             <b><?= Number::$statusList[Number::STATUS_ACTIVE_MSTEAMS] ?></b><?php
+                                        } elseif ($log['addition'] == NumberLog::ACTION_BLOCKED_BY_SUBSCRIBER) { ?>
+                                            <b><?= Number::$statusList[Number::STATUS_BLOCKED_BY_SUBSCRIBER] ?></b><?php
+                                        } elseif ($log['addition'] == NumberLog::ACTION_BLOCKED_BY_OPERATOR) { ?>
+                                            <b><?= Number::$statusList[Number::STATUS_BLOCKED_BY_OPERATOR] ?></b><?php
                                         } else {
                                             ?><b>Используется</b><?php
                                         }
