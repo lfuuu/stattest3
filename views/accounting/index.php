@@ -916,9 +916,7 @@ function contentNotShowInLkSpan()
 
                             return $return;
                         },
-                        'contentOptions' => function ($row) {
-                            return cellContentOptions($row->bill_is_paid, 'text-right');
-                        },
+                        'contentOptions' => ['class' => 'text-right'],
                     ],
                     [
                         'label' => 'С/ф +',
@@ -946,9 +944,7 @@ function contentNotShowInLkSpan()
                             }
                             return $row->invoice ? nf($row->invoice['sum']) : '';
                         },
-                        'contentOptions' => function ($row) {
-                            return cellContentOptions($row->invoice_is_paid, 'text-right');
-                        },
+                        'contentOptions' => ['class' => 'text-right'],
                     ],
 
                     [
@@ -977,9 +973,7 @@ function contentNotShowInLkSpan()
 
                             return $payInfoStr;
                         },
-                        'contentOptions' => function ($row) {
-                            return cellContentOptions(null, 'info text-right');
-                        },
+                        'contentOptions' => ['class' => 'text-right'],
                     ],
                 ]);
             }
@@ -1002,9 +996,7 @@ function contentNotShowInLkSpan()
                         'value' => function (row $row) {
                             return $row->bill_minus ? nf($row->bill_minus['sum']) : '';
                         },
-                        'contentOptions' => function ($row) {
-                            return cellContentOptions($row->bill_minus_is_paid, 'text-right');
-                        },
+                        'contentOptions' => ['class' => 'text-right'],
                     ],
                     [
                         'label' => 'С/ф -',
@@ -1022,9 +1014,7 @@ function contentNotShowInLkSpan()
                             return $row->invoice_minus ? nf($row->invoice_minus['sum']) : '';
                         },
                         'label' => $currencyLabel . ' -',
-                        'contentOptions' => function ($row) {
-                            return cellContentOptions($row->invoice_minus_is_paid, 'text-right');
-                        },
+                        'contentOptions' => ['class' => 'text-right'],
                     ],
                     [
                         'label' => 'Платеж -',
@@ -1034,9 +1024,7 @@ function contentNotShowInLkSpan()
                                 ? ($row->payment_minus['info'] ? Html::tag('small', $row->payment_minus['info'] . ' / ') : '') . nf($row->payment_minus['sum'])
                                 : '';
                         },
-                        'contentOptions' => function ($row) {
-                            return cellContentOptions(null, 'info text-right');
-                        },
+                        'contentOptions' => ['class' => 'text-right'],
                     ],
                 ]);
             }
