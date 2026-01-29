@@ -394,7 +394,7 @@ foreach ($paysPlus as $pay) {
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'info' => $listFilter == 'income' ? getPaymentInfo($pay) : '',
+        'info' => in_array($listFilter, ['income', 'full'], true) ? getPaymentInfo($pay) : '',
         'info_json' => getPaymentInfoJson($pay),
         'is_paid' => null,
         'type' => 'payment',
@@ -413,7 +413,7 @@ foreach ($paysMinus as $pay) {
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'info' => $listFilter == 'income' ? getPaymentInfo($pay) : '',
+        'info' => in_array($listFilter, ['income', 'full'], true) ? getPaymentInfo($pay) : '',
         'info_json' => getPaymentInfoJson($pay),
         'is_paid' => null,
         'type' => 'payment_minus',
@@ -955,12 +955,12 @@ function contentNotShowInLkSpan()
                                 return '';
                             }
 
-                            $payInfoStr = ($row->payment['info'] ? Html::tag('small', $row->payment['info'] . ' / ') : '') . nf($row->payment['sum']);
+                            $info = $row->payment['info'] ?? '';
 
                             if ($row->payment['info_json']) {
                                 return Html::tag(
                                     'button',
-                                    $payInfoStr,
+                                    $info !== '' ? Html::tag('small', $info) : 'детали',
                                     [
                                         'class' => 'btn btn-xs',
                                         'data-toggle' => 'popover',
@@ -971,7 +971,15 @@ function contentNotShowInLkSpan()
                                 );
                             }
 
-                            return $payInfoStr;
+                            return $info !== '' ? Html::tag('small', $info) : '';
+                        },
+                        'contentOptions' => ['class' => 'info'],
+                    ],
+                    [
+                        'label' => $currencyLabel . ' +',
+                        'format' => 'raw',
+                        'value' => function (row $row) {
+                            return $row->payment ? nf($row->payment['sum']) : '';
                         },
                         'contentOptions' => ['class' => 'text-right'],
                     ],
@@ -1020,9 +1028,35 @@ function contentNotShowInLkSpan()
                         'label' => 'Платеж -',
                         'format' => 'raw',
                         'value' => function (row $row) {
-                            return $row->payment_minus
-                                ? ($row->payment_minus['info'] ? Html::tag('small', $row->payment_minus['info'] . ' / ') : '') . nf($row->payment_minus['sum'])
-                                : '';
+                            if (!$row->payment_minus) {
+                                return '';
+                            }
+
+                            $info = $row->payment_minus['info'] ?? '';
+
+                            if ($row->payment_minus['info_json']) {
+                                return Html::tag(
+                                    'button',
+                                    $info !== '' ? Html::tag('small', $info) : 'детали',
+                                    [
+                                        'class' => 'btn btn-xs',
+                                        'data-toggle' => 'popover',
+                                        'data-html' => 'true',
+                                        'data-placement' => 'bottom',
+                                        'data-content' => Html::tag('pre', $row->payment_minus['info_json']),
+                                    ]
+                                );
+                            }
+
+                            return $info !== '' ? Html::tag('small', $info) : '';
+                        },
+                        'contentOptions' => ['class' => 'info'],
+                    ],
+                    [
+                        'label' => $currencyLabel . ' -',
+                        'format' => 'raw',
+                        'value' => function (row $row) {
+                            return $row->payment_minus ? nf($row->payment_minus['sum']) : '';
                         },
                         'contentOptions' => ['class' => 'text-right'],
                     ],
