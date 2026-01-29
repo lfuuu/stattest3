@@ -973,6 +973,7 @@ function contentNotShowInLkSpan()
 
                             return $info !== '' ? Html::tag('small', $info) : '';
                         },
+                        'contentOptions' => ['class' => 'info'],
                     ],
                     [
                         'label' => 'Сумма +',
@@ -1049,6 +1050,7 @@ function contentNotShowInLkSpan()
 
                             return $info !== '' ? Html::tag('small', $info) : '';
                         },
+                        'contentOptions' => ['class' => 'info'],
                     ],
                     [
                         'label' => 'Сумма -',
