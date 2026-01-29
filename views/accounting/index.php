@@ -976,7 +976,7 @@ function contentNotShowInLkSpan()
                         'contentOptions' => ['class' => 'info'],
                     ],
                     [
-                        'label' => 'Сумма +',
+                        'label' => $currencyLabel . ' +',
                         'format' => 'raw',
                         'value' => function (row $row) {
                             return $row->payment ? nf($row->payment['sum']) : '';
@@ -1053,7 +1053,7 @@ function contentNotShowInLkSpan()
                         'contentOptions' => ['class' => 'info'],
                     ],
                     [
-                        'label' => 'Сумма -',
+                        'label' => $currencyLabel . ' -',
                         'format' => 'raw',
                         'value' => function (row $row) {
                             return $row->payment_minus ? nf($row->payment_minus['sum']) : '';
