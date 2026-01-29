@@ -23,6 +23,7 @@ use app\helpers\DateTimeZoneHelper;
  * @property float $sum_without_tax
  * @property float $sum_tax
  * @property integer $line_id
+ * @property-read float $price_per_unit
  *
  * @property-read Invoice $invoice
  * @property-read BillLine $line
@@ -171,6 +172,11 @@ class InvoiceLine extends ActiveRecord
     public function getOutprice()
     {
         return abs(($this->sum_without_tax / $this->amount) - $this->price) < 0.1 ? $this->price : round($this->sum_without_tax / $this->amount, 4);
+    }
+
+    public function getPrice_per_unit()
+    {
+        return $this->amount > 0 ? $this->sum_without_tax / $this->amount : 0;
     }
 
     /**

@@ -247,7 +247,7 @@ class Invoice2025Form5_03 extends Invoice2016Form5_02
 //            $elLine->setAttribute('НаимЕдИзм', 'шт');// choice1 required
             $elLine->setAttribute('КолТов', $this->formatNumber($line->getAmount(), 3));// optional
             $elLine->setAttribute('СтТовБезНДС', $this->formatNumber($line->getPrice_without_vat()));// optional
-            $elLine->setAttribute('ЦенаТов', $this->formatNumber($line->price));// optional
+            $elLine->setAttribute('ЦенаТов', $this->formatNumber($line->getPrice_per_unit()));// optional
             $elInvoiceTable->appendChild($elLine);// optional
 
             $elLineExcise = $dom->createElement('Акциз');
