@@ -133,7 +133,8 @@ class EntryPoint extends ActiveRecord
             ['timezone_name', 'in', 'range' => Region::getTimezoneList()],
             ['wizard_type', 'in', 'range' => array_keys(LkWizardState::$name)],
             ['legal_type', 'in', 'range' => array_keys(ClientContragent::$names + ['' => 'Empty'])],
-            [['is_postpaid', 'is_default'], 'boolean'],
+            [['is_default'], 'boolean'],
+            ['is_postpaid', 'in', 'range' => array_keys(ClientAccount::$paymentTypes)],
             ['account_version', 'in', 'range' => array_keys(ClientAccount::$versions)],
             [['credit', 'voip_credit_limit_day', 'voip_limit_mn_day'], 'integer', 'min' => 0],
             [
@@ -167,7 +168,7 @@ class EntryPoint extends ActiveRecord
             'client_contract_business_process_status_id' => 'Статус БП',
             'currency_id' => 'Валюта',
             'timezone_name' => 'Часовой пояс',
-            'is_postpaid' => 'Метод платежа - postpaid',
+            'is_postpaid' => 'Тип оплаты',
             'account_version' => 'Версия ЛС	',
             'credit' => 'Кредит',
             'voip_credit_limit_day' => 'Лимит телефонии',

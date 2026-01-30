@@ -75,7 +75,7 @@ echo $form->field($model, 'id')->hiddenInput()->label('');
             <div class="col-sm-1">
                 <?= $form
                     ->field($model, 'is_postpaid')
-                    ->checkbox()
+                    ->dropDownList(ClientAccount::$paymentTypes)
                 ?>
             </div>
 

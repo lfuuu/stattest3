@@ -206,7 +206,17 @@ class ClientAccount extends HistoryActiveRecord
 
     const ID_PORTED = 99999;
 
+    const PAYMENT_TYPE_PREPAID = 0;
+    const PAYMENT_TYPE_POSTPAID = 1;
+    const PAYMENT_TYPE_PREPAID_2 = 2;
+
     const PRICE_LEVEL_B2C = [2, 3];
+
+    public static $paymentTypes = [
+        self::PAYMENT_TYPE_PREPAID => 'Prepaid',
+        self::PAYMENT_TYPE_POSTPAID => 'Postpaid',
+        self::PAYMENT_TYPE_PREPAID_2 => 'Prepaid 2.0',
+    ];
 
     public static $statuses = [
         'negotiations' => ['name' => 'в стадии переговоров', 'color' => '#C4DF9B'],
@@ -408,7 +418,7 @@ class ClientAccount extends HistoryActiveRecord
             'lk_balance_view_mode' => 'Тип отображения баланса в ЛК',
             'account_version' => 'Версия ЛС',
             'anti_fraud_disabled' => 'Отключен анти-фрод',
-            'is_postpaid' => 'Постоплата',
+            'is_postpaid' => 'Тип оплаты',
             'type_of_bill' => 'Закрывающий документ (Полный)',
             'status' => 'Статус',
             'is_active' => 'Вкл.',

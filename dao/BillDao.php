@@ -413,7 +413,7 @@ class BillDao extends Singleton
             ->orderBy(['id' => SORT_ASC])
             ->all();
 
-        if (!$clientAccount->is_postpaid) {
+        if ($clientAccount->is_postpaid != ClientAccount::PAYMENT_TYPE_POSTPAID) {
             /*
                 // для предоплаты не надо включать в счет посуточную абонентку
                 // или все-таки надо? иначе эти строчки никогда не попадут в счет и бухгалтерский баланс будет сильно отличаться от реалтайма
