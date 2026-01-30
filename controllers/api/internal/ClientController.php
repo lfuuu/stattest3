@@ -252,7 +252,7 @@ class ClientController extends ApiInternalController
      *   @SWG\Property(property="is_finance_block", type="boolean", description="Финансовая блокировка"),
      *   @SWG\Property(property="is_overran_block", type="boolean", description="Блокировка по превышению дневных лимитов"),
      *   @SWG\Property(property="is_bill_pay_overdue", type="boolean", description="Блокировка по неоплате счета"),
-     *   @SWG\Property(property="is_postpaid", type="boolean", description="Постоплата"),
+     *   @SWG\Property(property="is_postpaid", type="integer", description="Тип оплаты (0 - Prepaid, 1 - Postpaid, 2 - Prepaid 2.0)"),
      *   @SWG\Property(property="is_show_in_lk", type="boolean", description="Показывать ЛС в ЛК"),
      *   @SWG\Property(property="credit", type="integer", description="Лимит кредита"),
      *   @SWG\Property(property="version", type="integer", description="Версия биллера ЛС"),
@@ -325,7 +325,7 @@ class ClientController extends ApiInternalController
      *   @SWG\Property(property="is_disabled", type="boolean", description="Признак отключенного"),
      *   @SWG\Property(property="is_blocked", type="boolean", description="ЛС заблокирован полностью"),
      *   @SWG\Property(property="is_bill_pay_overdue", type="boolean", description="Блокировка по неоплате счета"),
-     *   @SWG\Property(property="is_postpaid", type="boolean", description="Постоплата"),
+     *   @SWG\Property(property="is_postpaid", type="integer", description="Тип оплаты (0 - Prepaid, 1 - Postpaid, 2 - Prepaid 2.0)"),
      *   @SWG\Property(property="credit", type="integer", description="Лимит кредита"),
      *   @SWG\Property(property="version", type="integer", description="Версия биллера ЛС"),
      *   @SWG\Property(property="applications", type="array", description="Массив приложений", @SWG\Items(ref="#/definitions/get-super-client-struct-applications"))

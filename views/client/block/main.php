@@ -269,7 +269,7 @@ $priceLevels = PriceLevel::getList();
                                                 <?php endif; ?>
                                             </span>
                                             <span class="col-sm-2 text-right">
-                                                <?= $priceLevels[$contractAccount->price_level] ?> / <?= ($contractAccount->is_postpaid ? 'postpaid' : 'prepaid') ?>
+                                                <?= $priceLevels[$contractAccount->price_level] ?> / <?= ClientAccount::$paymentTypes[$contractAccount->is_postpaid] ?? 'unknown' ?>
                                             </span>
                                             <div class="btn-group pull-right">
                                                 <?php if ($contractAccount->hasVoip) : ?>

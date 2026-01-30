@@ -33,7 +33,7 @@ $creditEditOptions = \Yii::$app->user->can('clients.new') ? [] : $disabled;
             <?= $f->field($model, 'timezone_name')->dropDownList(Timezone::getList()) ?>
         </div>
         <div class="col-sm-3">
-            <?= $f->field($model, 'is_postpaid')->checkbox()->label('') ?>
+            <?= $f->field($model, 'is_postpaid')->dropDownList(ClientAccount::$paymentTypes) ?>
         </div>
         <div class="col-sm-3">
             <?= $f->field($model, 'effective_vat_rate')
