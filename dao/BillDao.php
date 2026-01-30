@@ -1256,6 +1256,19 @@ SQL;
                 $types = [Invoice::TYPE_PREPAID];
             }
 
+            // Для Prepaid 2.0: TYPE_1 (абонентка) - формируется только если счёт за прошлый месяц
+            if (
+                !$is4Invoice
+                && $bill->clientAccountModel->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2
+            ) {
+                $billMonth = (new \DateTimeImmutable($bill->bill_date))->modify('first day of this month')->setTime(0, 0, 0,);
+                $currentMonth = (new \DateTimeImmutable())->modify('first day of this month')->setTime(0, 0, 0,);
+
+                if ($billMonth >= $currentMonth) {
+                    $types = array_filter($types, fn($typeId) => $typeId !== Invoice::TYPE_1);
+                }
+            }
+
             foreach ($types as $typeId) {
                 $invoiceDate = Invoice::getDate($bill, $typeId);
 
