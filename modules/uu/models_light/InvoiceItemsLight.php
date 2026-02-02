@@ -2,6 +2,7 @@
 
 namespace app\modules\uu\models_light;
 
+use app\classes\accounting\PrintUpdHelper;
 use app\models\ClientAccount;
 use app\models\InvoiceSettings;
 use app\modules\uu\models\AccountEntry;
@@ -67,7 +68,7 @@ class InvoiceItemsLight extends Component implements InvoiceLightInterface
             ];
         }
 
-        $bill->setPageCount(\printUPD::getInfo(count($items)));
+        $bill->setPageCount(PrintUpdHelper::getInfo(count($items)));
     }
 
     /**

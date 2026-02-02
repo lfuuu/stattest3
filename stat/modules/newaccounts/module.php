@@ -3180,7 +3180,7 @@ class m_newaccounts extends IModule
                     }
 
                     if ($obj == "upd") {
-                        $design->assign("print_upd", printUPD::getInfo(count($design->_tpl_vars["bill_lines"])));
+                        $design->assign("print_upd", \app\classes\accounting\PrintUpdHelper::getInfo(count($design->_tpl_vars["bill_lines"])));
                     }
 
                 } elseif ($obj == 'gds') {
