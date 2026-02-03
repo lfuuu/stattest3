@@ -99,7 +99,7 @@
 
 				<td style="text-align: center;color: {if $data.diff > 0}#000033{elseif $data.diff < 0}#663300{else}#C0C0C0{/if};">{if $data.diff > 0}+{/if}{$data.diff|bytesize:"b"}</td>
 				<td style="text-align: center;color: {if $data.diff_number > 0}#000033{elseif $data.diff_number < 0}#663300{else}#C0C0C0{/if}">{if $data.diff_number > 0}+{/if}{$data.diff_number}</td>
-				<td style="text-align: center;color: {if $data.diff_number > 0}#000033{elseif $data.diff_number < 0}#663300{else}#C0C0C0{/if}">{if $data.diff_ext_dids > 0}+{/if}{$data.diff_ext_dids}</td>
+				<td style="text-align: center;color: {if $data.diff_ext_dids > 0}#000033{elseif $data.diff_number < 0}#663300{else}#C0C0C0{/if}">{if $data.diff_ext_dids > 0}+{/if}{$data.diff_ext_dids}</td>
 
 				<td style="text-align: right;">
 						{$data.sum_space|num_format:true:2}{if $data.sum_space}<sup><small>за {$data.for_space|bytesize:"Gb"}</small></sup>{/if}
