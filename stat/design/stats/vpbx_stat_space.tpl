@@ -28,27 +28,27 @@
     {foreach from=$stats item="s" name=outer key="k"}
         <tr class={if $smarty.foreach.outer.iteration%2==0}even{else}odd{/if}>
             <td style="text-align: center;">
-                <a href="?module=stats&action=report_vpbx_stat_space&usage_id={$s->usage_id}&date_from={$date_from}&date_to={$date_to}">АТС {$s->usage_id}</a>
+                <a href="?module=stats&action=report_vpbx_stat_space&usage_id={$s.usage_id}&date_from={$date_from}&date_to={$date_to}">АТС №{$s.usage_id}</a>
             </td>
             {if !$fixclient}
                 <td style="text-align: center;">
-                    <a href="/client/view?id={$s->client}">{$s->client}</a>
+                    <a href="/client/view?id={$s.client_id}">{$s.client_id}</a>
                 </td>
             {/if}
-            <td style="text-align: center;">{$s->actual|mdate:"j месяца Y"}</td>
-            <td style="text-align: center;">{$s->tarif}</td>
+            <td style="text-align: center;">{$s.actual|mdate:"j месяца Y"}</td>
+			<td style="text-align: center;"><a href="/uu/tariff/edit?id={$s.tariff_id}">{$s.tariff_name}</a></td>
 
-            <td style="text-align: center;">{$s->max|bytesize:"b"}</td>
-            <td style="text-align: center;">{$s->max_number}</td>
-            <td style="text-align: center; border-right: 1px solid #D0D0D0;">{$s->max_ext_did_count}</td>
+            <td style="text-align: center;">{$s.max|bytesize:"b"}</td>
+            <td style="text-align: center;">{$s.max_number}</td>
+            <td style="text-align: center; border-right: 1px solid #D0D0D0;">{$s.max_ext_did_count}</td>
 
-            <td style="text-align: center;">{$s->min|bytesize:"b"}</td>
-            <td style="text-align: center;">{$s->min_number}</td>
-            <td style="text-align: center; border-right: 1px solid #D0D0D0;">{$s->min_ext_did_count}</td>
+            <td style="text-align: center;">{$s.min|bytesize:"b"}</td>
+            <td style="text-align: center;">{$s.min_number}</td>
+            <td style="text-align: center; border-right: 1px solid #D0D0D0;">{$s.min_ext_did_count}</td>
 
-            <td style="text-align: center;">{$s->avg|bytesize:"b"}</td>
-            <td style="text-align: center;">{$s->avg_number|number_format:"2":",":" "}</td>
-            <td style="text-align: center;">{$s->avg_ext_did_count|number_format:"2":",":" "}</td>
+            <td style="text-align: center;">{$s.avg|bytesize:"b"}</td>
+            <td style="text-align: center;">{$s.avg_number|number_format:"2":",":" "}</td>
+            <td style="text-align: center;">{$s.avg_ext_did_count|number_format:"2":",":" "}</td>
         </tr>
     {/foreach}
 {else}
@@ -91,28 +91,28 @@
 		</tr>
 		{foreach from=$stat_detailed.0 item="data" name=outer}
 			<tr class={if $smarty.foreach.outer.iteration%2==0}even{else}odd{/if}>
-				<td style="text-align: center;">{$data->mdate|mdate:"j месяца Y"}</td>
+				<td style="text-align: center;">{$data.date|mdate:"j месяца Y"}</td>
 
-				<td style="text-align: center;">{$data->use_space|bytesize:"b"}</td>
-				<td style="text-align: center;">{$data->numbers}</td>
-				<td style="text-align: center;">{$data->ext_did_count}</td>
+				<td style="text-align: center;">{$data.use_space|bytesize:"b"}</td>
+				<td style="text-align: center;">{$data.numbers}</td>
+				<td style="text-align: center;">{$data.ext_did_count}</td>
 
-				<td style="text-align: center;color: {if $data->diff > 0}#000033{elseif $data->diff < 0}#663300{else}#C0C0C0{/if};">{if $data->diff > 0}+{/if}{$data->diff|bytesize:"b"}</td>
-				<td style="text-align: center;color: {if $data->diff_number > 0}#000033{elseif $data->diff_number < 0}#663300{else}#C0C0C0{/if}">{if $data->diff_number > 0}+{/if}{$data->diff_number}</td>
-				<td style="text-align: center;color: {if $data->diff_number > 0}#000033{elseif $data->diff_number < 0}#663300{else}#C0C0C0{/if}">{if $data->diff_ext_dids > 0}+{/if}{$data->diff_ext_dids}</td>
+				<td style="text-align: center;color: {if $data.diff > 0}#000033{elseif $data.diff < 0}#663300{else}#C0C0C0{/if};">{if $data.diff > 0}+{/if}{$data.diff|bytesize:"b"}</td>
+				<td style="text-align: center;color: {if $data.diff_number > 0}#000033{elseif $data.diff_number < 0}#663300{else}#C0C0C0{/if}">{if $data.diff_number > 0}+{/if}{$data.diff_number}</td>
+				<td style="text-align: center;color: {if $data.diff_number > 0}#000033{elseif $data.diff_number < 0}#663300{else}#C0C0C0{/if}">{if $data.diff_ext_dids > 0}+{/if}{$data.diff_ext_dids}</td>
 
 				<td style="text-align: right;">
-						{$data->sum_space|num_format:true:2}{if $data->sum_space}<sup><small>за {$data->for_space|bytesize:"Gb"}</small></sup>{/if}
+						{$data.sum_space|num_format:true:2}{if $data.sum_space}<sup><small>за {$data.for_space|bytesize:"Gb"}</small></sup>{/if}
 				</td>
 				<td style="text-align: right;">
-					{$data->sum_number|num_format:true:2}{if $data->sum_number}<sup><small>за {$data->for_number} порт(ов)</small></sup>{/if}
+					{$data.sum_number|num_format:true:2}{if $data.sum_number}<sup><small>за {$data.for_number} порт(ов)</small></sup>{/if}
 				</td>
 				<td style="text-align: right;">
-					{$data->sum_ext_dids|num_format:true:2}{if $data->sum_ext_dids}<sup><small>за {$data->for_ext_did_count}</small></sup>{/if}
+					{$data.sum_ext_dids|num_format:true:2}{if $data.sum_ext_dids}<sup><small>за {$data.for_ext_did_count}</small></sup>{/if}
 				</td>
 
 				<td style="text-align: right;">
-					{$data->sum|num_format:true:2}
+					{$data.sum|num_format:true:2}
 				</td>
 			</tr>
 		{/foreach}
@@ -128,7 +128,10 @@
 				{$totals.sum_number|num_format:true:2}
 			</td>
 			<td style="text-align: right;">
-				{$totals.sum|num_format:true:2}
+				{$totals.sum_ext_dids|num_format:true:2}
+			</td>
+			<td style="text-align: right;">
+				<b>{$totals.sum|num_format:true:2}</b>
 			</td>
 		</tr>
 	</table>
