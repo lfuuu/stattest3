@@ -4272,14 +4272,36 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 	function stats_report_vpbx_stat_space($fixclient)
 	{
 		global $design;
-		$dateFrom = new DatePickerValues('date_from', 'first');
-		$dateTo = new DatePickerValues('date_to', 'last');
-		$from = $dateFrom->getSqlDay();
-		$to = $dateTo->getSqlDay();
 
         $clientAccount = ClientAccount::findOne($fixclient);
 
-		DatePickerPeriods::assignStartEndMonth($dateFrom->day, 'prev_', '-1 month');
+        $vpbxs = \app\modules\uu\models\AccountTariff::find()
+            ->where(['client_account_id' => $clientAccount->id, 'service_type_id' => \app\modules\uu\models\ServiceType::ID_VPBX])
+            ->select(['id', 'tariff_period_id'])
+            ->indexBy('id')
+            ->all();
+        $design->assign('vpbxs', $vpbxs);
+
+        // init
+        if ($clientAccount && !isset($_GET['vpbx'])) {
+            $_GET['date_from'] = date('01-m-Y');
+            $_GET['date_to'] = date('t-m-Y');
+
+            $vpbxFiltered = array_filter($vpbxs, fn(\app\modules\uu\models\AccountTariff  $v) => $v->tariff_period_id);
+            if ($vpbxFiltered) {
+                $vpbx = reset($vpbxFiltered);
+            }else {
+                $vpbx = reset($vpbxs);
+            }
+            $_GET['vpbx'] = $vpbx->id;
+        }
+
+        $dateFrom = new DatePickerValues('date_from', 'first');
+        $dateTo = new DatePickerValues('date_to', 'last');
+        $from = $dateFrom->getSqlDay();
+        $to = $dateTo->getSqlDay();
+
+        DatePickerPeriods::assignStartEndMonth($dateFrom->day, 'prev_', '-1 month');
 		DatePickerPeriods::assignPeriods(new DateTime());
 		
 		$vpbx_id = get_param_integer('vpbx', 0);
@@ -4290,12 +4312,7 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 		$design->assign('stats', $stats);
 		$design->assign('stat_detailed', $stat_detailed);
 
-        $vpbxs = \app\modules\uu\models\AccountTariff::find()
-            ->where(['client_account_id' => $clientAccount->id, 'service_type_id' => \app\modules\uu\models\ServiceType::ID_VPBX])
-            ->select(['id', 'tariff_period_id'])
-            ->indexBy('id')
-            ->all();
-		$design->assign('vpbxs', $vpbxs);
+
 
 		$design->AddMain('stats/vpbx_stat_space_form.tpl');
 		$design->AddMain('stats/vpbx_stat_space.tpl');
@@ -4311,9 +4328,9 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 	 */
 	function getReportVpbxStatSpace($clientAccount, $vpbx_id, $from, $to)
 	{
-		$stat_detailed = array();
-		$options = array();
-		$options['select'] = '
+        $sql = <<<SQL
+        WITH stat as (
+            SELECT
 				stat.usage_id, 
 				stat.client_id,
 
@@ -4327,87 +4344,41 @@ private function report_plusopers__getList($client, $listType, $d1, $d2, $delive
 
 				MAX(stat.ext_did_count) as max_ext_did_count,
 				MIN(stat.ext_did_count) as min_ext_did_count,
-				AVG(stat.ext_did_count) as avg_ext_did_count,
+				AVG(stat.ext_did_count) as avg_ext_did_count
 				
-				null as actual,
-				null as tarif,
-				null as tarif_id
-				/*,
+        from virtpbx_stat as stat
 
-				UNIX_TIMESTAMP(LT.date_activation) as actual,
-				T.description as tarif,
-				T.id as tarif_id */';
+        where
+                    true
+                        AND stat.date >= :from
+                        AND stat.date <= :to
+SQL;
 
-		$options['from'] = 'virtpbx_stat as stat';
+        $params = [':from' => $from, ':to' => $to];
 
-//		$options['joins'] =
-//			'LEFT JOIN clients as C ON C.id = stat.client_id ' .
-//            'LEFT JOIN usage_virtpbx as UV ON UV.id = stat.usage_id ' .
-//			'LEFT JOIN log_tarif as LT ON UV.id = LT.id_service  ' .
-//			'LEFT JOIN tarifs_virtpbx as T ON LT.id_tarif = T.id '
-//			;
+        if ($vpbx_id) {
+            $sql .= ' AND stat.usage_id = :vpbxId';
+            $params[':vpbxId'] = $vpbx_id;
+        }
+        if ($clientAccount !== null) {
+            $sql .= ' AND stat.client_id = :client_id';
+            $params[':client_id'] = $clientAccount->id;
+        }
 
-		$options['group'] = 'stat.usage_id';
-		
-		$condition_string = "
-			LT.id = (
-				SELECT id 
-				FROM log_tarif as b
-				WHERE
-					date_activation = (
-						SELECT MAX(date_activation)
-						FROM log_tarif 
-						WHERE 
-							CAST(NOW() as DATE) >= date_activation AND 
-							service = 'usage_virtpbx' AND 
-							id_service = b.id_service
-						) AND 
-					id_service = LT.id_service
-				ORDER BY
-						ts desc
-				LIMIT 0,1
-			) 
-                        AND stat.date >= ? 
-                        AND stat.date <= ? 
-                        AND LT.service = ? 
-                        AND UV.actual_from <= ? 
-                        AND UV.actual_to >= ?";
-
-        $condition_string = "
-                            true
-                        AND stat.date >= ?
-                        AND stat.date <= ?
-                        ";
-
-        $condition_values = array(
-            $from,
-            $to,
-        );
-		if ($vpbx_id)
-		{
-			$condition_string .=' AND stat.usage_id = ?';
-			$condition_values[] = $vpbx_id;
-		}
-        if ($clientAccount !== null)
-        {
-			$condition_string .=' AND stat.client_id = ?';
-			$condition_values[] = $clientAccount->id;
-		} else {
-//			$options['select'] .= ',UV.client';
-		}
-		$options['conditions'] = array($condition_string);
-		foreach ($condition_values as $v) 
-		{
-			$options['conditions'][] = $v;
-		}
-		$stats = VirtpbxStat::find('all', $options);
+        $sql .= ' group by stat.usage_id)   
+           select stat.*, at.insert_time as actual, tariff_id, t.name as tariff_name
+           from stat
+                    left join uu_account_tariff at on at.id = stat.usage_id
+                    left join uu_tariff_period tp on at.tariff_period_id = tp.id
+                    left join uu_tariff t on tp.tariff_id = t.id
+        ';
+        $stats = \app\models\VirtpbxStat::getDb()->createCommand($sql, $params)->queryAll();
 
 
-		if ($clientAccount !== null && !empty($stats))
-		{
-			$stat_detailed = VirtpbxStat::getVpbxStatDetails($clientAccount->id, $vpbx_id, strtotime($from), strtotime($to));
-		}
-		return array($stats, $stat_detailed);
+        if ($clientAccount !== null && !empty($stats)) {
+            $stat_detailed = \app\dao\statistics\VirtpbxStatDao::me()->getVpbxStatDetails($clientAccount->id, $vpbx_id, strtotime($from), strtotime($to));
+        }
+        return array($stats, $stat_detailed);
 	}
 
 	function stats_phone_sales_details($fixclient)
