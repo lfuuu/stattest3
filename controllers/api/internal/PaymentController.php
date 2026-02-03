@@ -208,11 +208,12 @@ class PaymentController extends ApiInternalController
             $account = ClientAccount::find()->where(['id' => $model->account_id])->one();
             Assert::isObject($account, 'Account not found');
 
-            $bill = Bill::find()->where(['bill_no' => $model->bill_no, 'client_id' => $model->account_id])->one();
-
-            if (!$bill) {
-                $bill = Bill::dao()->getPrepayedBillOnSum($account->id, $model->sum, $model->currency);
-            }
+            $bill = Bill::dao()->getBillForPayment(
+                $account->id,
+                $model->bill_no,
+                $model->sum,
+                $model->currency
+            );
 
             $now = (new \DateTime('now', new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_MOSCOW)));
 

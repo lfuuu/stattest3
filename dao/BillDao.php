@@ -28,6 +28,7 @@ use app\models\LogBill;
 use app\models\OperationType;
 use app\models\Organization;
 use app\models\Payment;
+use app\models\Saldo;
 use app\models\Transaction;
 use app\models\UsageTrunk;
 use app\modules\uu\models\AccountEntry;
@@ -1418,6 +1419,72 @@ SQL;
 
         return $count;
 
+    }
+
+    /**
+     * Получение счёта для привязки API-платежа
+     *
+     * Логика:
+     * 1. Если передан bill_no — ищем по номеру
+     * 2. Первый неоплаченный счёт (is_payed IN (0,2))
+     * 3. Последний счёт (любой статус)
+     * 4. Создать авансовый счёт
+     *
+     * @param int $clientId
+     * @param string|null $billNo
+     * @param float $sum
+     * @param string $currency
+     * @return Bill
+     */
+    public function getBillForPayment($clientId, $billNo, $sum, $currency)
+    {
+        // 1. Поиск по номеру счёта (если передан)
+        if ($billNo) {
+            $bill = Bill::find()
+                ->where(['bill_no' => $billNo, 'client_id' => $clientId])
+                ->one();
+            if ($bill) {
+                return $bill;
+            }
+        }
+
+        // Дата начала поиска (после последнего сальдо)
+        $fromDate = Bill::MINIMUM_BILL_DATE;
+        if ($lastSaldo = Saldo::getLastSaldo($clientId)) {
+            $fromDate = $lastSaldo->ts;
+        }
+
+        // 2. Первый неоплаченный счёт
+        $bill = Bill::find()
+            ->where([
+                'client_id' => $clientId,
+                'currency' => $currency,
+            ])
+            ->andWhere(['in', 'is_payed', [Bill::PAY_NOT_PAYED, Bill::PAY_PART_PAYED]])
+            ->andWhere(['>', 'bill_date', $fromDate])
+            ->orderBy(['bill_date' => SORT_ASC, 'id' => SORT_DESC])
+            ->one();
+
+        if ($bill) {
+            return $bill;
+        }
+
+        // 3. Последний счёт (любой статус)
+        $bill = Bill::find()
+            ->where([
+                'client_id' => $clientId,
+                'currency' => $currency,
+            ])
+            ->andWhere(['>', 'bill_date', $fromDate])
+            ->orderBy(['bill_date' => SORT_DESC, 'id' => SORT_DESC])
+            ->one();
+
+        if ($bill) {
+            return $bill;
+        }
+
+        // 4. Создать авансовый счёт
+        return $this->getPrepayedBillOnSum($clientId, $sum, $currency);
     }
 
     public function getInvoicePayments($billNo)
