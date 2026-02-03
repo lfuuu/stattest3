@@ -25,6 +25,7 @@ use app\models\Saldo;
 use app\modules\uu\models\AccountTariff;
 use app\modules\uu\models\ServiceType;
 use app\modules\uu\tarificator\RealtimeBalanceTarificator;
+use app\modules\uu\tarificator\RealtimeBalanceTarificatorWithSaldo;
 use DateTime;
 use DateTimeZone;
 use Yii;
@@ -629,7 +630,7 @@ class ClientAccountDao extends Singleton
 
         $transaction = Bill::getDb()->beginTransaction();
 
-        \Yii::$app->db->createCommand("update newbills set is_payed=0, payment_date = null where client_id={$clientAccountId} and sum < 0")->execute();
+//        \Yii::$app->db->createCommand("update newbills set is_payed=0, payment_date = null where client_id={$clientAccountId} and sum < 0")->execute();
         UpdateBalanceHelper::paymentOrders_save($clientAccountId, $paymentOrders);
 
         $bills = array_merge($billsPlus, $billsMinus);
@@ -639,7 +640,7 @@ class ClientAccountDao extends Singleton
 
 
         if ($clientAccount->account_version == ClientAccount::VERSION_BILLER_UNIVERSAL) {
-            (new RealtimeBalanceTarificator)->tarificate($clientAccount->id);
+            (new RealtimeBalanceTarificatorWithSaldo())->tarificate($clientAccount->id);
         } else {
             $fnGetSum = function ($a) {
                 return $a['sum'];
