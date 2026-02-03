@@ -223,7 +223,7 @@
         <td class="header" valign="bottom">Кто</td>
         <td class="header" valign="bottom">разница</td>
         <td class="header sum_column" valign="bottom">Сумма оплаты</td>
-        <td class="header payment_info_column" valign="bottom">Дата платежа</td>
+        <td class="header payment_info_column" valign="bottom">Номер платежа</td>
     </tr>
     {if $currentStatement}
         <tr class="even">
@@ -328,8 +328,8 @@
                             <td style="{if $pay.p_bill_no!=$pay.bill_no}background: #e0e0ff;{/if}">{objCurrency op=$op obj='pay2' pay=$pay currency=$fixclient_data.currency}</td>
                             <td style="font-size: 85%;{if $pay.p_bill_no!=$pay.bill_no}background: #e0e0ff;{/if}">&#8470;{$pay.payment_id}</td>
                         {else}
-                            <td style="{if $pay.p_bill_no!=$pay.bill_no}background: #e0e0ff;{/if}">{objCurrency op=$op obj='pay2' pay=$pay currency=$fixclient_data.currency}</td>
-                            <td style="font-size: 85%;{if $pay.p_bill_no!=$pay.bill_no}background: #e0e0ff;{/if}">{if false}
+                            <td style="{if $pay.p_bill_no!=$pay.bill_no}background: #e0e0ff;{/if}">{if $op.bill.sum != 0}{objCurrency op=$op obj='pay2' pay=$pay currency=$fixclient_data.currency}{/if}</td>
+                            <td style="font-size: 85%;{if $pay.p_bill_no!=$pay.bill_no}background: #e0e0ff;{/if}">{if $op.bill.sum != 0}{$pay.payment_no}{/if}{if false}
                                 {$pay.payment_date} - &#8470;{$pay.payment_no} /
                                 {if $pay.type=='bank'}b({$pay.bank})
                                 {elseif $pay.type=='prov'}p
