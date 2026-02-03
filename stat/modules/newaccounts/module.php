@@ -117,27 +117,6 @@ class m_newaccounts extends IModule
     /**
      * @throws \yii\db\Exception
      */
-    function newaccounts_bill_balance2($fixclient)
-    {
-        global $design, $db, $user, $fixclient_data;
-        $client_id = $fixclient_data['id'];
-
-        //        ClientAccount::dao()->updateBalanceNew($client_id);
-        (new \app\modules\uu\tarificator\RealtimeBalanceTarificatorWithSaldo())->tarificate($client_id);
-
-        if ($design->ProcessEx('errors.tpl')) {
-            if ($returning = ($_GET['returning'] ?? false)) {
-                header("Location: /" . $returning);
-            } else {
-                header("Location: " . $design->LINK_START . "module=newaccounts&action=bill_list");
-            }
-            exit();
-        }
-    }
-
-    /**
-     * @throws \yii\db\Exception
-     */
     function newaccounts_bill_balance_minus($fixclient)
     {
         global $design, $db, $user, $fixclient_data;
