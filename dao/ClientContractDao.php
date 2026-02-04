@@ -303,7 +303,11 @@ class ClientContractDao extends Singleton
             return $rate;
         }
 
-        return $this->_correctTaxRateRussia($date);
+        if (\Yii::$app->isRus()) {
+            return $this->_correctTaxRateRussia($date);
+        }
+
+        return $rate; // 20...
     }
 
     /**
