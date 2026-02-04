@@ -23,14 +23,19 @@ class TrunkServiceDao extends UsageDao
         parent::init();
     }
     /**
-     * @param ClientAccount $client
+     * @param ClientAccount|int $client
      * @return bool
      */
-    public function hasService(ClientAccount $client)
+    public function hasService($client)
     {
+        $clientId = $client instanceof ClientAccount ? $client->id : (int)$client;
+        if (!$clientId) {
+            return false;
+        }
+
         return UsageTrunk::find()
             ->where([
-                'client_account_id' => $client->id
+                'client_account_id' => $clientId
             ])
             ->actual()
             ->count() > 0;

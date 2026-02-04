@@ -8,6 +8,7 @@ use app\controllers\api\internal\IdNameRecordTrait;
 use app\exceptions\ModelValidationException;
 use app\helpers\DateTimeZoneHelper;
 use app\models\document\PaymentTemplate;
+use app\models\UsageTrunk;
 use app\modules\nnp\models\PackageApi;
 use app\modules\nnp\models\PackageMinute;
 use app\modules\nnp\models\PackagePricelist;
@@ -109,6 +110,19 @@ class AccountTariffStructureGenerator extends Singleton
             $isDefaultTariff = $lastLog->tariffPeriod->tariff->is_default;
         }
 
+        $voipNumberNnp = null;
+        $isSipAccountsEnabled = null;
+        if ($accountTariff->service_type_id == ServiceType::ID_VOIP) {
+            $nnpNumber = $accountTariff->voip_number;
+            if (!empty($nnpNumber)) {
+                $voipNumberNnp = \app\models\Number::getNnpInfo($nnpNumber);
+            }
+
+            $lines = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_LINE);
+            $hasTrunkService = UsageTrunk::dao()->hasService($accountTariff->client_account_id);
+            $isSipAccountsEnabled = (($lines == 0 || $hasTrunkService || AccountTariff::hasTrunk($accountTariff->client_account_id)) ? 0 : 1);
+        }
+
         $record = [
             'id' => $accountTariff->id,
             'service_type' => $this->_getIdNameRecord($accountTariff->serviceType),
@@ -133,6 +147,11 @@ class AccountTariffStructureGenerator extends Singleton
             'packages' => [],
             'account_tariff_light_ids' => !$isDefaultTariff ? $this->_getAccountTariffLights($accountTariff->id) : [],
         ];
+
+        if ($accountTariff->service_type_id == ServiceType::ID_VOIP) {
+            $record['voip_number_nnp'] = $voipNumberNnp;
+            $record['is_sip_accounts_enabled'] = $isSipAccountsEnabled;
+        }
 
         if ($accountTariff->service_type_id == ServiceType::ID_ESIM) {
             $record['data'] =['sim' => $this->_getRecordSimSection($accountTariff)];
