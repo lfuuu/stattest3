@@ -47,6 +47,8 @@ use yii\db\ActiveQuery;
  * @property-read PaymentApiInfo $apiInfo
  * @property-read PaymentInfo $info
  * @property-read PaymentApiChannel $apiChannel
+ * @property-read InvoicePaymentLink[] $invoiceLinks
+ * @property-read Invoice[] $linkedInvoices
  */
 class Payment extends ActiveRecord
 {
@@ -271,6 +273,24 @@ class Payment extends ActiveRecord
     {
         return $this->hasOne(PaymentApiChannel::class, ['code' => 'ecash_operator']);
     }
+
+    /**
+     * @return ActiveQuery
+     */
+    public function getInvoiceLinks()
+    {
+        return $this->hasMany(InvoicePaymentLink::class, ['payment_id' => 'id']);
+    }
+
+    /**
+     * @return ActiveQuery
+     */
+    public function getLinkedInvoices()
+    {
+        return $this->hasMany(Invoice::class, ['id' => 'invoice_id'])
+            ->via('invoiceLinks');
+    }
+
 
     public function beforeSave($isInsert)
     {
