@@ -113,14 +113,13 @@ class AccountTariffStructureGenerator extends Singleton
         $voipNumberNnp = null;
         $isSipAccountsEnabled = null;
         if ($accountTariff->service_type_id == ServiceType::ID_VOIP) {
-            $nnpNumber = $number ? $number->number : $accountTariff->voip_number;
+            $nnpNumber = $accountTariff->voip_number;
             if (!empty($nnpNumber)) {
                 $voipNumberNnp = \app\models\Number::getNnpInfo($nnpNumber);
             }
 
             $lines = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_LINE);
-            $accountClient = $accountTariff->clientAccount;
-            $hasTrunkService = $accountClient ? UsageTrunk::dao()->hasService($accountClient) : false;
+            $hasTrunkService = UsageTrunk::dao()->hasService($accountTariff->client_account_id);
             $isSipAccountsEnabled = (($lines == 0 || $hasTrunkService || AccountTariff::hasTrunk($accountTariff->client_account_id)) ? 0 : 1);
         }
 
