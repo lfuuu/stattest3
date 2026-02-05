@@ -48,6 +48,8 @@ use yii\web\Response;
  * @property int $is_payed
  * @property string $payment_date
  * @property string $invoice_date
+ * @property string $upd_payment_number
+ * @property string $upd_advance_invoice
  *
  * @property-read Bill $bill
  * @property-read InvoiceLine[] $lines

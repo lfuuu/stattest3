@@ -1,8 +1,10 @@
 <?php
 
 /** @var $invoice \app\models\Invoice  * */
+/** @var $isLocked bool */
 
 use app\models\BillCorrection;
+use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use yii\widgets\Breadcrumbs;
@@ -30,10 +32,30 @@ $form = ActiveForm::begin();
                 <?= $form->field($invoice, 'type_id')->dropDownList(BillCorrection::$typeList, ['disabled' => true]) ?>
             </div>
         </div>
+        <div class="row">
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <label>Платежно-расчетный документ (стр. 5)</label>
+                    <?= Html::textInput('Invoice[upd_payment_number]', $invoice->upd_payment_number, ['class' => 'form-control input-sm']) ?>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <label>Авансовая с/ф (стр. 5б)</label>
+                    <?= Html::textInput('Invoice[upd_advance_invoice]', $invoice->upd_advance_invoice, ['class' => 'form-control input-sm']) ?>
+                </div>
+            </div>
+        </div>
+        <?php if ($isLocked): ?>
+            <div class="alert alert-info" style="margin-top: 10px;">
+                Счёт‑фактура зарегистрирована. Можно редактировать только строки 5 и 5б.
+            </div>
+        <?php endif; ?>
     </div>
     <br>
 
-
+    <?php $inputReadonly = $isLocked ? 'readonly' : ''; ?>
+    <?php $inputDisabled = $isLocked ? 'disabled' : ''; ?>
     <table class="table table-condensed table-striped">
         <tr>
             <th width=1%>&#8470;</th>
@@ -42,9 +64,11 @@ $form = ActiveForm::begin();
             <th width=15%>Цена</th>
             <th>
                 Удаление
+                <?php if (!$isLocked): ?>
                 <input type="checkbox" id="mark_del"
                        onchange="if (this.checked) $('input.mark_del').attr('checked','checked'); else $('input.mark_del').removeAttr('checked');"
                 />
+                <?php endif; ?>
             </th>
         </tr>
         <?php
@@ -55,12 +79,12 @@ $form = ActiveForm::begin();
             <tr>
                 <td><?= $idx + 1 ?>.</td>
                 <td><input class="form-control input-sm" value="<?= htmlspecialchars($line->item) ?>"
-                           name=InvoiceLine[<?= $idx ?>][item]></td>
+                           name=InvoiceLine[<?= $idx ?>][item] <?= $inputReadonly ?>></td>
                 <td><input class="form-control input-sm" value="<?= $line->amount ?>"
-                           name=InvoiceLine[<?= $idx ?>][amount]></td>
+                           name=InvoiceLine[<?= $idx ?>][amount] <?= $inputReadonly ?>></td>
                 <td><input class="form-control input-sm" value="<?= $line->price ?>"
-                           name=InvoiceLine[<?= $idx ?>][price]></td>
-                <td><input type="checkbox" class="mark_del" name="delete[<?= $idx ?>]" value="<?= $idx ?>"/>
+                           name=InvoiceLine[<?= $idx ?>][price] <?= $inputReadonly ?>></td>
+                <td><input type="checkbox" class="mark_del" name="delete[<?= $idx ?>]" value="<?= $idx ?>" <?= $inputDisabled ?>/>
                 </td>
             </tr>
         <?php endforeach; ?>
@@ -68,12 +92,12 @@ $form = ActiveForm::begin();
             <td>&nbsp;</td>
             <td>
                 <input class="form-control input-sm" value="<?= htmlspecialchars($lineAdd->item) ?>"
-                       name=InvoiceLineAdd[item]></td>
+                       name=InvoiceLineAdd[item] <?= $inputReadonly ?>></td>
             <td>
-                <input class="form-control input-sm" value="<?= $lineAdd->amount ?>" name=InvoiceLineAdd[amount]>
+                <input class="form-control input-sm" value="<?= $lineAdd->amount ?>" name=InvoiceLineAdd[amount] <?= $inputReadonly ?>>
             </td>
             <td>
-                <input class="form-control input-sm" value="<?= $lineAdd->price ?>" name=InvoiceLineAdd[price]>
+                <input class="form-control input-sm" value="<?= $lineAdd->price ?>" name=InvoiceLineAdd[price] <?= $inputReadonly ?>>
             </td>
             <td>&nbsp;</td>
         </tr>

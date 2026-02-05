@@ -638,7 +638,7 @@
                                                                target="_blank">{$invoice.number}{if $invoice.correction_idx} ({$invoice.correction_idx}){/if}</a>
                                                             {if $bill_client.exchange_group_id && !$invoice->is_reversal && !$invoice.sbisDraft}<a href="/?module=newaccounts&bill={$bill.bill_no}&action=create_draft&invoice_id={$invoice.id}" title="Создать драфт в СБИС" class="glyphicon glyphicon-transfer">В_Сбис</a>{/if}:
                                                         </td>
-                                                        <td class="text-right">{$invoice.sum|round:2}</td>
+                                                        <td class="text-right">{$invoice.sum|round:2}<a href="/bill/publish/invoice-edit?invoice_id={$invoice.id}" class="glyphicon glyphicon-edit btn btn-xs btn-primary" title="Строки 5/5б" style="margin-left:4px"></a></td>
                                                     {elseif $invoice.is_reversal}
                                                         <td>&nbsp;</td>
                                                         <td class="text-right">{$invoice.sum|round:2}</td>
