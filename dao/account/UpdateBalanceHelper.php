@@ -236,14 +236,19 @@ class UpdateBalanceHelper
      * @throws \Throwable
      * @throws \yii\db\Exception
      */
-    public static function invoicePaymentLinks_save(int $clientAccountId, $newLinks)
+    public static function invoicePaymentLinks_save(int $clientAccountId, $newLinks, array $invoiceIds = null)
     {
         $transaction = \Yii::$app->db->beginTransaction();
 
         try {
-            $existing = InvoicePaymentLink::find()
-                ->where(['client_account_id' => $clientAccountId])
-                ->all();
+            $query = InvoicePaymentLink::find()
+                ->where(['client_account_id' => $clientAccountId]);
+
+            if ($invoiceIds !== null) {
+                $query->andWhere(['invoice_id' => $invoiceIds]);
+            }
+
+            $existing = $query->all();
 
             $makeKey = fn($row) => $row['invoice_id'] . '_' . $row['payment_id'];
 

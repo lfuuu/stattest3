@@ -425,24 +425,10 @@ class ClientAccountDao extends Singleton
         }
 
 
-        $paysAll = $this->_enumPayments($clientAccount, $saldo['ts'], true);
-        $paysIncome = array_filter($paysAll, function ($p) {
-            return !isset($p['payment_type']) || $p['payment_type'] != Payment::PAYMENT_TYPE_OUTCOME;
-        });
-
-        $invoiceCleared = array_filter($invoiceAll, fn($inv) => !isset($inv['_is_reversed']));
-        $invoiceRejected = array_filter($invoiceAll, fn($inv) => isset($inv['_is_reversed']));
-
-        UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
-
         $transaction = Bill::getDb()->beginTransaction();
 
         try {
-            $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
-            UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks);
-
-            UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
-            UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
+            $this->updateInvoicePayments($clientAccount->id);
 
             $savedBills = [];
 
@@ -691,6 +677,64 @@ class ClientAccountDao extends Singleton
     }
 
     /**
+     * Обновление связей инвойс-платёж оплаты инвойсов
+     *
+     * @param int|ClientAccount $clientAccountId
+    * @throws \yii\db\Exception
+    */
+   public function updateInvoicePayments($clientAccountId)
+   {
+       $clientAccount = $clientAccountId instanceof ClientAccount
+           ? $clientAccountId
+           : ClientAccount::findOne(['id' => $clientAccountId]);
+
+       Assert::isObject($clientAccount);
+
+       $saldo = $this->_getSaldo($clientAccount);
+       $paysAll = $this->_enumPayments($clientAccount, $saldo['ts'], true);
+       $invoiceAll = $this->_getInvoices($clientAccount->id, $saldo['ts']);
+       $invoiceIds = array_keys($invoiceAll);
+
+       $sum = -$saldo['saldo'];
+       if ($sum > 0) {
+           array_unshift($paysAll, [
+               'id' => '0',
+               'client_id' => $clientAccount->id,
+               'payment_no' => 0,
+               'bill_no' => 'saldo',
+               'bill_vis_no' => 'saldo',
+               'payment_date' => $saldo['ts'],
+               'oper_date' => $saldo['ts'],
+               'comment' => '',
+               'add_date' => $saldo['ts'],
+               'add_user' => 0,
+               'sum' => $sum,
+           ]);
+       }
+
+       $paysIncome = array_filter($paysAll, fn($p) => !isset($p['payment_type']) || $p['payment_type'] != Payment::PAYMENT_TYPE_OUTCOME);
+
+       $invoiceCleared = array_filter($invoiceAll, fn($inv) => !isset($inv['_is_reversed']));
+       $invoiceRejected = array_filter($invoiceAll, fn($inv) => isset($inv['_is_reversed']));
+
+       UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
+
+       $transaction = Bill::getDb()->beginTransaction();
+       try {
+           $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
+           UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks, $invoiceIds);
+
+           UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
+           UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
+
+           $transaction->commit();
+       } catch (\Exception $e) {
+           $transaction->rollBack();
+           throw $e;
+       }
+   }
+
+    /**
      * @param ClientAccount $clientAccount
      * @return array
      */
@@ -909,14 +953,19 @@ class ClientAccountDao extends Singleton
         return ($pay - $bill > -$diff);
     }
 
-    private function _getInvoices($clientAccountId)
+    private function _getInvoices($clientAccountId, $saldoDate = null)
     {
-        // tested on d138400
-        $invoices = Invoice::find()
+        $query= Invoice::find()
             ->alias('i')
             ->joinWith('bill b', true, 'INNER JOIN')
             ->where(['not', ['i.number' => null]])
-            ->andWhere(['b.client_id' => $clientAccountId])
+            ->andWhere(['b.client_id' => $clientAccountId]);
+
+        if ($saldoDate !== null) {
+            $query->andWhere(['>=', 'i.date', $saldoDate]);
+        }
+
+        $invoices = $query
             ->orderBy(['i.date' => SORT_ASC, 'i.number' => SORT_ASC, 'i.add_date' => SORT_ASC, 'i.id' => SORT_ASC])
             ->asArray()
             ->indexBy('id')
