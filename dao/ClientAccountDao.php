@@ -435,127 +435,134 @@ class ClientAccountDao extends Singleton
 
         UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
 
-
         $transaction = Bill::getDb()->beginTransaction();
 
-        UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
-        UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
+        try {
+            $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
+            UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks);
 
-        $savedBills = [];
+            UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
+            UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
 
-        foreach ($R1 as $billNo => $v) {
-            if ($v['bill_no'] == 'saldo') {
-                continue;
+            $savedBills = [];
+
+            foreach ($R1 as $billNo => $v) {
+                if ($v['bill_no'] == 'saldo') {
+                    continue;
+                }
+
+                if ($v['is_payed'] != $v['new_is_payed']) {
+                    $documentType = Bill::dao()->getDocumentType($billNo);
+                    if ($documentType['type'] == 'bill') {
+                        /** @var Bill $bill */
+                        $bill = Bill::findOne(['bill_no' => $billNo]);
+                        if ($bill->is_payed != $v['new_is_payed']) {
+                            $bill->is_payed = $v['new_is_payed'];
+                            $savedBills[$bill->bill_no] = 1;
+                            if (!$bill->save()) {
+                                throw new ModelValidationException($bill);
+                            }
+                        }
+                    } elseif ($documentType['type'] == 'incomegood') {
+                        $order = GoodsIncomeOrder::findOne(['number' => $billNo]);
+                        $order->is_payed = $v['new_is_payed'];
+                        $order->save();
+                    }
+                }
             }
 
-            if ($v['is_payed'] != $v['new_is_payed']) {
-                $documentType = Bill::dao()->getDocumentType($billNo);
-                if ($documentType['type'] == 'bill') {
-                    /** @var Bill $bill */
-                    $bill = Bill::findOne(['bill_no' => $billNo]);
-                    if ($bill->is_payed != $v['new_is_payed']) {
-                        $bill->is_payed = $v['new_is_payed'];
-                        $savedBills[$bill->bill_no] = 1;
+            // проверяем изменение оплаты счета
+            $savedPaymentOrders = PaymentOrder::find()
+                ->select(['sum', 'bill_no'])
+                ->where(['client_id' => $clientAccount->id])
+                ->indexBy('bill_no')
+                ->column();
+
+            $resortPaymentOrders = [];
+            foreach ($paymentsOrders as $order) {
+                if (!isset($order['bill_no']) || !$order['bill_no']) {
+                    continue;
+                }
+
+                if (!isset($resortPaymentOrders[$order['bill_no']])) {
+                    $resortPaymentOrders[$order['bill_no']] = $order;
+                } else {
+                    $resortPaymentOrders[$order['bill_no']]['sum'] += $order['sum'];
+                }
+            }
+
+            $batchInsertPaymentOrders = array_map(function ($order) use ($clientAccount) {
+                return [$order['payment_id'], $order['bill_no'], $clientAccount->id, $order['sum']];
+            }, $resortPaymentOrders);
+
+
+            // пересохранение PaymentOrder
+            PaymentOrder::deleteAll(['client_id' => $clientAccount->id]);
+
+            if ($batchInsertPaymentOrders) {
+                Yii::$app->db->createCommand()
+                    ->batchInsert(
+                        PaymentOrder::tableName(),
+                        ['payment_id', 'bill_no', 'client_id', 'sum'],
+                        $batchInsertPaymentOrders
+                    )->execute();
+            }
+
+
+            // проверка изменения частичной оплаты счета
+            foreach (array_intersect(array_keys($savedPaymentOrders), array_keys($resortPaymentOrders)) as $billNo) {
+                if (isset($savedBills[$billNo])) {
+                    continue;
+                }
+
+                if ($savedPaymentOrders[$billNo] == $resortPaymentOrders[$billNo]['sum']) {
+                    continue;
+                }
+
+                $bill = Bill::findOne(['bill_no' => $billNo]);
+
+                if ($bill) {
+                    $bill->trigger(Bill::TRIGGER_CHECK_OVERDUE);
+                    if ($bill->isSetPayOverdue !== null) {
                         if (!$bill->save()) {
                             throw new ModelValidationException($bill);
                         }
                     }
-                } elseif ($documentType['type'] == 'incomegood') {
-                    $order = GoodsIncomeOrder::findOne(['number' => $billNo]);
-                    $order->is_payed = $v['new_is_payed'];
-                    $order->save();
                 }
             }
-        }
 
-        // проверяем изменение оплаты счета
-        $savedPaymentOrders = PaymentOrder::find()
-            ->select(['sum', 'bill_no'])
-            ->where(['client_id' => $clientAccount->id])
-            ->indexBy('bill_no')
-            ->column();
+            if ($clientAccount->account_version == ClientAccount::VERSION_BILLER_UNIVERSAL) {
 
-        $resortPaymentOrders = [];
-        foreach ($paymentsOrders as $order) {
-            if (!isset($order['bill_no']) || !$order['bill_no']) {
-                continue;
-            }
+                (new RealtimeBalanceTarificator)->tarificate($clientAccount->id);
 
-            if (!isset($resortPaymentOrders[$order['bill_no']])) {
-                $resortPaymentOrders[$order['bill_no']] = $order;
             } else {
-                $resortPaymentOrders[$order['bill_no']]['sum'] += $order['sum'];
-            }
-        }
 
-        $batchInsertPaymentOrders = array_map(function ($order) use ($clientAccount) {
-            return [$order['payment_id'], $order['bill_no'], $clientAccount->id, $order['sum']];
-        }, $resortPaymentOrders);
+                $lastBillDate = ClientAccount::dao()->getLastBillDate($clientAccount);
+                $lastPayedBillMonth = ClientAccount::dao()->getLastPayedBillMonth($clientAccount);
 
+                $p = [
+                    ':clientAccountId' => $clientAccount->id,
+                    ':balance' => $balance,
+                    ':lastBillDate' => $lastBillDate,
+                    ':lastPayedBillMonth' => $lastPayedBillMonth
+                ];
 
-        // пересохранение PaymentOrder
-        PaymentOrder::deleteAll(['client_id' => $clientAccount->id]);
-
-        if ($batchInsertPaymentOrders) {
-            Yii::$app->db->createCommand()
-                ->batchInsert(
-                    PaymentOrder::tableName(),
-                    ['payment_id', 'bill_no', 'client_id', 'sum'],
-                    $batchInsertPaymentOrders
-                )->execute();
-        }
-
-
-        // проверка изменения частичной оплаты счета
-        foreach (array_intersect(array_keys($savedPaymentOrders), array_keys($resortPaymentOrders)) as $billNo) {
-            if (isset($savedBills[$billNo])) {
-                continue;
-            }
-
-            if ($savedPaymentOrders[$billNo] == $resortPaymentOrders[$billNo]['sum']) {
-                continue;
-            }
-
-            $bill = Bill::findOne(['bill_no' => $billNo]);
-
-            if ($bill) {
-                $bill->trigger(Bill::TRIGGER_CHECK_OVERDUE);
-                if ($bill->isSetPayOverdue !== null) {
-                    if (!$bill->save()) {
-                        throw new ModelValidationException($bill);
-                    }
-                }
-            }
-        }
-
-        if ($clientAccount->account_version == ClientAccount::VERSION_BILLER_UNIVERSAL) {
-
-            (new RealtimeBalanceTarificator)->tarificate($clientAccount->id);
-
-        } else {
-
-            $lastBillDate = ClientAccount::dao()->getLastBillDate($clientAccount);
-            $lastPayedBillMonth = ClientAccount::dao()->getLastPayedBillMonth($clientAccount);
-
-            $p = [
-                ':clientAccountId' => $clientAccount->id,
-                ':balance' => $balance,
-                ':lastBillDate' => $lastBillDate,
-                ':lastPayedBillMonth' => $lastPayedBillMonth
-            ];
-
-            ClientAccount::getDb()
-                ->createCommand('
+                ClientAccount::getDb()
+                    ->createCommand('
                 UPDATE clients
                 SET balance = :balance,
                     last_account_date = :lastBillDate,
                     last_payed_voip_month = :lastPayedBillMonth
                 WHERE id = :clientAccountId', $p
-                )
-                ->execute();
-        }
+                    )
+                    ->execute();
+            }
 
-        $transaction->commit();
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
     }
 
     /**
@@ -618,61 +625,69 @@ class ClientAccountDao extends Singleton
         $invoiceCleared = array_filter($invoiceAll, fn($inv) => !isset($inv['_is_reversed']));
         $invoiceRejected = array_filter($invoiceAll, fn($inv) => isset($inv['_is_reversed']));
 
-        UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
-        UpdateBalanceHelper::mergePaymentIntoBills($billsPlus, $paysIncome);
-        UpdateBalanceHelper::mergePaymentIntoBills($billsMinus, $paysOutcome);
-        $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
-
-        $plusPaymentOrders = UpdateBalanceHelper::paymentOrders_extractFromBills($billsPlus);
-        $minusPaymentOrders = UpdateBalanceHelper::paymentOrders_extractFromBills($billsMinus);
-
-        $paymentOrders = array_merge($plusPaymentOrders, $minusPaymentOrders);
-
-
         $transaction = Bill::getDb()->beginTransaction();
+        try {
+            // invoices
+            UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
+            UpdateBalanceHelper::mergePaymentIntoBills($billsPlus, $paysIncome);
+            UpdateBalanceHelper::mergePaymentIntoBills($billsMinus, $paysOutcome);
+
+            $plusPaymentOrders = UpdateBalanceHelper::paymentOrders_extractFromBills($billsPlus);
+            $minusPaymentOrders = UpdateBalanceHelper::paymentOrders_extractFromBills($billsMinus);
+
+            $paymentOrders = array_merge($plusPaymentOrders, $minusPaymentOrders);
+
 
 //        \Yii::$app->db->createCommand("update newbills set is_payed=0, payment_date = null where client_id={$clientAccountId} and sum < 0")->execute();
-        UpdateBalanceHelper::paymentOrders_save($clientAccountId, $paymentOrders);
+            UpdateBalanceHelper::paymentOrders_save($clientAccountId, $paymentOrders);
 
-        $bills = array_merge($billsPlus, $billsMinus);
-        UpdateBalanceHelper::saveBillIfPayed($bills);
-        UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
-        UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
-        UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks);
+            $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
+            UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks);
 
 
-        if ($clientAccount->account_version == ClientAccount::VERSION_BILLER_UNIVERSAL) {
-            (new RealtimeBalanceTarificatorWithSaldo())->tarificate($clientAccount->id);
-        } else {
-            $fnGetSum = function ($a) {
-                return $a['sum'];
-            };
-            $balance -= array_sum(array_map($fnGetSum, $billsAll));
-            $balance += array_sum(array_map($fnGetSum, $paysAll));
+            $bills = array_merge($billsPlus, $billsMinus);
+            UpdateBalanceHelper::saveBillIfPayed($bills);
+            UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
+            UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
 
 
-            $lastBillDate = ClientAccount::dao()->getLastBillDate($clientAccount);
-            $lastPayedBillMonth = ClientAccount::dao()->getLastPayedBillMonth($clientAccount);
+            if ($clientAccount->account_version == ClientAccount::VERSION_BILLER_UNIVERSAL) {
+                (new RealtimeBalanceTarificatorWithSaldo())->tarificate($clientAccount->id);
+            } else {
+                $fnGetSum = function ($a) {
+                    return $a['sum'];
+                };
+                $balance -= array_sum(array_map($fnGetSum, $billsAll));
+                $balance += array_sum(array_map($fnGetSum, $paysAll));
 
-            $p = [
-                ':clientAccountId' => $clientAccount->id,
-                ':balance' => $balance,
-                ':lastBillDate' => $lastBillDate,
-                ':lastPayedBillMonth' => $lastPayedBillMonth
-            ];
 
-            ClientAccount::getDb()
-                ->createCommand('
+                $lastBillDate = ClientAccount::dao()->getLastBillDate($clientAccount);
+                $lastPayedBillMonth = ClientAccount::dao()->getLastPayedBillMonth($clientAccount);
+
+                $p = [
+                    ':clientAccountId' => $clientAccount->id,
+                    ':balance' => $balance,
+                    ':lastBillDate' => $lastBillDate,
+                    ':lastPayedBillMonth' => $lastPayedBillMonth
+                ];
+
+                ClientAccount::getDb()
+                    ->createCommand('
                 UPDATE clients
                 SET balance = :balance,
                     last_account_date = :lastBillDate,
                     last_payed_voip_month = :lastPayedBillMonth
                 WHERE id = :clientAccountId', $p
-                )
-                ->execute();
-        }
+                    )
+                    ->execute();
+            }
 
-        $transaction->commit();
+            $transaction->commit();
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+
+            throw $e;
+        }
     }
 
     /**
