@@ -49,6 +49,8 @@ use yii\db\ActiveQuery;
  * @property-read PaymentApiChannel $apiChannel
  * @property-read InvoicePaymentLink[] $invoiceLinks
  * @property-read Invoice[] $linkedInvoices
+ * @property-read string $headerFull
+ * @property-read string $headerShort
  */
 class Payment extends ActiveRecord
 {
@@ -459,4 +461,45 @@ class Payment extends ActiveRecord
 
         return false;
     }
+
+    public function getHeaderShort()
+    {
+        return $this->_getPaymentInfoHeader($this, false);
+    }
+
+    public function getHeaderFull()
+    {
+        return $this->_getPaymentInfoHeader($this, true);
+    }
+
+    public static function _getPaymentInfoHeader(\app\models\Payment $pay, $isFull = true)
+    {
+        $type = ($pay->type == 'ecash' ? substr($pay->ecash_operator, 0, 4) : substr($pay->type, 0, 1));
+
+        if ($type == 'b') {
+            $type .= ' (' . $pay->bank . ')';
+        }
+
+        $info = '';
+        if ($pay->type == 'api') {
+            $infoJson = json_decode($pay->apiInfo->info_json, true);
+            if (isset($infoJson['id']) && isset($infoJson['date']) && isset($infoJson['payerName'])) {
+                $info = '&#8470;' . ($infoJson['id'] ?? $pay->payment_no) . ' от ' . (new \DateTime($infoJson['date'] ?? $pay->payment_date))->format(\app\helpers\DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) . ($isFull ? ' / API-канал: ' . $pay->apiChannel->name : '');
+            }
+        }
+
+        if (!$info && $pay->type == 'bank') {
+            $info = ($pay->payment_no ? $pay->payment_no . ' от ' . (new \DateTime($pay->payment_date))->format(\app\helpers\DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) : '') . ($isFull ? ' / банк: ' . $pay->bank : '');
+        } else if (!$info) {
+            $info = ($pay->payment_no ? '&#8470;' . $pay->payment_no . ($isFull ? ' / ' : '') : '') . ($isFull ? $type : '');
+        }
+
+        if ($isFull && $pay->add_user) {
+            $name = explode(" ", trim($pay->addUser->name));
+            $info .= ' / ' . $name[0];
+        }
+        return $info;
+    }
+
+
 }
