@@ -26,7 +26,9 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $original_id = '',
         $client_id,
         $pageCount = 1,
-        $qr_code = '';
+        $qr_code = '',
+        $upd_payment_number,
+        $upd_advance_invoice_display;
 
     private $_language;
     private $_isPdf;
@@ -70,6 +72,13 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $this->_setPaymentType($statBill);
 
         $this->client_id = $statBill->client_id;
+
+        if ($invoice && $invoice->hasAttribute('upd_payment_number')) {
+            $this->upd_payment_number = $invoice->getAttribute('upd_payment_number');
+        }
+        if ($invoice && $invoice->hasAttribute('upd_advance_invoice_display')) {
+            $this->upd_advance_invoice_display = $invoice->getAttribute('upd_advance_invoice_display');
+        }
 
         $docType = $invoice
             ? $invoice->getQrDocType($qrDocType)

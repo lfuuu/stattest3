@@ -478,11 +478,13 @@ class PublishController extends BaseController
         Assert::isObject($invoice);
 
         $lineAdd = new InvoiceLine();
+        $isLocked = (int)$invoice->idx > 0;
 
         if (!\Yii::$app->request->isPost) {
             return $this->render('invoice_edit', [
                 'invoice' => $invoice,
-                'lineAdd' => $lineAdd
+                'lineAdd' => $lineAdd,
+                'isLocked' => $isLocked,
             ]);
         }
 
@@ -490,50 +492,65 @@ class PublishController extends BaseController
         $transaction = Yii::$app->db->beginTransaction();
         try {
 
-            // позиции счета
-            $models = $invoice->lines;
+            $invoiceData = \Yii::$app->request->post('Invoice', []);
+            if (array_key_exists('upd_payment_number', $invoiceData)) {
+                $invoice->upd_payment_number = $invoiceData['upd_payment_number'];
+            }
+            if (array_key_exists('upd_advance_invoice_display', $invoiceData)) {
+                $invoice->upd_advance_invoice_display = $invoiceData['upd_advance_invoice_display'];
+            }
+            if ($invoice->isAttributeChanged('upd_payment_number') || $invoice->isAttributeChanged('upd_advance_invoice_display')) {
+                if (!$invoice->save()) {
+                    throw new ModelValidationException($invoice);
+                }
+            }
 
-            $delete = \Yii::$app->request->post('delete');
+            if (!$isLocked) {
+                // позиции счета
+                $models = $invoice->lines;
 
-            Model::loadMultiple($models, \Yii::$app->request->post());
+                $delete = \Yii::$app->request->post('delete');
 
-            foreach ($models as $idx => $model) {
-                if ($delete && in_array($idx, $delete)) {
-                    if (!$model->delete()) {
+                Model::loadMultiple($models, \Yii::$app->request->post());
+
+                foreach ($models as $idx => $model) {
+                    if ($delete && in_array($idx, $delete)) {
+                        if (!$model->delete()) {
+                            throw new ModelValidationException($model);
+                        }
+                        continue;
+                    }
+
+                    if (!$model->save()) {
                         throw new ModelValidationException($model);
                     }
-                    continue;
                 }
 
-                if (!$model->save()) {
-                    throw new ModelValidationException($model);
+                $lineAdd->setAttributes([
+                    'invoice_id' => $invoice->id,
+                ]);
+
+                // Сохранение новой строки
+                $lineAddData = \Yii::$app->request->post('InvoiceLineAdd');
+                if ($lineAddData['item'] && $lineAdd->load($lineAddData, '')) {
+
+                    $lineAdd->sort = ((int)InvoiceLine::find()->where(['invoice_id' => $invoice->id])->max('sort')) + 1;
+                    $lineAdd->tax_rate = $invoice->bill->clientAccount->getTaxRate();
+                    $lineAdd->setDates();
+
+                    if (!$lineAdd->validate()) {
+                        \Yii::$app->session->addFlash('error', implode("<br>", $lineAdd->getFirstErrors()));
+                    } elseif (!$lineAdd->save()) {
+                        throw new ModelValidationException($lineAdd);
+                    } else {
+                        // сохраненно. Сбрасываем модель.
+                        $lineAdd = new InvoiceLine();
+                    }
                 }
+
+                $invoice->refresh();
+                $invoice->recalcSumCorrection();
             }
-
-            $lineAdd->setAttributes([
-                'invoice_id' => $invoice->id,
-            ]);
-
-            // Сохранение новой строки
-            $lineAddData = \Yii::$app->request->post('InvoiceLineAdd');
-            if ($lineAddData['item'] && $lineAdd->load($lineAddData, '')) {
-
-                $lineAdd->sort = ((int)InvoiceLine::find()->where(['invoice_id' => $invoice->id])->max('sort')) + 1;
-                $lineAdd->tax_rate = $invoice->bill->clientAccount->getTaxRate();
-                $lineAdd->setDates();
-
-                if (!$lineAdd->validate()) {
-                    \Yii::$app->session->addFlash('error', implode("<br>", $lineAdd->getFirstErrors()));
-                } elseif (!$lineAdd->save()) {
-                    throw new ModelValidationException($lineAdd);
-                } else {
-                    // сохраненно. Сбрасываем модель.
-                    $lineAdd = new InvoiceLine();
-                }
-            }
-
-            $invoice->refresh();
-            $invoice->recalcSumCorrection();
 
             $transaction->commit();
         } catch (\Exception $e) {
@@ -543,7 +560,8 @@ class PublishController extends BaseController
 
         return $this->render('invoice_edit', [
             'invoice' => $invoice,
-            'lineAdd' => $lineAdd
+            'lineAdd' => $lineAdd,
+            'isLocked' => $isLocked,
         ]);
     }
 
