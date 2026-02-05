@@ -58,6 +58,8 @@ use yii\web\Response;
  * @property-read float $currencyRates
  * @property-read float $currencyRatesInEuro
  * @property-read string $link
+ * @property-read InvoicePaymentLink[] $paymentLinks
+ * @property-read Payment[] $linkedPayments
  */
 class Invoice extends ActiveRecord
 {
@@ -193,6 +195,23 @@ class Invoice extends ActiveRecord
     public function getSbisDraft()
     {
         return $this->hasOne(SBISGeneratedDraft::class, ['invoice_id' => 'id']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getPaymentLinks()
+    {
+        return $this->hasMany(InvoicePaymentLink::class, ['invoice_id' => 'id']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getLinkedPayments()
+    {
+        return $this->hasMany(Payment::class, ['id' => 'payment_id'])
+            ->via('paymentLinks');
     }
 
     /**

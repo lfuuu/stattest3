@@ -6,6 +6,7 @@ use app\models\BillExternal;
 use app\models\ClientAccount;
 use app\models\ClientContract;
 use app\models\Invoice;
+use app\models\InvoicePaymentLink;
 use app\models\OperationType;
 use app\modules\uu\models\AccountEntryCorrection;
 use yii\data\ArrayDataProvider;
@@ -189,6 +190,57 @@ $invoiceExt = $report->list->invoiceExt;
 $billCorrections = $report->list->billCorrections;
 $billInvoiceCorrections = $report->list->billInvoiceCorrections;
 
+$invoiceNumbersById = [];
+foreach ($invoices as $invoice) {
+    $invoiceNumbersById[$invoice->id] = $invoice->number;
+}
+
+$paymentInfoById = [];
+foreach (array_merge($paysPlus, $paysMinus) as $pay) {
+    $paymentInfoById[$pay->id] = [
+        'no' => $pay->payment_no,
+        'sum' => round($pay->sum, 2),
+    ];
+}
+
+$paymentInfoByInvoiceId = [];
+$invoiceNumbersByPaymentId = [];
+
+$invoiceIds = array_keys($invoiceNumbersById);
+
+if ($invoiceIds) {
+    $query = InvoicePaymentLink::find()
+        ->select(['invoice_id', 'payment_id', 'sum'])
+        ->where(['client_account_id' => $account->id]);
+
+    $links = $query->all();
+
+    foreach ($links as $link) {
+        $invoiceId = (int)$link->invoice_id;
+        $paymentId = (int)$link->payment_id;
+        $linkSum = (float)$link->sum;
+
+        if (isset($paymentInfoById[$paymentId])) {
+            $paymentInfoByInvoiceId[$invoiceId][$paymentId] = [
+                'no' => $paymentInfoById[$paymentId]['no'] ?? null,
+                'sum' => $linkSum,
+            ];
+        }
+
+        if (isset($invoiceNumbersById[$invoiceId])) {
+            $invoiceNumbersByPaymentId[$paymentId][] = $invoiceNumbersById[$invoiceId];
+        }
+    }
+}
+
+foreach ($paymentInfoByInvoiceId as $invoiceId => $items) {
+    $paymentInfoByInvoiceId[$invoiceId] = array_values($items);
+}
+
+foreach ($invoiceNumbersByPaymentId as $paymentId => $numbers) {
+    $invoiceNumbersByPaymentId[$paymentId] = array_values(array_unique(array_filter($numbers)));
+}
+
 
 /** @var Invoice $invoice */
 foreach ($invoices as $invoice) {
@@ -198,6 +250,7 @@ foreach ($invoices as $invoice) {
         'link' => $invoice->link,
         'date' => $invoice->date,
         'sum' => round($invoice->sum, 2),
+        'payment_info' => $paymentInfoByInvoiceId[$invoice->id] ?? [],
 //        'is_paid' => $paysPlusInv > $invoice->sum ? 1 : ($paysPlusInv > 0 ? 2 : 0),
         'is_paid' => $invoice->is_payed,
         'type' => 'invoice',
@@ -381,6 +434,51 @@ function getPaymentInfo(\app\models\Payment $pay)
     return $info;
 }
 
+function formatInvoiceNumbersLabel(array $invoiceNumbers)
+{
+    $invoiceNumbers = array_values(array_unique(array_filter($invoiceNumbers)));
+    if (!$invoiceNumbers) {
+        return '';
+    }
+
+    $numbers = implode(', ', array_map(function ($n) {
+        return '&#8470;' . $n;
+    }, $invoiceNumbers));
+
+    return 'с/ф: ' . $numbers;
+}
+
+function formatPaymentNumbersSuffix(array $paymentInfo)
+{
+    if (!$paymentInfo) {
+        return '';
+    }
+
+    $items = [];
+    foreach ($paymentInfo as $item) {
+        $number = $item['no'] ?? null;
+        $sum = $item['sum'] ?? null;
+
+        $label = $number ? '&#8470;' . $number : '';
+        if ($sum !== null && $sum !== '') {
+            $label .= ($label !== '' ? ' ' : '') . '(' . nf($sum) . ')';
+        }
+
+        if ($label !== '') {
+            $items[] = $label;
+        }
+    }
+
+    if (!$items) {
+        return '';
+    }
+
+    $label = count($items) === 1 ? 'платеж' : 'платежи';
+    $numbers = implode(', ', $items);
+
+    return ' ' . Html::tag('small', $label . ' ' . $numbers, ['class' => 'text-muted']);
+}
+
 function getPaymentInfoJson(\app\models\Payment $pay)
 {
     return \app\models\PaymentInfo::getInfoText($pay);
@@ -389,13 +487,21 @@ function getPaymentInfoJson(\app\models\Payment $pay)
 /** @var \app\models\Payment $pay */
 foreach ($paysPlus as $pay) {
 
+    $invoiceNumbers = $invoiceNumbersByPaymentId[$pay->id] ?? [];
+    $infoBase = in_array($listFilter, ['income', 'full'], true)
+        ? getPaymentInfo($pay)
+        : '';
+    $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
+
     $v = [
         'number' => $pay->payment_no,
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'info' => in_array($listFilter, ['income', 'full'], true) ? getPaymentInfo($pay) : '',
+        'info_base' => $infoBase,
+        'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
+        'invoice_numbers' => $invoiceNumbers,
         'is_paid' => null,
         'type' => 'payment',
     ];
@@ -408,13 +514,21 @@ $vv = [];
 /** @var \app\models\Payment $pay */
 foreach ($paysMinus as $pay) {
 
+    $invoiceNumbers = $invoiceNumbersByPaymentId[$pay->id] ?? [];
+    $infoBase = in_array($listFilter, ['income', 'full'], true)
+        ? getPaymentInfo($pay)
+        : '';
+    $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
+
     $v = [
         'number' => $pay->payment_no,
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'info' => in_array($listFilter, ['income', 'full'], true) ? getPaymentInfo($pay) : '',
+        'info_base' => $infoBase,
+        'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
+        'invoice_numbers' => $invoiceNumbers,
         'is_paid' => null,
         'type' => 'payment_minus',
     ];
@@ -741,6 +855,30 @@ function contentNotShowInLkSpan()
         margin-left: 9.2%;
     }
 
+    .accounting-col-bill {
+        width: 160px;
+        max-width: 160px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .accounting-col-date {
+        width: 80px;
+        max-width: 80px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .accounting-col-wide {
+        width: 480px;
+        max-width: 480px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .text-sum-invoice-info {
         color: #c4d3c3;
     }
@@ -854,6 +992,8 @@ function contentNotShowInLkSpan()
                 ],
                 [
                     'label' => 'Дата',
+                    'headerOptions' => ['class' => 'accounting-col-date'],
+                    'contentOptions' => ['class' => 'accounting-col-date'],
                     'value' => function ($row) {
                         if ($row instanceof rowCorrection) {
                             return '';
@@ -870,6 +1010,7 @@ function contentNotShowInLkSpan()
                     [
                         'label' => 'Счет +',
                         'format' => 'raw',
+                        'headerOptions' => ['class' => 'accounting-col-bill'],
                         'value' => function (row $row) {
                             if ($row instanceof rowCorrection) {
                                 return Yii::$app->formatter->asDate($row->date, 'php:Y-m-d');
@@ -883,7 +1024,7 @@ function contentNotShowInLkSpan()
                                 : '';
                         },
                         'contentOptions' => function ($row) {
-                            $options = cellContentOptions($row->bill_is_paid);
+                            $options = cellContentOptions($row->bill_is_paid, 'accounting-col-bill');
                             if ($row->bill && isset($row->bill['is_show_in_lk']) && !$row->bill['is_show_in_lk']) {
                                 $options['class'] .= ' is_not_show_in_lk';
                             }
@@ -921,8 +1062,9 @@ function contentNotShowInLkSpan()
                     [
                         'label' => 'С/ф +',
                         'format' => 'raw',
+                        'headerOptions' => ['class' => 'accounting-col-wide'],
                         'contentOptions' => function ($row) {
-                            return cellContentOptions($row->invoice_is_paid);
+                            return cellContentOptions($row->invoice_is_paid, 'accounting-col-wide');
                         },
 
                         'value' => function (row $row) {
@@ -932,7 +1074,11 @@ function contentNotShowInLkSpan()
                             if ($row->invoice_for_correction) {
                                 return $row->invoice['number'];
                             }
-                            return $row->invoice ? Html::a($row->invoice['number'], $row->invoice['link']) : '';
+                            if (!$row->invoice) {
+                                return '';
+                            }
+                            return Html::a($row->invoice['number'], $row->invoice['link'])
+                                . formatPaymentNumbersSuffix($row->invoice['payment_info'] ?? []);
                         },
                     ],
                     [
@@ -950,17 +1096,19 @@ function contentNotShowInLkSpan()
                     [
                         'label' => 'Платеж +',
                         'format' => 'raw',
+                        'headerOptions' => ['class' => 'accounting-col-wide'],
                         'value' => function (row $row) {
                             if (!$row->payment) {
                                 return '';
                             }
 
-                            $info = $row->payment['info'] ?? '';
+                            $infoBase = $row->payment['info_base'] ?? '';
+                            $invoiceLabel = $row->payment['invoice_label'] ?? '';
 
                             if ($row->payment['info_json']) {
-                                return Html::tag(
+                                $button = Html::tag(
                                     'button',
-                                    $info !== '' ? Html::tag('small', $info) : 'детали',
+                                    $infoBase !== '' ? Html::tag('small', $infoBase) : 'детали',
                                     [
                                         'class' => 'btn btn-xs',
                                         'data-toggle' => 'popover',
@@ -969,11 +1117,19 @@ function contentNotShowInLkSpan()
                                         'data-content' => Html::tag('pre', $row->payment['info_json']),
                                     ]
                                 );
+                                if ($invoiceLabel !== '') {
+                                    $button .= ' ' . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
+                                }
+                                return $button;
                             }
 
-                            return $info !== '' ? Html::tag('small', $info) : '';
+                            $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
+                            if ($invoiceLabel !== '') {
+                                $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
+                            }
+                            return $label;
                         },
-                        'contentOptions' => ['class' => 'info'],
+                        'contentOptions' => ['class' => 'info accounting-col-wide'],
                     ],
                     [
                         'label' => $currencyLabel . ' +',
@@ -995,8 +1151,9 @@ function contentNotShowInLkSpan()
                             return $row->bill_minus ? Html::a($row->bill_minus['number'], $row->bill_minus['link']) : '';
                         },
                         'contentOptions' => function ($row) {
-                            return cellContentOptions($row->bill_minus_is_paid);
+                            return cellContentOptions($row->bill_minus_is_paid, 'accounting-col-bill');
                         },
+                        'headerOptions' => ['class' => 'accounting-col-bill'],
                     ],
                     [
                         'label' => $currencyLabel . ' -',
@@ -1009,11 +1166,12 @@ function contentNotShowInLkSpan()
                     [
                         'label' => 'С/ф -',
                         'format' => 'raw',
+                        'headerOptions' => ['class' => 'accounting-col-wide'],
                         'value' => function (row $row) {
                             return $row->invoice_minus ? Html::a($row->invoice_minus['number'], $row->invoice_minus['link']) : '';
                         },
                         'contentOptions' => function ($row) {
-                            return cellContentOptions($row->invoice_minus_is_paid);
+                            return cellContentOptions($row->invoice_minus_is_paid, 'accounting-col-wide');
                         },
                     ],
                     [
@@ -1027,17 +1185,19 @@ function contentNotShowInLkSpan()
                     [
                         'label' => 'Платеж -',
                         'format' => 'raw',
+                        'headerOptions' => ['class' => 'accounting-col-wide'],
                         'value' => function (row $row) {
                             if (!$row->payment_minus) {
                                 return '';
                             }
 
-                            $info = $row->payment_minus['info'] ?? '';
+                            $infoBase = $row->payment_minus['info_base'] ?? '';
+                            $invoiceLabel = $row->payment_minus['invoice_label'] ?? '';
 
                             if ($row->payment_minus['info_json']) {
-                                return Html::tag(
+                                $button = Html::tag(
                                     'button',
-                                    $info !== '' ? Html::tag('small', $info) : 'детали',
+                                    $infoBase !== '' ? Html::tag('small', $infoBase) : 'детали',
                                     [
                                         'class' => 'btn btn-xs',
                                         'data-toggle' => 'popover',
@@ -1046,11 +1206,19 @@ function contentNotShowInLkSpan()
                                         'data-content' => Html::tag('pre', $row->payment_minus['info_json']),
                                     ]
                                 );
+                                if ($invoiceLabel !== '') {
+                                    $button .= ' ' . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
+                                }
+                                return $button;
                             }
 
-                            return $info !== '' ? Html::tag('small', $info) : '';
+                            $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
+                            if ($invoiceLabel !== '') {
+                                $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
+                            }
+                            return $label;
                         },
-                        'contentOptions' => ['class' => 'info'],
+                        'contentOptions' => ['class' => 'info accounting-col-wide'],
                     ],
                     [
                         'label' => $currencyLabel . ' -',
