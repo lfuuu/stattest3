@@ -6,6 +6,7 @@ use app\exceptions\ModelValidationException;
 use app\models\Bill;
 use app\models\GoodsIncomeOrder;
 use app\models\Invoice;
+use app\models\InvoicePaymentLink;
 use app\models\PaymentOrder;
 
 class UpdateBalanceHelper
@@ -189,4 +190,117 @@ class UpdateBalanceHelper
 
         return true;
     }
+
+    /**
+     * Формирование списка связей инвойс-платеж
+     *
+     * @param Invoice[] $invoices
+     * @return array
+     * @throws \Exception
+     */
+    public static function invoicePaymentLinks_make(array $invoices): array
+    {
+        $links = [];
+
+        foreach ($invoices as $invoice) {
+           if (empty($invoice['p'])) {
+                continue;
+            }
+
+            foreach ($invoice['p'] as $pay) {
+                if ($pay['id'] == 0) {
+                    continue;
+                }
+
+                $paymentDate = (new \DateTimeImmutable($pay['oper_date'] ?? $pay['payment_date']))->setTime(0, 0, 0);
+                $invoiceDate = (new \DateTimeImmutable($invoice['date']))->setTime(0, 0, 0);
+
+                $links[] = [
+                    'invoice_id' => $invoice['id'],
+                    'payment_id' => $pay['id'],
+                    'sum' => $pay['sum_t'],
+                    'is_matched' => $paymentDate <= $invoiceDate ? 1 : 0,
+                ];
+            }
+        }
+
+        return $links;
+    }
+
+    /**
+     * Сохранение в БД списка связей инвойс-платеж
+     *
+     * @param int $clientAccountId
+     * @param array $newLinks
+     * @return void
+     * @throws \Throwable
+     * @throws \yii\db\Exception
+     */
+    public static function invoicePaymentLinks_save(int $clientAccountId, $newLinks)
+    {
+        $transaction = \Yii::$app->db->beginTransaction();
+
+        try {
+            $existing = InvoicePaymentLink::find()
+                ->where(['client_account_id' => $clientAccountId])
+                ->all();
+
+            $makeKey = fn($row) => $row['invoice_id'] . '_' . $row['payment_id'];
+
+            $existingByKey = [];
+            array_walk($existing, function ($row) use (&$existingByKey, $makeKey) {
+                $existingByKey[$makeKey($row)] = $row;
+            });
+
+            $newByKey = [];
+            array_walk($newLinks, function ($link) use (&$newByKey, $makeKey) {
+                $newByKey[$makeKey($link)] = $link;
+            });
+
+            // Delete removed
+            $idsToDelete = array_map(
+                fn($row) => $row['id'],
+                array_filter($existingByKey, fn($row, $key) => !isset($newByKey[$key]), ARRAY_FILTER_USE_BOTH)
+            );
+            if ($idsToDelete) {
+                InvoicePaymentLink::deleteAll(['id' => $idsToDelete]);
+            }
+
+            // Insert new
+            $toInsert = array_map(
+                fn($link) => [$link['invoice_id'], $link['payment_id'], $clientAccountId, $link['is_matched'], $link['sum']],
+                array_filter($newByKey, fn($link, $key) => !isset($existingByKey[$key]), ARRAY_FILTER_USE_BOTH)
+            );
+            if ($toInsert) {
+                \Yii::$app->db->createCommand()
+                    ->batchInsert(
+                        InvoicePaymentLink::tableName(),
+                        ['invoice_id', 'payment_id', 'client_account_id', 'is_matched', 'sum'],
+                        $toInsert
+                    )->execute();
+            }
+
+            // Update changed
+            foreach ($newByKey as $key => $link) {
+                if (isset($existingByKey[$key])) {
+                    $row = $existingByKey[$key];
+                    if (abs((float)$row['sum'] - (float)$link['sum']) >= 0.01
+                        || (int)$row['is_matched'] !== $link['is_matched']
+                    ) {
+                        InvoicePaymentLink::updateAll(
+                            ['sum' => $link['sum'], 'is_matched' => $link['is_matched']],
+                            ['id' => $row['id']]
+                        );
+                    }
+                }
+            }
+
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
+    }
+
+
 }

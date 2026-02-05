@@ -621,6 +621,7 @@ class ClientAccountDao extends Singleton
         UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
         UpdateBalanceHelper::mergePaymentIntoBills($billsPlus, $paysIncome);
         UpdateBalanceHelper::mergePaymentIntoBills($billsMinus, $paysOutcome);
+        $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
 
         $plusPaymentOrders = UpdateBalanceHelper::paymentOrders_extractFromBills($billsPlus);
         $minusPaymentOrders = UpdateBalanceHelper::paymentOrders_extractFromBills($billsMinus);
@@ -637,6 +638,7 @@ class ClientAccountDao extends Singleton
         UpdateBalanceHelper::saveBillIfPayed($bills);
         UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
         UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
+        UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks);
 
 
         if ($clientAccount->account_version == ClientAccount::VERSION_BILLER_UNIVERSAL) {
