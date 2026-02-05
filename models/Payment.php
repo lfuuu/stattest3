@@ -215,6 +215,23 @@ class Payment extends ActiveRecord
     }
 
     /**
+     * @return ActiveQuery
+     */
+    public function getInvoiceLinks()
+    {
+        return $this->hasMany(InvoicePaymentLink::class, ['payment_id' => 'id']);
+    }
+
+    /**
+     * @return ActiveQuery
+     */
+    public function getLinkedInvoices()
+    {
+        return $this->hasMany(Invoice::class, ['id' => 'invoice_id'])
+            ->via('invoiceLinks');
+    }
+
+    /**
      * Получение ЛС
      *
      * @return ActiveQuery
