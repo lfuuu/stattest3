@@ -496,10 +496,10 @@ class PublishController extends BaseController
             if (array_key_exists('upd_payment_number', $invoiceData)) {
                 $invoice->upd_payment_number = $invoiceData['upd_payment_number'];
             }
-            if (array_key_exists('upd_advance_invoice_display', $invoiceData)) {
-                $invoice->upd_advance_invoice_display = $invoiceData['upd_advance_invoice_display'];
+            if (array_key_exists('upd_advance_invoice', $invoiceData)) {
+                $invoice->upd_advance_invoice = $invoiceData['upd_advance_invoice'];
             }
-            if ($invoice->isAttributeChanged('upd_payment_number') || $invoice->isAttributeChanged('upd_advance_invoice_display')) {
+            if ($invoice->isAttributeChanged('upd_payment_number') || $invoice->isAttributeChanged('upd_advance_invoice')) {
                 if (!$invoice->save()) {
                     throw new ModelValidationException($invoice);
                 }

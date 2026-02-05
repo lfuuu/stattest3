@@ -42,7 +42,7 @@ $form = ActiveForm::begin();
             <div class="col-sm-6">
                 <div class="form-group">
                     <label>Авансовая с/ф (стр. 5б)</label>
-                    <?= Html::textInput('Invoice[upd_advance_invoice_display]', $invoice->upd_advance_invoice_display, ['class' => 'form-control input-sm']) ?>
+                    <?= Html::textInput('Invoice[upd_advance_invoice]', $invoice->upd_advance_invoice, ['class' => 'form-control input-sm']) ?>
                 </div>
             </div>
         </div>
