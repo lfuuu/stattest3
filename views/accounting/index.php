@@ -198,7 +198,7 @@ foreach ($invoices as $invoice) {
 $paymentInfoById = [];
 foreach (array_merge($paysPlus, $paysMinus) as $pay) {
     $paymentInfoById[$pay->id] = [
-        'no' => $pay->payment_no,
+        'no' => $pay->headerShort,
         'sum' => round($pay->sum, 2),
     ];
 }
@@ -420,14 +420,40 @@ foreach ($invoiceExt as $inv) {
 
 static $userCache = [];
 
-function getPaymentInfo(\app\models\Payment $pay)
+function getPaymentInfoHeaderShort(\app\models\Payment $pay)
+{
+    return getPaymentInfoHeader($pay, false);
+}
+function getPaymentInfoHeaderFull(\app\models\Payment $pay)
+{
+    return getPaymentInfoHeader($pay, false);
+}
+
+function getPaymentInfoHeader(\app\models\Payment $pay, $isFull = true)
 {
     $type = ($pay->type == 'ecash' ? substr($pay->ecash_operator, 0, 4) : substr($pay->type, 0, 1));
+
     if ($type == 'b') {
         $type .= ' (' . $pay->bank . ')';
     }
-    $info = ($pay->payment_no ? '&#8470;' . $pay->payment_no . ' / ' : '') . $type;
-    if ($pay->add_user) {
+
+    $info = '';
+    if ($pay->type == 'api') {
+        $infoJson = json_decode($pay->apiInfo->info_json, true);
+        if (isset($infoJson['id']) && isset($infoJson['date']) && isset($infoJson['payerName'])) {
+            $info = ($infoJson['id'] ?? $pay->payment_no) . ' от ' . (new DateTime($infoJson['date'] ?? $pay->payment_date))->format(\app\helpers\DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED)  . ($isFull ? ' / банк: API/' . $pay->apiChannel->name : '');
+        }
+    }
+
+
+//        $info = var_export($pay->getAttributes(), true);
+    if (!$info && $pay->type == 'bank') {
+        $info = ($pay->payment_no ? $pay->payment_no . ' от ' . (new DateTime($pay->payment_date))->format(\app\helpers\DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) : '') . ($isFull ? ' / банк: ' . $pay->bank : '');
+    } else if (!$info) {
+        $info = ($pay->payment_no ? '&#8470;' . $pay->payment_no . ($isFull ? ' / ' : '') : '') . ($isFull ? $type : '');
+    }
+
+    if ($isFull && $pay->add_user) {
         $name = explode(" ", trim($pay->addUser->name));
         $info .= ' / ' . $name[0];
     }
@@ -459,7 +485,7 @@ function formatPaymentNumbersSuffix(array $paymentInfo)
         $number = $item['no'] ?? null;
         $sum = $item['sum'] ?? null;
 
-        $label = $number ? '&#8470;' . $number : '';
+        $label = $number;
         if ($sum !== null && $sum !== '') {
             $label .= ($label !== '' ? ' ' : '') . '(' . nf($sum) . ')';
         }
@@ -473,10 +499,9 @@ function formatPaymentNumbersSuffix(array $paymentInfo)
         return '';
     }
 
-    $label = count($items) === 1 ? 'платеж' : 'платежи';
     $numbers = implode(', ', $items);
 
-    return ' ' . Html::tag('small', $label . ' ' . $numbers, ['class' => 'text-muted']);
+    return ' ' . Html::tag('small', $numbers, ['class' => 'text-muted']);
 }
 
 function getPaymentInfoJson(\app\models\Payment $pay)
@@ -489,7 +514,7 @@ foreach ($paysPlus as $pay) {
 
     $invoiceNumbers = $invoiceNumbersByPaymentId[$pay->id] ?? [];
     $infoBase = in_array($listFilter, ['income', 'full'], true)
-        ? getPaymentInfo($pay)
+        ? $pay->headerFull
         : '';
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
@@ -516,7 +541,7 @@ foreach ($paysMinus as $pay) {
 
     $invoiceNumbers = $invoiceNumbersByPaymentId[$pay->id] ?? [];
     $infoBase = in_array($listFilter, ['income', 'full'], true)
-        ? getPaymentInfo($pay)
+        ? $pay->headerFull
         : '';
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
