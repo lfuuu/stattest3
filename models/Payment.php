@@ -500,14 +500,14 @@ class Payment extends ActiveRecord
         if ($pay->type == 'api') {
             $infoJson = json_decode($pay->apiInfo->info_json, true);
             if (isset($infoJson['id']) && isset($infoJson['date']) && isset($infoJson['payerName'])) {
-                $info = '&#8470;' . ($infoJson['id'] ?? $pay->payment_no) . ' от ' . (new \DateTime($infoJson['date'] ?? $pay->payment_date))->format(\app\helpers\DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) . ($isFull ? ' / API-канал: ' . $pay->apiChannel->name : '');
+                $info = ($infoJson['id'] ?? $pay->payment_no) . ' от ' . (new \DateTime($infoJson['date'] ?? $pay->payment_date))->format(\app\helpers\DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) . ($isFull ? ' / API-канал: ' . $pay->apiChannel->name : '');
             }
         }
 
         if (!$info && $pay->type == 'bank') {
             $info = ($pay->payment_no ? $pay->payment_no . ' от ' . (new \DateTime($pay->payment_date))->format(\app\helpers\DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED) : '') . ($isFull ? ' / банк: ' . $pay->bank : '');
         } else if (!$info) {
-            $info = ($pay->payment_no ? '&#8470;' . $pay->payment_no . ($isFull ? ' / ' : '') : '') . ($isFull ? $type : '');
+            $info = ($pay->payment_no ? $pay->payment_no . ($isFull ? ' / ' : '') : '') . ($isFull ? $type : '');
         }
 
         if ($isFull && $pay->add_user) {
