@@ -25,6 +25,8 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $payment_type = '',
         $original_id = '',
         $client_id,
+        $bill_no,
+        $bil_date,
         $pageCount = 1,
         $qr_code = '',
         $upd_payment_number,
@@ -67,6 +69,9 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         }
 
         $this->pay_bill_until = $invoice->pay_bill_until ?: $statBill->pay_bill_until;
+
+        $this->bill_no = $statBill->bill_no;
+        $this->bill_date = $statBill->date;
 
         $this->_setPaymentDate($statBill);
         $this->_setPaymentType($statBill);
