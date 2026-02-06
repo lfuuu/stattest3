@@ -24,10 +24,6 @@ class InvoiceSetPaymentNumber extends Behavior
         /** @var Invoice $invoice */
         $invoice = $event->sender;
 
-        if (!$invoice->number) {
-            return;
-        }
-
         ClientAccountDao::me()->updateInvoicePayments($invoice->bill->client_id);
         $invoice->refresh();
 
