@@ -153,7 +153,6 @@ class ClientAccountDao extends Singleton
 
         $R1 = $this->_enumBillsFullSum($clientAccount, $saldo['ts']);
         $R2 = $this->_enumPayments($clientAccount, $saldo['ts']);
-        $invoiceAll = $this->_getInvoices($clientAccount->id);
 
 
         $sum = -$saldo['saldo'];
@@ -680,59 +679,59 @@ class ClientAccountDao extends Singleton
      * Обновление связей инвойс-платёж оплаты инвойсов
      *
      * @param int|ClientAccount $clientAccountId
-    * @throws \yii\db\Exception
-    */
-   public function updateInvoicePayments($clientAccountId)
-   {
-       $clientAccount = $clientAccountId instanceof ClientAccount
-           ? $clientAccountId
-           : ClientAccount::findOne(['id' => $clientAccountId]);
+     * @throws \yii\db\Exception
+     */
+    public function updateInvoicePayments($clientAccountId)
+    {
+        $clientAccount = $clientAccountId instanceof ClientAccount
+            ? $clientAccountId
+            : ClientAccount::findOne(['id' => $clientAccountId]);
 
-       Assert::isObject($clientAccount);
+        Assert::isObject($clientAccount);
 
-       $saldo = $this->_getSaldo($clientAccount);
-       $paysAll = $this->_enumPayments($clientAccount, $saldo['ts'], true);
-       $invoiceAll = $this->_getInvoices($clientAccount->id, $saldo['ts']);
-       $invoiceIds = array_keys($invoiceAll);
+        $saldo = $this->_getSaldo($clientAccount);
+        $paysAll = $this->_enumPayments($clientAccount, $saldo['ts'], true);
+        $invoiceAll = $this->_getInvoices($clientAccount->id, $saldo['ts'], $withDraft = true);
+        $invoiceIds = array_keys($invoiceAll);
 
-       $sum = -$saldo['saldo'];
-       if ($sum > 0) {
-           array_unshift($paysAll, [
-               'id' => '0',
-               'client_id' => $clientAccount->id,
-               'payment_no' => 0,
-               'bill_no' => 'saldo',
-               'bill_vis_no' => 'saldo',
-               'payment_date' => $saldo['ts'],
-               'oper_date' => $saldo['ts'],
-               'comment' => '',
-               'add_date' => $saldo['ts'],
-               'add_user' => 0,
-               'sum' => $sum,
-           ]);
-       }
+        $sum = -$saldo['saldo'];
+        if ($sum > 0) {
+            array_unshift($paysAll, [
+                'id' => '0',
+                'client_id' => $clientAccount->id,
+                'payment_no' => 0,
+                'bill_no' => 'saldo',
+                'bill_vis_no' => 'saldo',
+                'payment_date' => $saldo['ts'],
+                'oper_date' => $saldo['ts'],
+                'comment' => '',
+                'add_date' => $saldo['ts'],
+                'add_user' => 0,
+                'sum' => $sum,
+            ]);
+        }
 
-       $paysIncome = array_filter($paysAll, fn($p) => !isset($p['payment_type']) || $p['payment_type'] != Payment::PAYMENT_TYPE_OUTCOME);
+        $paysIncome = array_filter($paysAll, fn($p) => !isset($p['payment_type']) || $p['payment_type'] != Payment::PAYMENT_TYPE_OUTCOME);
 
-       $invoiceCleared = array_filter($invoiceAll, fn($inv) => !isset($inv['_is_reversed']));
-       $invoiceRejected = array_filter($invoiceAll, fn($inv) => isset($inv['_is_reversed']));
+        $invoiceCleared = array_filter($invoiceAll, fn($inv) => !isset($inv['_is_reversed']));
+        $invoiceRejected = array_filter($invoiceAll, fn($inv) => isset($inv['_is_reversed']));
 
-       UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
+        UpdateBalanceHelper::mergePaymentIntoBills($invoiceCleared, $paysIncome);
 
-       $transaction = Bill::getDb()->beginTransaction();
-       try {
-           $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
-           UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks, $invoiceIds);
+        $transaction = Bill::getDb()->beginTransaction();
+        try {
+            $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
+            UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks, $invoiceIds);
 
-           UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
-           UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
+            UpdateBalanceHelper::saveInvoicesIfPayed($invoiceCleared);
+            UpdateBalanceHelper::saveInvoicesRejected($invoiceRejected);
 
-           $transaction->commit();
-       } catch (\Exception $e) {
-           $transaction->rollBack();
-           throw $e;
-       }
-   }
+            $transaction->commit();
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
+    }
 
     /**
      * @param ClientAccount $clientAccount
@@ -953,13 +952,16 @@ class ClientAccountDao extends Singleton
         return ($pay - $bill > -$diff);
     }
 
-    private function _getInvoices($clientAccountId, $saldoDate = null)
+    private function _getInvoices($clientAccountId, $saldoDate = null, $withDraft = false)
     {
-        $query= Invoice::find()
+        $query = Invoice::find()
             ->alias('i')
             ->joinWith('bill b', true, 'INNER JOIN')
-            ->where(['not', ['i.number' => null]])
             ->andWhere(['b.client_id' => $clientAccountId]);
+
+        if (!$withDraft) {
+            $query->andWhere(['not', ['i.number' => null]]);
+        }
 
         if ($saldoDate !== null) {
             $query->andWhere(['>=', 'i.date', $saldoDate]);
