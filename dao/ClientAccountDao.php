@@ -968,7 +968,7 @@ class ClientAccountDao extends Singleton
         }
 
         $invoices = $query
-            ->orderBy(['i.date' => SORT_ASC, 'i.number' => SORT_ASC, 'i.add_date' => SORT_ASC, 'i.id' => SORT_ASC])
+            ->orderBy(['i.date' => SORT_ASC, 'i.id' => SORT_ASC])
             ->asArray()
             ->indexBy('id')
             ->all();
