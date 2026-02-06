@@ -5,6 +5,7 @@ namespace app\models;
 use app\classes\behaviors\InvoiceGeneratePdf;
 use app\classes\behaviors\InvoiceNextIdx;
 use app\classes\behaviors\InvoiceSetFlags;
+use app\classes\behaviors\payment\InvoiceSetPaymentNumber;
 use app\classes\Encrypt;
 use app\classes\HttpClient;
 use app\classes\model\ActiveRecord;
@@ -113,6 +114,7 @@ class Invoice extends ActiveRecord
     {
         return [
             'InvoiceNextIdx' => InvoiceNextIdx::class,
+            'InvoiceSetPaymentNumber' => InvoiceSetPaymentNumber::class,
             'InvoiceGeneratePdf' => InvoiceGeneratePdf::class,
             'InvoiceSetFlags' => InvoiceSetFlags::class,
         ];

@@ -200,6 +200,7 @@ foreach (array_merge($paysPlus, $paysMinus) as $pay) {
     $paymentInfoById[$pay->id] = [
         'no' => $pay->headerShort,
         'sum' => round($pay->sum, 2),
+        'is_valid_no' => $pay->isPaymentNoValid(),
     ];
 }
 
@@ -210,7 +211,7 @@ $invoiceIds = array_keys($invoiceNumbersById);
 
 if ($invoiceIds) {
     $query = InvoicePaymentLink::find()
-        ->select(['invoice_id', 'payment_id', 'sum'])
+        ->select(['invoice_id', 'payment_id', 'sum', 'is_matched'])
         ->where(['client_account_id' => $account->id]);
 
     $links = $query->all();
@@ -224,6 +225,8 @@ if ($invoiceIds) {
             $paymentInfoByInvoiceId[$invoiceId][$paymentId] = [
                 'no' => $paymentInfoById[$paymentId]['no'] ?? null,
                 'sum' => $linkSum,
+                'is_matched' => (bool) $link->is_matched,
+                'is_valid_no' => $paymentInfoById[$paymentId]['is_valid_no'] ?? false,
             ];
         }
 
@@ -484,6 +487,8 @@ function formatPaymentNumbersSuffix(array $paymentInfo)
     foreach ($paymentInfo as $item) {
         $number = $item['no'] ?? null;
         $sum = $item['sum'] ?? null;
+        $isMatched = $item['is_matched'] ?? false;
+        $isValidNo = $item['is_valid_no'] ?? false;
 
         $label = $number;
         if ($sum !== null && $sum !== '') {
@@ -491,6 +496,11 @@ function formatPaymentNumbersSuffix(array $paymentInfo)
         }
 
         if ($label !== '') {
+            if (!$isMatched) {
+                $label = Html::tag('span', $label, ['class' => 'text-warning', 'title' => 'Не совпадает по дате']);
+            } elseif (!$isValidNo) {
+                $label = Html::tag('span', $label, ['class' => 'text-danger', 'title' => 'Нецифровой номер платежа']);
+            }
             $items[] = $label;
         }
     }
