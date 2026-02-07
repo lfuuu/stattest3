@@ -83,7 +83,7 @@ if (isset($o["object_type"]) && $o["object_type"] && in_array($o["object_type"],
             $documentStr = $bill->clientAccount->organization->country_id != \app\models\Country::RUSSIA ? 'invoice' : ($R['obj'] == 'akt' ? 'act' : $R['obj']);
 
             if ($documentStr === 'upd2') {
-                $content = $invoice->downloadPdfContent($documentStr);
+                $content = $invoice->downloadFile($documentStr);
                 $path = $invoice->getFilePath($documentStr);
                 $info = pathinfo($path);
                 header('Content-Type: application/pdf');

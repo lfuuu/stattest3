@@ -922,7 +922,7 @@ class Invoice extends ActiveRecord
      */
     public function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
     {
-        $data = $this->getDocumentLinkData($document);
+        $data = $this->getDocumentLinkData($document, true, true);
 
         $link = Encrypt::encodeArray($data);
 
