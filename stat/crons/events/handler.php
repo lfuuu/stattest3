@@ -632,7 +632,7 @@ function doEvents($eventQueueQuery, $uuSyncEvents)
                     break;
 
                 case EventQueue::INVOICE_ALL_PDF_CREATED:
-                    throw new \Exception('stopped');
+//                    throw new \Exception('stopped');
                     SBISDataProvider::checkInvoiceForExchange($param['id']);
                     break;
 
