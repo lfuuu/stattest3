@@ -205,7 +205,9 @@ foreach (array_merge($paysPlus, $paysMinus) as $pay) {
 }
 
 $paymentInfoByInvoiceId = [];
+$paymentIdsByInvoiceId = [];
 $invoiceNumbersByPaymentId = [];
+$invoiceIdsByPaymentId = [];
 
 $invoiceIds = array_keys($invoiceNumbersById);
 
@@ -233,6 +235,9 @@ if ($invoiceIds) {
         if (isset($invoiceNumbersById[$invoiceId])) {
             $invoiceNumbersByPaymentId[$paymentId][] = $invoiceNumbersById[$invoiceId];
         }
+
+        $paymentIdsByInvoiceId[$invoiceId][] = $paymentId;
+        $invoiceIdsByPaymentId[$paymentId][] = $invoiceId;
     }
 }
 
@@ -240,8 +245,16 @@ foreach ($paymentInfoByInvoiceId as $invoiceId => $items) {
     $paymentInfoByInvoiceId[$invoiceId] = array_values($items);
 }
 
+foreach ($paymentIdsByInvoiceId as $invoiceId => $ids) {
+    $paymentIdsByInvoiceId[$invoiceId] = array_values(array_unique(array_filter($ids)));
+}
+
 foreach ($invoiceNumbersByPaymentId as $paymentId => $numbers) {
     $invoiceNumbersByPaymentId[$paymentId] = array_values(array_unique(array_filter($numbers)));
+}
+
+foreach ($invoiceIdsByPaymentId as $paymentId => $ids) {
+    $invoiceIdsByPaymentId[$paymentId] = array_values(array_unique(array_filter($ids)));
 }
 
 
@@ -249,11 +262,13 @@ foreach ($invoiceNumbersByPaymentId as $paymentId => $numbers) {
 foreach ($invoices as $invoice) {
 
     $v = [
+        'id' => $invoice->id,
         'number' => $invoice->number,
         'link' => $invoice->link,
         'date' => $invoice->date,
         'sum' => round($invoice->sum, 2),
         'payment_info' => $paymentInfoByInvoiceId[$invoice->id] ?? [],
+        'linked_payment_ids' => $paymentIdsByInvoiceId[$invoice->id] ?? [],
 //        'is_paid' => $paysPlusInv > $invoice->sum ? 1 : ($paysPlusInv > 0 ? 2 : 0),
         'is_paid' => $invoice->is_payed,
         'type' => 'invoice',
@@ -529,6 +544,7 @@ foreach ($paysPlus as $pay) {
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
     $v = [
+        'id' => $pay->id,
         'number' => $pay->payment_no,
         'link' => "",
         'date' => $pay->payment_date,
@@ -537,6 +553,7 @@ foreach ($paysPlus as $pay) {
         'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
         'invoice_numbers' => $invoiceNumbers,
+        'linked_invoice_ids' => $invoiceIdsByPaymentId[$pay->id] ?? [],
         'is_paid' => null,
         'type' => 'payment',
     ];
@@ -556,6 +573,7 @@ foreach ($paysMinus as $pay) {
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
     $v = [
+        'id' => $pay->id,
         'number' => $pay->payment_no,
         'link' => "",
         'date' => $pay->payment_date,
@@ -564,6 +582,7 @@ foreach ($paysMinus as $pay) {
         'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
         'invoice_numbers' => $invoiceNumbers,
+        'linked_invoice_ids' => $invoiceIdsByPaymentId[$pay->id] ?? [],
         'is_paid' => null,
         'type' => 'payment_minus',
     ];
@@ -1112,8 +1131,16 @@ function contentNotShowInLkSpan()
                             if (!$row->invoice) {
                                 return '';
                             }
-                            return Html::a($row->invoice['number'], $row->invoice['link'])
+                            $content = Html::a($row->invoice['number'], $row->invoice['link'])
                                 . formatPaymentNumbersSuffix($row->invoice['payment_info'] ?? []);
+
+                            $attrs = [
+                                'class' => 'js-linked-entity js-linked-invoice',
+                                'data-invoice-id' => $row->invoice['id'] ?? '',
+                                'data-linked-payment-ids' => implode(',', $row->invoice['linked_payment_ids'] ?? []),
+                            ];
+
+                            return Html::tag('span', $content, $attrs);
                         },
                     ],
                     [
@@ -1139,6 +1166,7 @@ function contentNotShowInLkSpan()
 
                             $infoBase = $row->payment['info_base'] ?? '';
                             $invoiceLabel = $row->payment['invoice_label'] ?? '';
+                            $linkedIds = implode(',', $row->payment['linked_invoice_ids'] ?? []);
 
                             if ($row->payment['info_json']) {
                                 $button = Html::tag(
@@ -1155,14 +1183,22 @@ function contentNotShowInLkSpan()
                                 if ($invoiceLabel !== '') {
                                     $button .= ' ' . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                                 }
-                                return $button;
+                                return Html::tag('span', $button, [
+                                    'class' => 'js-linked-entity js-linked-payment',
+                                    'data-payment-id' => $row->payment['id'] ?? '',
+                                    'data-linked-invoice-ids' => $linkedIds,
+                                ]);
                             }
 
                             $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
                             if ($invoiceLabel !== '') {
                                 $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                             }
-                            return $label;
+                            return Html::tag('span', $label, [
+                                'class' => 'js-linked-entity js-linked-payment',
+                                'data-payment-id' => $row->payment['id'] ?? '',
+                                'data-linked-invoice-ids' => $linkedIds,
+                            ]);
                         },
                         'contentOptions' => ['class' => 'info accounting-col-wide'],
                     ],
@@ -1228,6 +1264,7 @@ function contentNotShowInLkSpan()
 
                             $infoBase = $row->payment_minus['info_base'] ?? '';
                             $invoiceLabel = $row->payment_minus['invoice_label'] ?? '';
+                            $linkedIds = implode(',', $row->payment_minus['linked_invoice_ids'] ?? []);
 
                             if ($row->payment_minus['info_json']) {
                                 $button = Html::tag(
@@ -1244,14 +1281,22 @@ function contentNotShowInLkSpan()
                                 if ($invoiceLabel !== '') {
                                     $button .= ' ' . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                                 }
-                                return $button;
+                                return Html::tag('span', $button, [
+                                    'class' => 'js-linked-entity js-linked-payment',
+                                    'data-payment-id' => $row->payment_minus['id'] ?? '',
+                                    'data-linked-invoice-ids' => $linkedIds,
+                                ]);
                             }
 
                             $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
                             if ($invoiceLabel !== '') {
                                 $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                             }
-                            return $label;
+                            return Html::tag('span', $label, [
+                                'class' => 'js-linked-entity js-linked-payment',
+                                'data-payment-id' => $row->payment_minus['id'] ?? '',
+                                'data-linked-invoice-ids' => $linkedIds,
+                            ]);
                         },
                         'contentOptions' => ['class' => 'info accounting-col-wide'],
                     ],
@@ -1297,11 +1342,58 @@ function contentNotShowInLkSpan()
 </form>
 <script>
     $(function () {
-        $('[data-toggle="popover"]').popover()
-    })
+        $('[data-toggle="popover"]').popover();
+
+        function parseIds(raw) {
+            if (!raw) {
+                return [];
+            }
+            return String(raw)
+                .split(',')
+                .map(function (v) { return v.trim(); })
+                .filter(function (v) { return v.length > 0; });
+        }
+
+        $(document).on('mouseenter', '.js-linked-entity', function () {
+            var $el = $(this);
+            var linkedPayments = parseIds($el.data('linkedPaymentIds'));
+            var linkedInvoices = parseIds($el.data('linkedInvoiceIds'));
+
+            $el.addClass('linked-entity-highlight');
+
+            linkedPayments.forEach(function (id) {
+                $('[data-payment-id="' + id + '"]').addClass('linked-entity-highlight');
+            });
+
+            linkedInvoices.forEach(function (id) {
+                $('[data-invoice-id="' + id + '"]').addClass('linked-entity-highlight');
+            });
+        });
+
+        $(document).on('mouseleave', '.js-linked-entity', function () {
+            var $el = $(this);
+            var linkedPayments = parseIds($el.data('linkedPaymentIds'));
+            var linkedInvoices = parseIds($el.data('linkedInvoiceIds'));
+
+            $el.removeClass('linked-entity-highlight');
+
+            linkedPayments.forEach(function (id) {
+                $('[data-payment-id="' + id + '"]').removeClass('linked-entity-highlight');
+            });
+
+            linkedInvoices.forEach(function (id) {
+                $('[data-invoice-id="' + id + '"]').removeClass('linked-entity-highlight');
+            });
+        });
+    });
 </script>
 <style type="text/css">
     .popover {
         max-width: 600px;
+    }
+
+    .linked-entity-highlight {
+        background: #fff3b0;
+        border-radius: 2px;
     }
 </style>
