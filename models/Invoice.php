@@ -219,6 +219,26 @@ class Invoice extends ActiveRecord
     }
 
     /**
+     * Возвращает платежи, прошедшие фильтрацию (is_matched + isPaymentNoValid)
+     *
+     * @return Payment[]
+     */
+    public function getMatchedPayments(): array
+    {
+        $result = [];
+        foreach ($this->paymentLinks as $link) {
+            if (!$link->is_matched) {
+                continue;
+            }
+            $payment = $link->payment;
+            if ($payment && $payment->isPaymentNoValid()) {
+                $result[] = $payment;
+            }
+        }
+        return $result;
+    }
+
+    /**
      * Вычисляет организацию с/ф
      *
      * @return Organization
