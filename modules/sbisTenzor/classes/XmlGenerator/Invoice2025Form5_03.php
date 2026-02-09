@@ -75,25 +75,14 @@ class Invoice2025Form5_03 extends Invoice2016Form5_02
         $elInfoSellerAddress->appendChild($elInfoSellerAddressData);
 
         // payments
-        if (
-            $this->invoice->type_id == Invoice::TYPE_1
-            || $this->invoice->type_id == Invoice::TYPE_GOOD
-            || ($this->invoice->type_id == Invoice::TYPE_2 && $this->bill->inv2to1)
-        ) {
-            foreach ($this->bill->getInvoicePayments() as $payment) {
-                $elPayment = $dom->createElement('СвПРД');
-                $elPayment->setAttribute('ДатаПРД', (new \DateTime())->setTimestamp($payment['payment_date_ts'])->format('d.m.Y'));
-                $elPayment->setAttribute('НомерПРД', $payment['payment_no']);
-                $elInvoiceInfo->appendChild($elPayment);
-            }
-        }
+        $this->addPaymentDocuments($dom, $elInvoiceInfo);
 
 
         // format 01.10.2024 (5a)
         // <ДокПодтвОтгр НаимДокОтгр="АКТ № || ТОРГ12 №" НомДокОтгр="240621-ARG168" ДатаДокОтгр="24.07.2021"/>
         if ($this->invoiceDate >= (new \DateTime('2024-10-01 00:00:00'))) {
             $elDocShip = $dom->createElement('ДокПодтвОтгрНом');
-            $elDocShip->setAttribute('РеквНаимДок', $this->getDocumentTitle());
+            $elDocShip->setAttribute('РеквНаимДок', $this->getDocumentTitle(true));
             $elDocShip->setAttribute('РеквНомерДок', $this->invoice->number);
             $elDocShip->setAttribute('РеквДатаДок', $this->invoiceDate->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED));
             $elInvoiceInfo->appendChild($elDocShip);
@@ -164,7 +153,24 @@ class Invoice2025Form5_03 extends Invoice2016Form5_02
         }
     }
 
-    protected function getDocumentTitle()
+    protected function addPaymentDocuments(\DOMDocument $dom, \DOMElement $elInvoiceInfo)
+    {
+        if (
+            $this->invoice->type_id == Invoice::TYPE_1
+            || $this->invoice->type_id == Invoice::TYPE_2
+            || $this->invoice->type_id == Invoice::TYPE_GOOD
+        ) {
+            foreach ($this->bill->getInvoicePayments() as $payment) {
+                $elPayment = $dom->createElement('СвПРД');
+                $elPayment->setAttribute('ДатаПРД', (new \DateTime())->setTimestamp($payment['payment_date_ts'])->format('d.m.Y'));
+                $elPayment->setAttribute('ДатаПРД', (new \DateTime($payment->payment_date))->format('d.m.Y'));
+                $elPayment->setAttribute('НомерПРД', $payment['payment_no']);
+                $elInvoiceInfo->appendChild($elPayment);
+            }
+        }
+    }
+
+    protected function getDocumentTitle($isShort = false)
     {
         return $this->invoice->type_id == Invoice::TYPE_GOOD ? 'ТОРГ12' : 'АКТ';
     }
