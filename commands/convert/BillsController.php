@@ -203,7 +203,7 @@ class BillsController extends Controller
     public function actionRelinkApiPayments()
     {
         $db = Bill::getDb();
-        $dateFrom = '2024-01-01';
+        $dateFrom = '2023-01-01';
         $relinked = 0;
         $skipped = 0;
         $deletedBills = 0;
@@ -215,9 +215,10 @@ class BillsController extends Controller
             ->where([
                 'p.type' => Payment::TYPE_API,
                 'b.is_user_prepay' => 1,
-//                'b.client_id' => 139550
             ])
+            ->andWhere(['not', ['b.client_id' => 132778]])
             ->andWhere(['>=', 'p.payment_date', $dateFrom])
+            ->orderBy(['b.client_id' => SORT_ASC, 'p.id' => SORT_ASC])
             ->all();
 
         echo 'Найдено платежей: ' . count($payments) . PHP_EOL;
