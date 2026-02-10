@@ -1709,6 +1709,9 @@ SQL;
                 }
                 return $value;
 
+            case 'is_postpaid':
+                return ClientAccount::$paymentTypes[$value] ?? '???';
+
             case 'account_version':
                 return self::$versions[$value];
 
