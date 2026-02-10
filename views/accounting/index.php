@@ -659,6 +659,7 @@ class row
     public $invoice_for_correction = null;
 
     public $co = '';
+    public $payment_scheme = '';
 
     public $saldo = '';
     public $isListCutoffByBalance = false;
@@ -701,6 +702,36 @@ class ChangeCompanyFounder
     }
 }
 
+class ChangePaymentScheme
+{
+    private $changes = [];
+    private $idx = 0;
+
+    public function __construct($arr)
+    {
+        $this->changes = array_values($arr ?: []);
+    }
+
+    public function get()
+    {
+        if (!isset($this->changes[$this->idx])) {
+            return false;
+        }
+
+        $change = $this->changes[$this->idx++];
+        $date = $change['date'] ?? null;
+        if (!$date) {
+            return $this->get();
+        }
+
+        return (object)[
+            'date' => (new DateTimeImmutable($date))->setTime(0, 0, 0),
+            'from' => $change['from'] ?? null,
+            'to' => $change['to'] ?? null,
+        ];
+    }
+}
+
 class SaldoHelper
 {
     private $saldo = [];
@@ -740,6 +771,10 @@ $chCo = new ChangeCompanyFounder($changeCompany);
 
 $nextCo = $chCo->get();
 
+/** @var array $changePaymentScheme */
+$chPay = new ChangePaymentScheme($changePaymentScheme ?? []);
+$nextPay = $chPay->get();
+
 $saldoHelper = (new SaldoHelper($saldo));
 
 $rr = [];
@@ -769,6 +804,27 @@ foreach ($d as $year => &$yearData) {
                 $isSetCo = true;
             }
 
+            $paymentSchemeTexts = [];
+            $isSetPaymentScheme = false;
+            while ($nextPay && $date >= $nextPay->date) {
+                $isSetPaymentScheme = true;
+
+                $from = $nextPay->from;
+                $to = $nextPay->to;
+
+                $fromLabel = ($from !== null && $from !== '') ? (ClientAccount::$paymentTypes[$from] ?? $from) : null;
+                $toLabel = ($to !== null && $to !== '') ? (ClientAccount::$paymentTypes[$to] ?? $to) : $to;
+                $dateLabel = Yii::$app->formatter->asDate($nextPay->date, 'php:d.m.Y');
+
+                if ($from !== null && $from !== '') {
+                    $paymentSchemeTexts[] = 'Переход со схемы оплаты "' . $fromLabel . '" на "' . $toLabel . '" с ' . $dateLabel;
+                } else {
+                    $paymentSchemeTexts[] = 'Переход на схему оплаты "' . $toLabel . '" с ' . $dateLabel;
+                }
+
+                $nextPay = $chPay->get();
+            }
+
             $row = new row();
             $row->year = $year;
             $row->month = $month;
@@ -779,6 +835,7 @@ foreach ($d as $year => &$yearData) {
             $row->invoice_is_paid = $invoice_is_paid;
             $row->invoice_minus_is_paid = $invoice_minus_is_paid;
             $row->co = $isSetCo ? $prevCo : '';
+            $row->payment_scheme = $isSetPaymentScheme ? $paymentSchemeTexts : '';
 
             if ($saldo && $isSaldoShown) {
                 if ($saldoHelper->getDate() <= $date) {
@@ -805,6 +862,7 @@ foreach ($d as $year => &$yearData) {
                     $row->invoice_is_paid = $invoice_is_paid;
                     $row->invoice_minus_is_paid = $invoice_minus_is_paid;
                     $row->co = '';
+                    $row->payment_scheme = '';
                     $row->isListCutoffByBalance = $isSaldoShown;
                 }
 
@@ -943,6 +1001,12 @@ function contentNotShowInLkSpan()
         font-size: 7pt;
     }
 
+    .text-payment-scheme {
+        background-color: #f2e6b4;
+        text-align: center;
+        font-size: 7pt;
+    }
+
     .text-saldo {
         background-color: #dbf09e;
         text-align: center;
@@ -1020,7 +1084,7 @@ function contentNotShowInLkSpan()
 //                        'disabled' => true,
                     'hidden' => true,
                     'value' => function ($model) {
-                        return $model->comment || $model->co || $model->saldo ? GridView::ROW_EXPANDED : GridView::ROW_COLLAPSED;
+                        return $model->comment || $model->co || $model->payment_scheme || $model->saldo ? GridView::ROW_EXPANDED : GridView::ROW_COLLAPSED;
                     },
                     'detail' => function ($model) {
                         $return = '';
@@ -1032,6 +1096,13 @@ function contentNotShowInLkSpan()
 
                         if ($model->co) {
                             $return .= Html::tag('div', $model->co, ['class' => 'text-co' . $addClass]);
+                        }
+
+                        if ($model->payment_scheme) {
+                            $items = is_array($model->payment_scheme) ? $model->payment_scheme : [$model->payment_scheme];
+                            foreach ($items as $item) {
+                                $return .= Html::tag('div', $item, ['class' => 'text-payment-scheme' . $addClass]);
+                            }
                         }
 
                         if ($model->saldo) {
