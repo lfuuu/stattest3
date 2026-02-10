@@ -51,7 +51,7 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
         */
 
         $elDoc = parent::createElementDocument($dom);
-        $elDoc->setAttribute('НаимДокОпр', $this->getDocumentTitle());
+        $elDoc->setAttribute('НаимДокОпр', $this->getDocumentTitle(true));
         $elDoc->setAttribute('ПоФактХЖ', $this->getDocumentTitle());
         $elDoc->setAttribute('Функция', 'СЧФДОП');
 
