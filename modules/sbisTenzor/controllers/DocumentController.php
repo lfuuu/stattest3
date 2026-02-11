@@ -33,7 +33,7 @@ class DocumentController extends BaseController
                 'rules' => [
                     [
                         'allow' => true,
-                        'actions' => ['index', 'view', 'download-attachment'],
+                        'actions' => ['index', 'view', 'download-attachment', 'statuses'],
                         'roles' => ['newaccounts_bills.read'],
                     ],
                     [
@@ -323,6 +323,64 @@ class DocumentController extends BaseController
         return $this->redirect('/sbisTenzor/document/view?id=' . $id);
     }
 
+
+    /**
+     * Получить актуальные статусы документов (AJAX)
+     *
+     * @param string $ids ID документов
+     * @return array
+     */
+    public function actionStatuses($ids = '')
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $ids = array_filter(array_map('intval', explode(',', $ids)));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $documents = SBISDocument::find()
+            ->where(['id' => $ids])
+            ->all();
+
+        $result = [];
+        foreach ($documents as $document) {
+            $progressValue = 0;
+            $progressStyle = 'info';
+
+            if (
+                $document->state >= SBISDocumentStatus::PROCESSING &&
+                $document->state < SBISDocumentStatus::SENT
+            ) {
+                $progressValue = 25;
+                $progressStyle = 'danger';
+
+                if ($document->state == SBISDocumentStatus::SAVED) {
+                    $progressValue = 50;
+                    $progressStyle = 'warning';
+                } elseif (in_array($document->state, [SBISDocumentStatus::NOT_SIGNED, SBISDocumentStatus::READY])) {
+                    $progressValue = 75;
+                    $progressStyle = 'info';
+                }
+            }
+
+            $result[$document->id] = [
+                'state' => $document->state,
+                'stateName' => $document->stateName,
+                'externalStateName' => $document->external_state_name ?: '',
+                'progressValue' => $progressValue,
+                'progressStyle' => $progressStyle,
+                'isFinal' => in_array($document->state, [
+                    SBISDocumentStatus::CANCELLED,
+                    SBISDocumentStatus::CANCELLED_AUTO,
+                    SBISDocumentStatus::ACCEPTED,
+                    SBISDocumentStatus::ERROR,
+                ]),
+            ];
+        }
+
+        return $result;
+    }
 
     /**
      * Download attachment

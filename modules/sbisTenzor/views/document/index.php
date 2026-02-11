@@ -180,6 +180,18 @@ echo GridView::widget([
         [
             'attribute' => 'state',
             'format' => 'html',
+            'contentOptions' => function (SBISDocument $model) {
+                $isFinal = in_array($model->state, [
+                    SBISDocumentStatus::CANCELLED,
+                    SBISDocumentStatus::CANCELLED_AUTO,
+                    SBISDocumentStatus::ACCEPTED,
+                    SBISDocumentStatus::ERROR,
+                ]);
+                return [
+                    'data-doc-id' => $model->id,
+                    'data-doc-state' => $isFinal ? 'final' : 'active',
+                ];
+            },
             'value'     => function (SBISDocument $model) {
                 $progressValue = 0;
                 $progressStyle = 'info';
@@ -203,7 +215,7 @@ echo GridView::widget([
                 $html = '';
                 if ($progressValue) {
                     $html .= '<div class="progress">
-<div class="progress-bar progress-bar-' . $progressStyle . ' progress-bar-striped" role="progressbar" aria-valuenow="' . $progressValue . '" 
+<div class="progress-bar progress-bar-' . $progressStyle . ' progress-bar-striped" role="progressbar" aria-valuenow="' . $progressValue . '"
 aria-valuemin="0" aria-valuemax="100" style="width:' . $progressValue . '%">
 </div>
 </div>';
@@ -327,3 +339,68 @@ aria-valuemin="0" aria-valuemax="100" style="width:' . $progressValue . '%">
     'isFilterButton' => false,
     'floatHeader' => false,
 ]);
+
+?>
+
+<script>
+(function() {
+    var REFRESH_INTERVAL = 5000; // 5 секунд
+    var timerId = null;
+
+    function refreshStatuses() {
+        var cells = document.querySelectorAll('td[data-doc-state="active"]');
+        if (!cells.length) {
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+            return;
+        }
+
+        var ids = [];
+        cells.forEach(function(cell) {
+            ids.push(cell.getAttribute('data-doc-id'));
+        });
+
+        $.ajax({
+            url: '/sbisTenzor/document/statuses',
+            data: { ids: ids.join(',') },
+            dataType: 'json',
+            success: function(data) {
+                cells.forEach(function(cell) {
+                    var id = cell.getAttribute('data-doc-id');
+                    var info = data[id];
+                    if (!info) return;
+
+                    var html = '';
+                    if (info.progressValue) {
+                        html += '<div class="progress">' +
+                            '<div class="progress-bar progress-bar-' + info.progressStyle + ' progress-bar-striped" role="progressbar" ' +
+                            'aria-valuenow="' + info.progressValue + '" aria-valuemin="0" aria-valuemax="100" ' +
+                            'style="width:' + info.progressValue + '%"></div></div>';
+                    }
+
+                    var external = info.externalStateName ? '<br /><small>(' + info.externalStateName + ')</small>' : '';
+                    html += '<a href="/sbisTenzor/document/view?id=' + id + '">' +
+                        '<span class="text-nowrap"><strong>' + info.stateName + '</strong>' + external + '</span></a>';
+
+                    cell.innerHTML = html;
+
+                    if (info.isFinal) {
+                        cell.setAttribute('data-doc-state', 'final');
+                    }
+                });
+
+                // все стали финальными — остановить таймер
+                if (!document.querySelectorAll('td[data-doc-state="active"]').length && timerId) {
+                    clearInterval(timerId);
+                    timerId = null;
+                }
+            }
+        });
+    }
+
+    refreshStatuses();
+    timerId = setInterval(refreshStatuses, REFRESH_INTERVAL);
+})();
+</script>
