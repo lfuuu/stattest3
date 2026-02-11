@@ -65,9 +65,7 @@ class SmsController extends Controller
                 }
 
                 $operator = null;
-
                 if (!array_key_exists($sms->dst_number, $storage[$sms->src_number])) {
-
                     $nnpInfo = Number::getNnpInfo($sms->dst_number);
 
                     if (!array_key_exists($nnpInfo['nnp_operator_id'], $operatorStorage)) {
@@ -94,7 +92,7 @@ class SmsController extends Controller
 //
 //                echo $calc->getId();
 //                echo ' - ';
-                $total = $calc->writeOff($sms->count);
+                $total = $calc->writeOff((int)round($sms->count));
 //                echo ' => ' . $total;
 
                 $setRate = 8;
@@ -264,7 +262,7 @@ class CalculateSmsCharges
             } elseif ($position >= 2 && $position <= 5) {
                 $total += 0;   // Со 2 по 5 - 0 ед
             } else {
-                $total += 8;   // Свыше 6 - по 4 ед
+                $total += 8;   // Свыше 6 - по 8 ед
             }
 //            echo ' p:' . $position . '.t:' . $total . ' ';
         }
