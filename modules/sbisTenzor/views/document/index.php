@@ -12,8 +12,7 @@ use yii\widgets\Breadcrumbs;
 use kartik\grid\ActionColumn;
 use app\classes\grid\GridView;
 
-list(, $assetsUrl) = Yii::$app->assetManager->publish(Yii::getAlias('@app/modules/sbisTenzor/assets'));
-$this->registerJsFile($assetsUrl . '/document-statuses.js', ['position' => yii\web\View::POS_END]);
+\app\modules\sbisTenzor\assets\DocumentStatusAsset::register($this);
 
 /**
  * @var ActiveDataProvider $dataProvider

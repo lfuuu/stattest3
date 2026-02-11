@@ -746,10 +746,11 @@ AAA;
 ./vendor/kartik-v/yii2-widget-depdrop/DepDropExtAsset.php:class DepDropExtAsset extends AssetBundle
 ./vendor/kartik-v/yii2-widget-depdrop/DepDropAsset.php:class DepDropAsset extends AssetBundle
 ./vendor/kartik-v/yii2-widget-sidenav/SideNavAsset.php:class SideNavAsset extends \kartik\base\AssetBundle
+./modules/sbisTenzor/assets/DocumentStatusAsset.php:class DocumentStatusAsset extends AssetBundle
 
 AAA;
 
-        foreach (explode(PHP_EOL , $A) as $l) {
+        foreach (explode(PHP_EOL, $A) as $l) {
             if (!$l) {
                 continue;
             }
@@ -758,7 +759,7 @@ AAA;
 
             list($file, $classData) = explode(":", $l);
 
-            $c = file_get_contents($file, false, null,  0, 1024);
+            $c = file_get_contents($file, false, null, 0, 1024);
 
             if (
                 preg_match("/namespace ([^;]+);/", $c, $m)

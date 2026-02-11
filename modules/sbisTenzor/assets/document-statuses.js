@@ -2,6 +2,7 @@
 (function() {
     var REFRESH_INTERVAL = 5000; // 5 секунд
     var timerId = null;
+    var hasActive = !!document.querySelectorAll('td[data-doc-state="active"]').length;
 
     function refreshStatuses() {
         var cells = document.querySelectorAll('td[data-doc-state="active"]');
@@ -20,6 +21,7 @@
 
         $.ajax({
             url: '/sbisTenzor/document/statuses',
+            method: 'POST',
             data: { ids: ids.join(',') },
             dataType: 'json',
             success: function(data) {
@@ -55,10 +57,18 @@
                     }
                 });
 
-                // все стали финальными — остановить таймер
-                if (!document.querySelectorAll('td[data-doc-state="active"]').length && timerId) {
-                    clearInterval(timerId);
-                    timerId = null;
+                // все стали финальными — остановить таймер и нажать "Обновить"
+                if (!document.querySelectorAll('td[data-doc-state="active"]').length) {
+                    if (timerId) {
+                        clearInterval(timerId);
+                        timerId = null;
+                    }
+                    if (hasActive) {
+                        var refreshBtn = document.querySelector('.glyphicon-refresh');
+                        if (refreshBtn) {
+                            refreshBtn.closest('a').click();
+                        }
+                    }
                 }
             }
         });
