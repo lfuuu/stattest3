@@ -192,6 +192,8 @@ class AccountTariffController extends BaseController
      */
     public function actionEditVoip($id = null, $cityId = null, $ndcTypeId = null, $serviceTypeId = null)
     {
+        $this->layout = '@app/views/layouts/minimal';
+
         try {
             $formModel = $id ?
 
@@ -209,18 +211,9 @@ class AccountTariffController extends BaseController
         } catch (\InvalidArgumentException $e) {
             Yii::$app->session->setFlash('error', $e->getMessage());
 
-            if (Yii::$app->request->isAjax) {
-                return $this->renderAjax('//layouts/empty', ['content' => '']);
-            }
-            $this->layout = '@app/views/layouts/minimal';
             return $this->render('//layouts/empty', ['content' => '']);
         }
 
-        if (Yii::$app->request->isAjax) {
-            return $this->renderAjax('editVoip', ['formModel' => $formModel]);
-        }
-
-        $this->layout = '@app/views/layouts/minimal';
         return $this->render('editVoip', ['formModel' => $formModel]);
     }
 
