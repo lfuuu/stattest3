@@ -330,11 +330,11 @@ class DocumentController extends BaseController
      * @param string $ids ID документов
      * @return array
      */
-    public function actionStatuses($ids = '')
+    public function actionStatuses()
     {
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
-        $ids = array_filter(array_map('intval', explode(',', $ids)));
+        $ids = array_filter(array_map('intval', explode(',', Yii::$app->request->post('ids', ''))));
         if (empty($ids)) {
             return [];
         }
