@@ -492,6 +492,18 @@ function formatInvoiceNumbersLabel(array $invoiceNumbers)
     return 'с/ф: ' . $numbers;
 }
 
+function formatPaymentInfoBaseLabel($infoBase)
+{
+    if ($infoBase === null || $infoBase === '') {
+        return '';
+    }
+
+    $safe = Html::encode($infoBase);
+    $safe = preg_replace('/^(\s*#?\d+\s+от\s+[^\/]+)/u', '<span class="linked-entity-target">$1</span>', $safe, 1);
+
+    return Html::tag('small', $safe);
+}
+
 function formatPaymentNumbersSuffix(array $paymentInfo)
 {
     if (!$paymentInfo) {
@@ -1202,7 +1214,7 @@ function contentNotShowInLkSpan()
                             if (!$row->invoice) {
                                 return '';
                             }
-                            $content = Html::a($row->invoice['number'], $row->invoice['link'])
+                            $content = Html::a($row->invoice['number'], $row->invoice['link'], ['class' => 'linked-entity-target'])
                                 . formatPaymentNumbersSuffix($row->invoice['payment_info'] ?? []);
 
                             $attrs = [
@@ -1238,11 +1250,13 @@ function contentNotShowInLkSpan()
                             $infoBase = $row->payment['info_base'] ?? '';
                             $invoiceLabel = $row->payment['invoice_label'] ?? '';
                             $linkedIds = implode(',', $row->payment['linked_invoice_ids'] ?? []);
+                            $infoBaseLabel = formatPaymentInfoBaseLabel($infoBase);
 
                             if ($row->payment['info_json']) {
+                                $buttonLabel = $infoBaseLabel !== '' ? $infoBaseLabel : 'детали';
                                 $button = Html::tag(
                                     'button',
-                                    $infoBase !== '' ? Html::tag('small', $infoBase) : 'детали',
+                                    $buttonLabel,
                                     [
                                         'class' => 'btn btn-xs',
                                         'data-toggle' => 'popover',
@@ -1261,7 +1275,7 @@ function contentNotShowInLkSpan()
                                 ]);
                             }
 
-                            $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
+                            $label = $infoBaseLabel !== '' ? $infoBaseLabel : '';
                             if ($invoiceLabel !== '') {
                                 $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                             }
@@ -1336,11 +1350,13 @@ function contentNotShowInLkSpan()
                             $infoBase = $row->payment_minus['info_base'] ?? '';
                             $invoiceLabel = $row->payment_minus['invoice_label'] ?? '';
                             $linkedIds = implode(',', $row->payment_minus['linked_invoice_ids'] ?? []);
+                            $infoBaseLabel = formatPaymentInfoBaseLabel($infoBase);
 
                             if ($row->payment_minus['info_json']) {
+                                $buttonLabel = $infoBaseLabel !== '' ? $infoBaseLabel : 'детали';
                                 $button = Html::tag(
                                     'button',
-                                    $infoBase !== '' ? Html::tag('small', $infoBase) : 'детали',
+                                    $buttonLabel,
                                     [
                                         'class' => 'btn btn-xs',
                                         'data-toggle' => 'popover',
@@ -1359,7 +1375,7 @@ function contentNotShowInLkSpan()
                                 ]);
                             }
 
-                            $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
+                            $label = $infoBaseLabel !== '' ? $infoBaseLabel : '';
                             if ($invoiceLabel !== '') {
                                 $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                             }
@@ -1425,19 +1441,27 @@ function contentNotShowInLkSpan()
                 .filter(function (v) { return v.length > 0; });
         }
 
+        function toggleHighlight($el, shouldAdd) {
+            var $targets = $el.find('.linked-entity-target');
+            if ($targets.length === 0) {
+                return;
+            }
+            $targets.toggleClass('linked-entity-highlight', shouldAdd);
+        }
+
         $(document).on('mouseenter', '.js-linked-entity', function () {
             var $el = $(this);
             var linkedPayments = parseIds($el.data('linkedPaymentIds'));
             var linkedInvoices = parseIds($el.data('linkedInvoiceIds'));
 
-            $el.addClass('linked-entity-highlight');
+            toggleHighlight($el, true);
 
             linkedPayments.forEach(function (id) {
-                $('[data-payment-id="' + id + '"]').addClass('linked-entity-highlight');
+                toggleHighlight($('[data-payment-id="' + id + '"]'), true);
             });
 
             linkedInvoices.forEach(function (id) {
-                $('[data-invoice-id="' + id + '"]').addClass('linked-entity-highlight');
+                toggleHighlight($('[data-invoice-id="' + id + '"]'), true);
             });
         });
 
@@ -1446,14 +1470,14 @@ function contentNotShowInLkSpan()
             var linkedPayments = parseIds($el.data('linkedPaymentIds'));
             var linkedInvoices = parseIds($el.data('linkedInvoiceIds'));
 
-            $el.removeClass('linked-entity-highlight');
+            toggleHighlight($el, false);
 
             linkedPayments.forEach(function (id) {
-                $('[data-payment-id="' + id + '"]').removeClass('linked-entity-highlight');
+                toggleHighlight($('[data-payment-id="' + id + '"]'), false);
             });
 
             linkedInvoices.forEach(function (id) {
-                $('[data-invoice-id="' + id + '"]').removeClass('linked-entity-highlight');
+                toggleHighlight($('[data-invoice-id="' + id + '"]'), false);
             });
         });
     });
