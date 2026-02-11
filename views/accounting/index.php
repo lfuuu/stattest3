@@ -492,16 +492,16 @@ function formatInvoiceNumbersLabel(array $invoiceNumbers)
     return 'с/ф: ' . $numbers;
 }
 
-function formatPaymentInfoBaseLabel($infoBase)
+function formatPaymentInfoBaseParts($infoBase)
 {
     if ($infoBase === null || $infoBase === '') {
-        return '';
+        return ['', ''];
     }
+    $parts = explode(' / ', $infoBase, 2);
+    $head = $parts[0] ?? '';
+    $tail = $parts[1] ?? '';
 
-    $safe = Html::encode($infoBase);
-    $safe = preg_replace('/^(\s*#?\d+\s+от\s+[^\/]+)/u', '<span class="linked-entity-target">$1</span>', $safe, 1);
-
-    return Html::tag('small', $safe);
+    return [$head, $tail];
 }
 
 function formatPaymentNumbersSuffix(array $paymentInfo)
@@ -786,6 +786,7 @@ $nextCo = $chCo->get();
 /** @var array $changePaymentScheme */
 $chPay = new ChangePaymentScheme($changePaymentScheme ?? []);
 $nextPay = $chPay->get();
+$paymentTypeLabel = (new ClientAccount())->getAttributeLabel('is_postpaid');
 
 $saldoHelper = (new SaldoHelper($saldo));
 
@@ -816,23 +817,14 @@ foreach ($d as $year => &$yearData) {
                 $isSetCo = true;
             }
 
-            $paymentSchemeTexts = [];
+            $paymentSchemeText = '';
             $isSetPaymentScheme = false;
             while ($nextPay && $date >= $nextPay->date) {
                 $isSetPaymentScheme = true;
 
-                $from = $nextPay->from;
                 $to = $nextPay->to;
-
-                $fromLabel = ($from !== null && $from !== '') ? (ClientAccount::$paymentTypes[$from] ?? $from) : null;
                 $toLabel = ($to !== null && $to !== '') ? (ClientAccount::$paymentTypes[$to] ?? $to) : $to;
-                $dateLabel = Yii::$app->formatter->asDate($nextPay->date, 'php:d.m.Y');
-
-                if ($from !== null && $from !== '') {
-                    $paymentSchemeTexts[] = 'Переход со схемы оплаты "' . $fromLabel . '" на "' . $toLabel . '" с ' . $dateLabel;
-                } else {
-                    $paymentSchemeTexts[] = 'Переход на схему оплаты "' . $toLabel . '" с ' . $dateLabel;
-                }
+                $paymentSchemeText = $paymentTypeLabel . ': ' . $toLabel;
 
                 $nextPay = $chPay->get();
             }
@@ -847,7 +839,7 @@ foreach ($d as $year => &$yearData) {
             $row->invoice_is_paid = $invoice_is_paid;
             $row->invoice_minus_is_paid = $invoice_minus_is_paid;
             $row->co = $isSetCo ? $prevCo : '';
-            $row->payment_scheme = $isSetPaymentScheme ? $paymentSchemeTexts : '';
+            $row->payment_scheme = $isSetPaymentScheme ? $paymentSchemeText : '';
 
             if ($saldo && $isSaldoShown) {
                 if ($saldoHelper->getDate() <= $date) {
@@ -1250,7 +1242,14 @@ function contentNotShowInLkSpan()
                             $infoBase = $row->payment['info_base'] ?? '';
                             $invoiceLabel = $row->payment['invoice_label'] ?? '';
                             $linkedIds = implode(',', $row->payment['linked_invoice_ids'] ?? []);
-                            $infoBaseLabel = formatPaymentInfoBaseLabel($infoBase);
+                            [$infoBaseHead, $infoBaseTail] = formatPaymentInfoBaseParts($infoBase);
+                            $infoBaseLabel = $infoBaseHead !== ''
+                                ? Html::tag(
+                                    'small',
+                                    Html::tag('span', Html::encode($infoBaseHead), ['class' => 'linked-entity-target'])
+                                    . ($infoBaseTail !== '' ? ' / ' . Html::encode($infoBaseTail) : '')
+                                )
+                                : '';
 
                             if ($row->payment['info_json']) {
                                 $buttonLabel = $infoBaseLabel !== '' ? $infoBaseLabel : 'детали';
@@ -1350,7 +1349,14 @@ function contentNotShowInLkSpan()
                             $infoBase = $row->payment_minus['info_base'] ?? '';
                             $invoiceLabel = $row->payment_minus['invoice_label'] ?? '';
                             $linkedIds = implode(',', $row->payment_minus['linked_invoice_ids'] ?? []);
-                            $infoBaseLabel = formatPaymentInfoBaseLabel($infoBase);
+                            [$infoBaseHead, $infoBaseTail] = formatPaymentInfoBaseParts($infoBase);
+                            $infoBaseLabel = $infoBaseHead !== ''
+                                ? Html::tag(
+                                    'small',
+                                    Html::tag('span', Html::encode($infoBaseHead), ['class' => 'linked-entity-target'])
+                                    . ($infoBaseTail !== '' ? ' / ' . Html::encode($infoBaseTail) : '')
+                                )
+                                : '';
 
                             if ($row->payment_minus['info_json']) {
                                 $buttonLabel = $infoBaseLabel !== '' ? $infoBaseLabel : 'детали';

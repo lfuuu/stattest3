@@ -125,10 +125,7 @@ class ClientAccountDao extends Singleton
                 continue;
             }
 
-            $current = $data['is_postpaid'];
-            if (is_numeric($current)) {
-                $current = (int)$current;
-            }
+            $current = (int)$data['is_postpaid'];
 
             if ($lastValue === null) {
                 $lastValue = $current;
