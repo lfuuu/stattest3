@@ -3,6 +3,7 @@
 namespace app\models;
 
 use app\classes\enum\VoipRegistrySourceEnum;
+use app\classes\helpers\DependecyHelper;
 use app\classes\Html;
 use app\classes\HttpClient;
 use app\classes\model\ActiveRecord;
@@ -637,10 +638,11 @@ class Number extends ActiveRecord
      *
      * @param number|string $number
      * @param bool $isWithPorting - с учетом портирования
+     * @param bool $useCache - использовать кеш
      * @return array
      * @throws InvalidConfigException
      */
-    public static function getNnpInfo($number, bool $isWithPorting = true)
+    public static function getNnpInfo($number, bool $isWithPorting = true, bool $useCache = true)
     {
         $url = \Yii::$app->params['nnpInfoServiceURL'] ?? false;
 
@@ -648,16 +650,29 @@ class Number extends ActiveRecord
             throw new InvalidConfigException('nnpInfoServiceURL not set');
         }
 
+        $cacheKey = 'nnp_info_' . $number . '_' . (int)$isWithPorting;
+
+        if ($useCache) {
+            $cached = \Yii::$app->cacheDb->get($cacheKey);
+            if ($cached !== false) {
+                return $cached;
+            }
+        }
+
         $count = 0;
         do {
             try {
-                return (new HttpClient())
+                $result = (new HttpClient())
                     ->get($url, [
                         'cmd' => 'getNumberRangeByNum',
                         'num' => $number,
                     ] + ($isWithPorting ? [] : ['isWithoutPorted' => 1])
                     )
                     ->getResponseDataWithCheck();
+
+                \Yii::$app->cacheDb->set($cacheKey, $result, DependecyHelper::TIMELIFE_DAY * 3);
+
+                return $result;
             } catch (\Exception $e) {
                 \Yii::error($e);
                 $count++;
