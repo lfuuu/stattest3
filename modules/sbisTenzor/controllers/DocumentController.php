@@ -370,12 +370,9 @@ class DocumentController extends BaseController
                 'externalStateName' => $document->external_state_name ?: '',
                 'progressValue' => $progressValue,
                 'progressStyle' => $progressStyle,
-                'isFinal' => in_array($document->state, [
-                    SBISDocumentStatus::CANCELLED,
-                    SBISDocumentStatus::CANCELLED_AUTO,
-                    SBISDocumentStatus::ACCEPTED,
-                    SBISDocumentStatus::ERROR,
-                ]),
+                'isSigned' => $document->isSigned(),
+                'isProcessing' => $document->state >= SBISDocumentStatus::PROCESSING
+                    && $document->state < SBISDocumentStatus::SENT,
             ];
         }
 
