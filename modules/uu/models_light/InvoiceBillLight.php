@@ -24,6 +24,8 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $summary_with_vat = 0,
         $payment_type = '',
         $original_id = '',
+        $correction_number = null,
+        $correction_date = null,
         $client_id,
         $pageCount = 1,
         $qr_code = '',
@@ -57,6 +59,11 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
 //        $this->date = $invoice && ($invoice->is_reversal || $invoice->pay_bill_until) ? (new \DateTimeImmutable($invoice->date))->format(DateTimeZoneHelper::DATE_FORMAT) : $statBill->date;
         $this->date = $invoice ? (new \DateTimeImmutable($invoice->date))->format(DateTimeZoneHelper::DATE_FORMAT) : ($statBill ? $statBill->date : $bill->date);
+
+        if ($invoice && $invoice->correction_idx) {
+            $this->correction_number = $invoice->correction_idx;
+            $this->correction_date = (new \DateTimeImmutable($invoice->date))->format(DateTimeZoneHelper::DATE_FORMAT);
+        }
 
         if ($bill instanceof uuBill && !$bill->is_converted) { // current statenent
             $this->date = (new \DateTimeImmutable('now'))->format(DateTimeZoneHelper::DATE_FORMAT);

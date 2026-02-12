@@ -226,7 +226,7 @@ class InvoiceDao extends Singleton
         $event->save();
     }
 
-    public function getDocumentUrlData($printDocId, $bill_no, $isStamp, $isPdf)
+    public function getDocumentUrlData($printDocId, $bill_no, $isStamp, $isPdf, $invoiceId = null)
     {
         if ($printDocId == 'upd2-1') {
             $invoiceTypeId = Invoice::TYPE_1;
@@ -238,9 +238,26 @@ class InvoiceDao extends Singleton
             return false;
         }
 
-
         /** @var Invoice $invoiceObject */
-        $invoiceObject = Invoice::find()->where(['bill_no' => $bill_no, 'type_id' => $invoiceTypeId])->orderBy(['id' => SORT_DESC])->one();
+        $invoiceObject = null;
+        if ($invoiceId) {
+            $invoiceObject = Invoice::findOne(['id' => $invoiceId]);
+
+            if (
+                !$invoiceObject
+                || $invoiceObject->bill_no !== $bill_no
+                || (int)$invoiceObject->type_id !== (int)$invoiceTypeId
+            ) {
+                $invoiceObject = null;
+            }
+        }
+
+        if (!$invoiceObject) {
+            $invoiceObject = Invoice::find()
+                ->where(['bill_no' => $bill_no, 'type_id' => $invoiceTypeId])
+                ->orderBy(['id' => SORT_DESC])
+                ->one();
+        }
 
         if (!$invoiceObject) {
             return false;

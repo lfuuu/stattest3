@@ -895,6 +895,7 @@ class Invoice extends ActiveRecord
                 'tpl1' => 3,
                 'account_id' => $this->bill->client_id,
                 'document_number' => $this->number,
+                'invoice_id' => $this->id,
                 'template_type_id' => PaymentTemplateType::TYPE_ID_UPD,
                 'country_code' => $this->bill->clientAccount->getUuCountryId() ?: Country::RUSSIA,
                 'include_signature_stamp' => (int)$isStamp,

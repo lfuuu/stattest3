@@ -2376,7 +2376,7 @@ class m_newaccounts extends IModule
             $v && $upd2storage[$upd2Name] = $upd2Name;
         }
         if ($upd2storage) {
-            return $this->printmTpl3($upd2storage, $bills, $is_pdf, $isForPrint);
+            return $this->printmTpl3($upd2storage, $bills, $is_pdf, $isForPrint, $invoiceId);
         }
 
 
@@ -2675,7 +2675,7 @@ class m_newaccounts extends IModule
      * @param array $bills
      * @param bool $isPDF
      */
-    function printmTpl3($printDocs = [], $bills = [], $isPDF = false, $isForPrint = false)
+    function printmTpl3($printDocs = [], $bills = [], $isPDF = false, $isForPrint = false, $invoiceId = null)
     {
         global $design;
 
@@ -2708,7 +2708,7 @@ class m_newaccounts extends IModule
             $printObjects = [];
 
             foreach ($printDocs as $printDocId) {
-                $printObject = Invoice::dao()->getDocumentUrlData($printDocId, $bill->bill_no, false, $isPDF);
+                $printObject = Invoice::dao()->getDocumentUrlData($printDocId, $bill->bill_no, false, $isPDF, $invoiceId);
 
                 $printObjects[] = $printObject;
                 if ($isForPrint) {
