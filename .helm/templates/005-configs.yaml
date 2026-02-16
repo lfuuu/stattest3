@@ -914,13 +914,14 @@ data:
   crontab.file.eu: |
 
     # Очередь событий
-    * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/handler1 php ./handler.php with_account_tariff >> /var/log/nispd/handler.log 2>&1
+    * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/launcher_with_at php ./launcher.php with_account_tariff >> /var/log/nispd/handler_with_at.log 2>&1
     * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/handler2 php ./handler.php without_account_tariff >> /var/log/nispd/handler.log 2>&1
     * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/handler3 php ./handler.php ats3_sync >> /var/log/nispd/handler.log 2>&1
-    * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/handler5 php ./handler.php kafka >> /var/log/nispd/handler.log 2>&1
-    * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/handler6 php ./handler.php uu_sync >> /var/log/nispd/handler.log 2>&1
+    * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/launcher_kafka php ./launcher.php kafka >> /var/log/nispd/handler_kafka.log 2>&1
+    * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/launcher_kafka_low php ./launcher.php kafka_low >> /var/log/nispd/handler_kafka_low.log 2>&1
+    * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/launcher_uu_sync php ./launcher.php uu_sync >> /var/log/nispd/handler_uu_sync.log 2>&1
     * * * * * cd /home/httpd/stat.mcn.ru/stat/stat/crons/events/; flock --nonblock /var/run/handler4 php ./handler.php nnp >> /var/log/nispd/handler.log 2>&1
-    
+    `
     # Сообщения из kafka
     * * * * * flock --nonblock /var/run/yii-listen-contragent-changes /home/httpd/stat.mcn.ru/stat/yii contragent/listen-changes   >> /var/log/nispd/handler.log 2>&1
     * * * * * flock --nonblock /var/run/yii-listen-event-bus          /home/httpd/stat.mcn.ru/stat/yii event-bus/listen            >> /var/log/nispd/handler.log 2>&1
