@@ -119,9 +119,12 @@ $uuSyncEvents = ['event' => [
 
 $kafkaEvents = ['event' => [
     UuModule::EVENT_UU_ANONCE,
-    UuModule::EVENT_UU_ANONCE2,
     UuModule::EVENT_UU_ANONCE_TARIFF,
     EventQueue::EVENT_LK_CONTRAGENT_CHANGED,
+]];
+
+$kafkaLowEvents = ['event' => [
+    UuModule::EVENT_UU_ANONCE2,
     EventQueue::INVOICE_GENERATE_PDF,
 ]];
 
@@ -129,10 +132,11 @@ $kafkaEvents = ['event' => [
 //$syncEvents['event'] = array_merge($syncEvents['event'], $uuSyncEvents['event']/*, $kafkaEvents*/);
 
 $map = [
-    'with_account_tariff' => [['NOT', ['account_tariff_id' => null]], ['NOT', $uuSyncEvents], ['NOT', $kafkaEvents]], // account_tariff_id => not null =>> already ['NOT', $syncEvents] && ['NOT', $nnpEvents]
-    'without_account_tariff' => [['account_tariff_id' => null], ['NOT', $nnpEvents], ['NOT', $syncEvents], ['NOT', $syncT2Events], ['NOT', $uuSyncEvents], ['NOT', $kafkaEvents]],
+    'with_account_tariff' => [['NOT', ['account_tariff_id' => null]], ['NOT', $uuSyncEvents], ['NOT', $kafkaEvents], ['NOT', $kafkaLowEvents]], // account_tariff_id => not null =>> already ['NOT', $syncEvents] && ['NOT', $nnpEvents]
+    'without_account_tariff' => [['account_tariff_id' => null], ['NOT', $nnpEvents], ['NOT', $syncEvents], ['NOT', $syncT2Events], ['NOT', $uuSyncEvents], ['NOT', $kafkaEvents], ['NOT', $kafkaLowEvents]],
 
     'kafka' => [$kafkaEvents], // kafka events
+    'kafka_low' => [$kafkaLowEvents], // low priority kafka events (mass upload, mass generate)
     'uu_sync' => [$uuSyncEvents],
     'ats3_sync' => [$syncEvents], // all sync events
     'sync_t2' => [$syncT2Events], // all sync events
