@@ -2,12 +2,10 @@
 
 namespace app\modules\sbisTenzor\classes\XmlGenerator;
 
-use app\helpers\DateTimeZoneHelper;
-use app\models\ClientAccountOptions;
 use app\models\ClientContragent;
 use app\models\Currency;
 use app\modules\sbisTenzor\classes\XmlGenerator;
-use DateTime;
+use app\modules\uu\models_light\InvoiceBillLight;
 
 class Act2016Form5_02 extends XmlGenerator
 {
@@ -127,33 +125,12 @@ class Act2016Form5_02 extends XmlGenerator
             $elInfoContentBuyer->appendChild($elInfoContentBuyerContact);
         }
 
-        $billDateTime = new DateTime($this->bill->date);
-        $billDate = $billDateTime->format('d.m.Y');
+        $reasonForTransfer = InvoiceBillLight::reasonForTransferUpd($this->client, $this->bill);
 
         $elInfoContentBase = $dom->createElement('Основание');
-        switch($this->client->getOptionValue(ClientAccountOptions::OPTION_SBIS_DOC_BASE)) {
-            case ClientAccountOptions::OPTION_SBIS_DOC_BASE_BILL:
-                $elInfoContentBase->setAttribute('ДатаОсн', $billDate);
-                $elInfoContentBase->setAttribute('НаимОсн', 'Счет');
-                $elInfoContentBase->setAttribute('НомОсн', $this->bill->bill_no);
-                break;
-
-            case ClientAccountOptions::OPTION_SBIS_DOC_BASE_CONTRACT:
-                $contract = $this->client->contract->getContractInfo($billDateTime);
-                if (!$contract) {
-                    throw new \LogicException('Не найден договор');
-                }
-                $contractDateTime = new \DateTime($contract->contract_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
-                $contractDate = $contractDateTime->format('d.m.Y');
-
-                $elInfoContentBase->setAttribute('ДатаОсн', $contractDate);
-                $elInfoContentBase->setAttribute('НаимОсн', sprintf('%s от %s', $contract->contract_no, $contractDate));
-                $elInfoContentBase->setAttribute('НомОсн', $contract->contract_no);
-                break;
-
-            default:
-                throw new \InvalidArgumentException("СБИС. Непонятное основание");
-        }
+        $elInfoContentBase->setAttribute('ДатаОсн', $reasonForTransfer['date_human']);
+        $elInfoContentBase->setAttribute('НаимОсн', $reasonForTransfer['sbis_name']);
+        $elInfoContentBase->setAttribute('НомОсн', $reasonForTransfer['number']);
         $elInfoContent->appendChild($elInfoContentBase);
 
         // --------------------------------------------------------------------------------------------------------------
