@@ -15,6 +15,7 @@ use app\models\ClientAccount;
 use app\models\ClientContract;
 use app\models\ClientContragent;
 use app\models\GoodsIncomeOrder;
+use app\models\HistoryVersion;
 use app\models\important_events\ImportantEvents;
 use app\models\important_events\ImportantEventsNames;
 use app\models\Invoice;
@@ -91,6 +92,62 @@ class ClientAccountDao extends Singleton
                 ':billerVersion' => ClientAccount::VERSION_BILLER_USAGE
             ]
         )->queryScalar();
+    }
+
+    /**
+     * Вернуть даты смены схемы оплаты клиента
+     *
+     * @param int $clientAccountId
+     * @return array[] [['date' => 'Y-m-d', 'from' => int|null, 'to' => int], ...]
+     */
+    public function getWhenPaymentSchemeSwitched($clientAccountId)
+    {
+        $clientAccountId = (int)$clientAccountId;
+        if (!$clientAccountId) {
+            return [];
+        }
+
+        $result = [];
+
+        $query = HistoryVersion::find()
+            ->where([
+                'model' => ClientAccount::class,
+                'model_id' => $clientAccountId,
+            ])
+            ->andWhere(['like', 'data_json', '"is_postpaid"'])
+            ->orderBy(['date' => SORT_ASC]);
+
+        $lastValue = null;
+
+        foreach ($query->each() as $history) {
+            $data = json_decode($history->data_json, true);
+            if (!is_array($data) || !array_key_exists('is_postpaid', $data)) {
+                continue;
+            }
+
+            $current = (int)$data['is_postpaid'];
+
+            if ($lastValue === null) {
+                $lastValue = $current;
+                continue;
+            }
+
+            if ((string)$lastValue === (string)$current) {
+                continue;
+            }
+
+            $date = (new \DateTimeImmutable($history->date))->format(DateTimeZoneHelper::DATE_FORMAT);
+
+            $result[] = [
+                'date' => $date,
+                'from' => $lastValue,
+                'to' => $current,
+            ];
+
+            $lastValue = $current;
+        }
+
+        return $result;
     }
 
     /**
