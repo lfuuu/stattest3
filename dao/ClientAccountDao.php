@@ -136,17 +136,7 @@ class ClientAccountDao extends Singleton
                 continue;
             }
 
-            $date = null;
-            try {
-                $date = (new \DateTimeImmutable($history->date))->format(DateTimeZoneHelper::DATE_FORMAT);
-            } catch (\Exception $e) {
-                $date = substr((string)$history->date, 0, 10);
-            }
-
-            if (!$date) {
-                $lastValue = $current;
-                continue;
-            }
+            $date = (new \DateTimeImmutable($history->date))->format(DateTimeZoneHelper::DATE_FORMAT);
 
             $result[] = [
                 'date' => $date,

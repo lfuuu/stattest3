@@ -836,7 +836,7 @@ foreach ($d as $year => &$yearData) {
             $paymentTypeChangeText = '';
             while ($nextPay && $date >= $nextPay->date) {
                 $to = $nextPay->to;
-                $toLabel = ($to !== null && $to !== '') ? (ClientAccount::$paymentTypes[$to] ?? $to) : $to;
+                $toLabel = ClientAccount::$paymentTypes[$to] ?? $to;
                 $paymentTypeChangeText = $paymentTypeLabel . ': ' . $toLabel;
 
                 $nextPay = $chPay->get();
