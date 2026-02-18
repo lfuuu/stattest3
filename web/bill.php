@@ -63,7 +63,8 @@ $isIncludeSignatureStamp = isset($R['include_signature_stamp']) && (bool)$R['inc
 header('Content-Type: ' . ($isPdf ? 'application/pdf' : 'text/html; charset=utf-8'));
 
 if (
-    isset($R['invoice_id'])
+    (!isset($R['tpl1']) || (int)$R['tpl1'] !== 3)
+    && isset($R['invoice_id'])
     && ($invoice = Invoice::findOne(['id' => $R['invoice_id']]))
     && ($invoice->bill->clientAccountModel->getUuCountryId() == Country::RUSSIA)
 ) {
@@ -267,7 +268,19 @@ if (
         $invoiceDocument->setInvoiceProformaBill($bill);
 
     } else if ($isInvoice || $isUpd) {
-        $invoice = Invoice::findOne(['number' => $R['document_number']]);
+        if (isset($R['invoice_id'])) {
+            $invoice = Invoice::findOne(['id' => $R['invoice_id']]);
+        } else {
+            $invoice = Invoice::find()
+                ->where(['number' => $R['document_number']])
+                ->orderBy(['id' => SORT_DESC])
+                ->one();
+        }
+
+        if (!$invoice) {
+            return;
+        }
+
         $bill = $invoice->bill;
 
         if (!$invoice || !$bill) {
