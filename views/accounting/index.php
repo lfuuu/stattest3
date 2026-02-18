@@ -492,18 +492,6 @@ function formatInvoiceNumbersLabel(array $invoiceNumbers)
     return 'с/ф: ' . $numbers;
 }
 
-function formatPaymentInfoBaseParts($infoBase)
-{
-    if ($infoBase === null || $infoBase === '') {
-        return ['', ''];
-    }
-    $parts = explode(' / ', $infoBase, 2);
-    $head = $parts[0] ?? '';
-    $tail = $parts[1] ?? '';
-
-    return [$head, $tail];
-}
-
 function formatPaymentNumbersSuffix(array $paymentInfo)
 {
     if (!$paymentInfo) {
@@ -553,13 +541,6 @@ foreach ($paysPlus as $pay) {
     $paymentHeader = in_array($listFilter, ['income', 'full'], true)
         ? $pay->headerFull
         : '';
-    $paymentHeaderMain = '';
-    $paymentHeaderTail = '';
-    if ($paymentHeader) {
-        $parts = explode(' / ', $paymentHeader, 2);
-        $paymentHeaderMain = $parts[0] ?? '';
-        $paymentHeaderTail = $parts[1] ?? '';
-    }
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
     $v = [
@@ -568,8 +549,7 @@ foreach ($paysPlus as $pay) {
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'payment_header_main' => $paymentHeaderMain,
-        'payment_header_tail' => $paymentHeaderTail,
+        'payment_header' => $paymentHeader,
         'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
         'invoice_numbers' => $invoiceNumbers,
@@ -590,13 +570,6 @@ foreach ($paysMinus as $pay) {
     $paymentHeader = in_array($listFilter, ['income', 'full'], true)
         ? $pay->headerFull
         : '';
-    $paymentHeaderMain = '';
-    $paymentHeaderTail = '';
-    if ($paymentHeader) {
-        $parts = explode(' / ', $paymentHeader, 2);
-        $paymentHeaderMain = $parts[0] ?? '';
-        $paymentHeaderTail = $parts[1] ?? '';
-    }
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
     $v = [
@@ -605,8 +578,7 @@ foreach ($paysMinus as $pay) {
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'payment_header_main' => $paymentHeaderMain,
-        'payment_header_tail' => $paymentHeaderTail,
+        'payment_header' => $paymentHeader,
         'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
         'invoice_numbers' => $invoiceNumbers,
@@ -1252,15 +1224,13 @@ function contentNotShowInLkSpan()
                                 return '';
                             }
 
-                            $paymentHeaderHead = $row->payment['payment_header_main'] ?? '';
-                            $paymentHeaderTail = $row->payment['payment_header_tail'] ?? '';
+                            $paymentHeader = $row->payment['payment_header'] ?? '';
                             $invoiceLabel = $row->payment['invoice_label'] ?? '';
                             $linkedIds = implode(',', $row->payment['linked_invoice_ids'] ?? []);
-                            $paymentHeaderLabel = $paymentHeaderHead !== ''
+                            $paymentHeaderLabel = $paymentHeader !== ''
                                 ? Html::tag(
                                     'small',
-                                    Html::tag('span', Html::encode($paymentHeaderHead), ['class' => 'linked-entity-target'])
-                                    . ($paymentHeaderTail !== '' ? ' / ' . Html::encode($paymentHeaderTail) : '')
+                                    Html::tag('span', Html::encode($paymentHeader), ['class' => 'linked-entity-target'])
                                 )
                                 : '';
 
@@ -1359,15 +1329,13 @@ function contentNotShowInLkSpan()
                                 return '';
                             }
 
-                            $paymentHeaderHead = $row->payment_minus['payment_header_main'] ?? '';
-                            $paymentHeaderTail = $row->payment_minus['payment_header_tail'] ?? '';
+                            $paymentHeader = $row->payment_minus['payment_header'] ?? '';
                             $invoiceLabel = $row->payment_minus['invoice_label'] ?? '';
                             $linkedIds = implode(',', $row->payment_minus['linked_invoice_ids'] ?? []);
-                            $paymentHeaderLabel = $paymentHeaderHead !== ''
+                            $paymentHeaderLabel = $paymentHeader !== ''
                                 ? Html::tag(
                                     'small',
-                                    Html::tag('span', Html::encode($paymentHeaderHead), ['class' => 'linked-entity-target'])
-                                    . ($paymentHeaderTail !== '' ? ' / ' . Html::encode($paymentHeaderTail) : '')
+                                    Html::tag('span', Html::encode($paymentHeader), ['class' => 'linked-entity-target'])
                                 )
                                 : '';
 
