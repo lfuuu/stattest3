@@ -87,6 +87,7 @@ class AccountTariffLog extends ActiveRecord
             ['tariff_period_id', 'validatorDoublePackage'],
             ['tariff_period_id', 'validatorNdcTypeAndSource'],
             ['tariff_period_id', 'validatorOneActive'],
+            ['tariff_period_id', 'validatorWithTrunkOrVats'],
             ['user_info', 'string'],
         ];
     }
@@ -837,6 +838,51 @@ class AccountTariffLog extends ActiveRecord
             return;
         }
 
+    }
+
+    /**
+     * При подключении VoIP-тарифа с опцией "Только для ВАТС/транк"
+     * на ЛС должна быть активная услуга ВАТС или транк
+     */
+    public function validatorWithTrunkOrVats($attribute, $params)
+    {
+        if (!$this->tariff_period_id) {
+            return;
+        }
+
+        $accountTariff = $this->accountTariff;
+        if (!$accountTariff || $accountTariff->service_type_id != ServiceType::ID_VOIP) {
+            return;
+        }
+
+        $tariffPeriod = $this->tariffPeriod;
+        if (!$tariffPeriod) {
+            return;
+        }
+
+        $tariffResource = TariffResource::find()
+            ->where([
+                'tariff_id' => $tariffPeriod->tariff_id,
+                'resource_id' => ResourceModel::ID_VOIP_ONLY_FOR_TRUNK_VATS,
+            ])
+            ->one();
+
+        if (!$tariffResource || !$tariffResource->amount) {
+            return;
+        }
+
+        $hasVatsOrTrunk = AccountTariff::find()
+            ->where([
+                'client_account_id' => $accountTariff->client_account_id,
+                'service_type_id' => [ServiceType::ID_VPBX, ServiceType::ID_TRUNK],
+            ])
+            ->andWhere(['NOT', ['tariff_period_id' => null]])
+            ->exists();
+
+        if (!$hasVatsOrTrunk) {
+            $this->addError($attribute, 'Тариф доступен только при наличии активной услуги ВАТС или транк на лицевом счёте');
+            $this->errorCode = AccountTariff::ERROR_CODE_ACCOUNT_NEED_VATS_OR_TRUNK;
+        }
     }
 
     public function getConnectionAmount($accountTariff = null, $tariffPeriod = null, $isCountLogs = null, $isWithObjects = false)
