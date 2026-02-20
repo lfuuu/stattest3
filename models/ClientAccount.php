@@ -1721,6 +1721,9 @@ SQL;
                 return parent::prepareHistoryBoolValue($value);
                 break;
 
+            case ClientAccountOptions::OPTION_SBIS_DOC_BASE:
+                return ClientAccountOptions::$sbisDocumentBaseList[$value] ?? $value;
+
         }
 
         return parent::prepareHistoryValue($field, $value);
