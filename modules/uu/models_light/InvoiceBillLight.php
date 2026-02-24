@@ -235,6 +235,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
                 $billNumber = (string)$bill->bill_no;
                 $billDate = $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT);
                 $billDateHuman = $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED);
+                $billName = sprintf('Счет №%s от %s', $billNumber, $billDateHuman);
 
                 return [
                     'type' => ClientAccountOptions::OPTION_SBIS_DOC_BASE_BILL,
@@ -242,8 +243,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
                     'number' => $billNumber,
                     'date' => $billDate,
                     'date_human' => $billDateHuman,
-                    'sbis_name' => 'Счет',
-                    'upd_name' => sprintf('Счет №%s от %s', $billNumber, $billDateHuman),
+                    'name' => $billName,
                 ];
 
             case ClientAccountOptions::OPTION_SBIS_DOC_BASE_CONTRACT:
@@ -260,8 +260,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
                     'number' => $contractNumber,
                     'date' => $contractDate,
                     'date_human' => $contractDateHuman,
-                    'sbis_name' => $contractName,
-                    'upd_name' => $contractName,
+                    'name' => $contractName,
                 ];
 
             default:
@@ -275,7 +274,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
     private function _setReasonForTransfer(Bill $bill)
     {
         $reasonForTransfer = self::reasonForTransferUpd($bill->clientAccount, $bill);
-        $this->reason_for_transfer = $reasonForTransfer['upd_name'];
+        $this->reason_for_transfer = $reasonForTransfer['name'];
     }
 
 } 
