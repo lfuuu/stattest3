@@ -239,7 +239,6 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
                 return [
                     'type' => ClientAccountOptions::OPTION_SBIS_DOC_BASE_BILL,
-                    'title' => 'Счет',
                     'number' => $billNumber,
                     'date' => $billDate,
                     'date_human' => $billDateHuman,
@@ -256,7 +255,6 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
                 return [
                     'type' => ClientAccountOptions::OPTION_SBIS_DOC_BASE_CONTRACT,
-                    'title' => 'Договор',
                     'number' => $contractNumber,
                     'date' => $contractDate,
                     'date_human' => $contractDateHuman,
