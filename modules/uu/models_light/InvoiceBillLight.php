@@ -2,9 +2,12 @@
 
 namespace app\modules\uu\models_light;
 
+use app\dao\ClientContractDao;
 use app\helpers\DateTimeZoneHelper;
 use app\classes\BillQRCode;
 use app\models\Bill;
+use app\models\ClientAccount;
+use app\models\ClientAccountOptions;
 use app\models\Invoice;
 use app\models\Payment;
 use app\modules\uu\models\Bill as uuBill;
@@ -29,6 +32,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $client_id,
         $bill_no,
         $bill_date,
+        $reason_for_transfer = '',
         $pageCount = 1,
         $qr_code = '',
         $upd_payment_number,
@@ -76,9 +80,9 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         }
 
         $this->pay_bill_until = $invoice->pay_bill_until ?: $statBill->pay_bill_until;
-
         $this->bill_no = $statBill->bill_no;
         $this->bill_date = $statBill->date;
+        $this->_setReasonForTransfer($statBill);
 
         $this->_setPaymentDate($statBill);
         $this->_setPaymentType($statBill);
@@ -220,6 +224,56 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
     private function _setPaymentType(Bill $bill)
     {
         $this->payment_type = \Yii::t('biller', $bill->nal, [], $this->_language);
+    }
+
+    public static function reasonForTransferUpd(ClientAccount $clientAccount, Bill $bill): array
+    {
+        $billDateTime = new \DateTime($bill->date);
+
+        switch ($clientAccount->getOptionValue(ClientAccountOptions::OPTION_SBIS_DOC_BASE)) {
+            case ClientAccountOptions::OPTION_SBIS_DOC_BASE_BILL:
+                return [
+                    'type' => ClientAccountOptions::OPTION_SBIS_DOC_BASE_BILL,
+                    'number' => (string)$bill->bill_no,
+                    'date' => $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT),
+                    'date_human' => $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
+                    'name' => 'Счет',
+                    'full_name' => sprintf(
+                        'Счет №%s от %s',
+                        $bill->bill_no,
+                        $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED)
+                    ),
+                ];
+
+            case ClientAccountOptions::OPTION_SBIS_DOC_BASE_CONTRACT:
+                $contract = ClientContractDao::me()->getContractInfo($clientAccount->contract, $billDateTime);
+                $contractDateTime = new \DateTime($contract->contract_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
+
+                return [
+                    'type' => ClientAccountOptions::OPTION_SBIS_DOC_BASE_CONTRACT,
+                    'number' => (string)$contract->contract_no,
+                    'date' => $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT),
+                    'date_human' => $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
+                    'name' => 'Договор',
+                    'full_name' => sprintf(
+                        'Договор №%s от %s',
+                        $contract->contract_no,
+                        $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED)
+                    ),
+                ];
+
+            default:
+                throw new \InvalidArgumentException('СБИС. Непонятное основание');
+        }
+    }
+
+    /**
+     * @param Bill $bill
+     */
+    private function _setReasonForTransfer(Bill $bill)
+    {
+        $reasonForTransfer = self::reasonForTransferUpd($bill->clientAccount, $bill);
+        $this->reason_for_transfer = $reasonForTransfer['full_name'];
     }
 
 } 
