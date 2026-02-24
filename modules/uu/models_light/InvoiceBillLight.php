@@ -90,7 +90,9 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
         $this->client_id = $statBill->client_id;
 
         if ($invoice) {
-            $this->upd_payment_number = $invoice->upd_payment_number;
+            $this->upd_payment_number = $invoice->is_hide_payment_number
+                ? null
+                : $invoice->upd_payment_number;
             $this->upd_advance_invoice = $invoice->upd_advance_invoice;
         }
 

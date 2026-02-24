@@ -60,6 +60,10 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
 
     protected function addPaymentDocuments(\DOMDocument $dom, \DOMElement $elInvoiceInfo)
     {
+        if ($this->invoice->is_hide_payment_number) {
+            return;
+        }
+
         foreach ($this->invoice->getMatchedPayments() as $payment) {
             $elPayment = $dom->createElement('СвПРД');
             $elPayment->setAttribute('НомерПРД', $payment->getEffectivePaymentNo());
