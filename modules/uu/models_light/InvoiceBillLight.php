@@ -232,33 +232,34 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
 
         switch ($clientAccount->getOptionValue(ClientAccountOptions::OPTION_SBIS_DOC_BASE)) {
             case ClientAccountOptions::OPTION_SBIS_DOC_BASE_BILL:
-                $billNumber = (string)$bill->bill_no;
-                $billDate = $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT);
-                $billDateHuman = $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED);
-                $billName = sprintf('Счет №%s от %s', $billNumber, $billDateHuman);
-
                 return [
                     'type' => ClientAccountOptions::OPTION_SBIS_DOC_BASE_BILL,
-                    'number' => $billNumber,
-                    'date' => $billDate,
-                    'date_human' => $billDateHuman,
-                    'name' => $billName,
+                    'number' => (string)$bill->bill_no,
+                    'date' => $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT),
+                    'date_human' => $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
+                    'name' => 'Счет',
+                    'full_name' => sprintf(
+                        'Счет №%s от %s',
+                        $bill->bill_no,
+                        $billDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED)
+                    ),
                 ];
 
             case ClientAccountOptions::OPTION_SBIS_DOC_BASE_CONTRACT:
                 $contract = ClientContractDao::me()->getContractInfo($clientAccount->contract, $billDateTime);
                 $contractDateTime = new \DateTime($contract->contract_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
-                $contractDate = $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT);
-                $contractDateHuman = $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED);
-                $contractNumber = (string)$contract->contract_no;
-                $contractName = sprintf('Договор №%s от %s', $contractNumber, $contractDateHuman);
 
                 return [
                     'type' => ClientAccountOptions::OPTION_SBIS_DOC_BASE_CONTRACT,
-                    'number' => $contractNumber,
-                    'date' => $contractDate,
-                    'date_human' => $contractDateHuman,
-                    'name' => $contractName,
+                    'number' => (string)$contract->contract_no,
+                    'date' => $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT),
+                    'date_human' => $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED),
+                    'name' => 'Договор',
+                    'full_name' => sprintf(
+                        'Договор №%s от %s',
+                        $contract->contract_no,
+                        $contractDateTime->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED)
+                    ),
                 ];
 
             default:
@@ -272,7 +273,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
     private function _setReasonForTransfer(Bill $bill)
     {
         $reasonForTransfer = self::reasonForTransferUpd($bill->clientAccount, $bill);
-        $this->reason_for_transfer = $reasonForTransfer['name'];
+        $this->reason_for_transfer = $reasonForTransfer['full_name'];
     }
 
 } 
