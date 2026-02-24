@@ -203,6 +203,7 @@ abstract class BasicServiceTransfer extends ServiceTransfer
             'tariff_period_id' => $preProcessor->tariffId ?: $preProcessor->sourceServiceHandler->getService()->tariff_period_id,
             'actual_from' => $preProcessor->activationDate,
         ]);
+        $accountTariffLog->accountTariff->isTransfer = true;
 
         if (!$accountTariffLog->save()) {
             throw new ModelValidationException($accountTariffLog);
