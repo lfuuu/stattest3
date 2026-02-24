@@ -220,6 +220,26 @@ class Invoice extends ActiveRecord
     }
 
     /**
+     * Возвращает платежи, прошедшие фильтрацию (is_matched + isPaymentNoValid)
+     *
+     * @return Payment[]
+     */
+    public function getMatchedPayments(): array
+    {
+        $result = [];
+        foreach ($this->paymentLinks as $link) {
+            if (!$link->is_matched) {
+                continue;
+            }
+            $payment = $link->payment;
+            if ($payment && $payment->isPaymentNoValid()) {
+                $result[] = $payment;
+            }
+        }
+        return $result;
+    }
+
+    /**
      * Вычисляет организацию с/ф
      *
      * @return Organization
@@ -896,6 +916,7 @@ class Invoice extends ActiveRecord
                 'tpl1' => 3,
                 'account_id' => $this->bill->client_id,
                 'document_number' => $this->number,
+                'invoice_id' => $this->id,
                 'template_type_id' => PaymentTemplateType::TYPE_ID_UPD,
                 'country_code' => $this->bill->clientAccount->getUuCountryId() ?: Country::RUSSIA,
                 'include_signature_stamp' => (int)$isStamp,
@@ -923,7 +944,7 @@ class Invoice extends ActiveRecord
      */
     public function downloadPdfContent($document = BillDocument::TYPE_INVOICE)
     {
-        $data = $this->getDocumentLinkData($document);
+        $data = $this->getDocumentLinkData($document, true, true);
 
         $link = Encrypt::encodeArray($data);
 

@@ -27,16 +27,10 @@ class InvoiceSetPaymentNumber extends Behavior
         ClientAccountDao::me()->updateInvoicePayments($invoice->bill->client_id);
         $invoice->refresh();
 
-        $headerShorts = [];
-        foreach ($invoice->paymentLinks as $link) {
-            if (!$link->is_matched) {
-                continue;
-            }
-            $payment = $link->payment;
-            if ($payment && $payment->isPaymentNoValid()) {
-                $headerShorts[] = $payment->headerShort;
-            }
-        }
+        $headerShorts = array_map(
+            fn($payment) => $payment->headerShort,
+            $invoice->getMatchedPayments()
+        );
         $invoice->updateAttributes(['upd_payment_number' => implode(', ', $headerShorts)]);
     }
 }

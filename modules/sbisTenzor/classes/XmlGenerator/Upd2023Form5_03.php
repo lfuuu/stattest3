@@ -11,9 +11,22 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
     protected $xsdFile = 'upd_2023-1115131_5_03.xsd';
 
 
-    protected function getDocumentTitle()
+    protected function getDocumentTitle($isShort = false)
     {
-        return $this->invoice->type_id == Invoice::TYPE_GOOD ? 'ТОРГ12' : "Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)";
+        if ($this->invoice->type_id == Invoice::TYPE_GOOD) {
+            return 'ТОРГ12';
+        }
+
+        $text = "Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)";
+        if (!$isShort) {
+            return $text;
+        }
+
+        if ($this->invoice->date >= '2026-01-31') {
+            return "УПД";
+        } else {
+            return $text;
+        }
     }
 
     /**
@@ -38,7 +51,7 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
         */
 
         $elDoc = parent::createElementDocument($dom);
-        $elDoc->setAttribute('НаимДокОпр', $this->getDocumentTitle());
+        $elDoc->setAttribute('НаимДокОпр', $this->getDocumentTitle(true));
         $elDoc->setAttribute('ПоФактХЖ', $this->getDocumentTitle());
         $elDoc->setAttribute('Функция', 'СЧФДОП');
 
@@ -70,8 +83,6 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
             return $elPass;
         }
 
-        $contractDateTime = new \DateTime($contract->contract_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
-        $contractDate = $contractDateTime->format('d.m.Y');
 
         // Файл.Документ.СвПродПер
         $elPass = $dom->createElement('СвПродПер');
@@ -80,11 +91,26 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
         $elPass->appendChild($elPassInfo);
 
         $elPassInfoMain = $dom->createElement('ОснПер');
-        $elPassInfoMain->setAttribute('РеквДатаДок', $contractDate);
-        $elPassInfoMain->setAttribute('РеквНаимДок', sprintf('%s от %s', $contract->contract_no, $contractDate));
-        $elPassInfoMain->setAttribute('РеквНомерДок', $contract->contract_no);
-        $elPassInfo->appendChild($elPassInfoMain);
 
+        if ($this->invoice->date >= '2026-01-31') {
+            // по счету
+            $billDateTime = new \DateTime($this->bill->bill_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
+            $billDate = $billDateTime->format('d.m.Y');
+
+            $elPassInfoMain->setAttribute('РеквДатаДок', $billDate);
+            $elPassInfoMain->setAttribute('РеквНомерДок', $this->bill->bill_no);
+            $elPassInfoMain->setAttribute('РеквНаимДок', sprintf('Счет №%s от %s', $this->bill->bill_no, $billDate));
+        } else {
+            // по договору
+            $contractDateTime = new \DateTime($contract->contract_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
+            $contractDate = $contractDateTime->format('d.m.Y');
+
+            $elPassInfoMain->setAttribute('РеквДатаДок', $contractDate);
+            $elPassInfoMain->setAttribute('РеквНомерДок', $contract->contract_no);
+            $elPassInfoMain->setAttribute('РеквНаимДок', sprintf('%s от %s', $contract->contract_no, $contractDate));
+        }
+
+        $elPassInfo->appendChild($elPassInfoMain);
 
         $firstDayOfMonth = (clone $this->invoiceDate)->modify('first day of this month')->setTime(0,0,0);
         $lastDayOfMonth = (clone $this->invoiceDate)->setTime(0,0,0);

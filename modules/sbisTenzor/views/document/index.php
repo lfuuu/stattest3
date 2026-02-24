@@ -12,6 +12,8 @@ use yii\widgets\Breadcrumbs;
 use kartik\grid\ActionColumn;
 use app\classes\grid\GridView;
 
+\app\modules\sbisTenzor\assets\DocumentStatusAsset::register($this);
+
 /**
  * @var ActiveDataProvider $dataProvider
  * @var \app\classes\BaseView $baseView
@@ -170,6 +172,9 @@ echo GridView::widget([
             'attribute' => 'attachments',
             'label' => 'Подписан',
             'format' => 'html',
+            'contentOptions' => function (SBISDocument $model) {
+                return ['data-doc-signed' => $model->id];
+            },
             'value'     => function (SBISDocument $model) use ($baseView) {
                 return
                     $model->isSigned() ?
@@ -180,6 +185,14 @@ echo GridView::widget([
         [
             'attribute' => 'state',
             'format' => 'html',
+            'contentOptions' => function (SBISDocument $model) {
+                $isProcessing = $model->state >= SBISDocumentStatus::PROCESSING
+                    && $model->state < SBISDocumentStatus::SENT;
+                return [
+                    'data-doc-id' => $model->id,
+                    'data-doc-state' => $isProcessing ? 'active' : 'final',
+                ];
+            },
             'value'     => function (SBISDocument $model) {
                 $progressValue = 0;
                 $progressStyle = 'info';
@@ -203,7 +216,7 @@ echo GridView::widget([
                 $html = '';
                 if ($progressValue) {
                     $html .= '<div class="progress">
-<div class="progress-bar progress-bar-' . $progressStyle . ' progress-bar-striped" role="progressbar" aria-valuenow="' . $progressValue . '" 
+<div class="progress-bar progress-bar-' . $progressStyle . ' progress-bar-striped" role="progressbar" aria-valuenow="' . $progressValue . '"
 aria-valuemin="0" aria-valuemax="100" style="width:' . $progressValue . '%">
 </div>
 </div>';

@@ -1709,6 +1709,9 @@ SQL;
                 }
                 return $value;
 
+            case 'is_postpaid':
+                return ClientAccount::$paymentTypes[$value] ?? '???';
+
             case 'account_version':
                 return self::$versions[$value];
 
@@ -1717,6 +1720,9 @@ SQL;
             case 'upload_to_sales_book':
                 return parent::prepareHistoryBoolValue($value);
                 break;
+
+            case ClientAccountOptions::OPTION_SBIS_DOC_BASE:
+                return ClientAccountOptions::$sbisDocumentBaseList[$value] ?? $value;
 
         }
 

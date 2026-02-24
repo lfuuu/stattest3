@@ -197,6 +197,130 @@ class BillsController extends Controller
         }
     }
 
+    /**
+     * Перепривязка API-платежей с авансовых счетов на существующие обычные счета
+     */
+    public function actionRelinkApiPayments()
+    {
+        $db = Bill::getDb();
+        $dateFrom = '2023-01-01';
+        $relinked = 0;
+        $skipped = 0;
+        $deletedBills = 0;
+
+        // Выборка API-платежей за последние 6 месяцев, привязанных к авансовым счетам
+        $payments = Payment::find()
+            ->alias('p')
+            ->innerJoin(['b' => Bill::tableName()], 'b.bill_no = p.bill_no')
+            ->where([
+                'p.type' => Payment::TYPE_API,
+                'b.is_user_prepay' => 1,
+            ])
+            ->andWhere(['not', ['b.client_id' => 132778]])
+            ->andWhere(['>=', 'p.payment_date', $dateFrom])
+            ->orderBy(['b.client_id' => SORT_ASC, 'p.id' => SORT_ASC])
+            ->all();
+
+        echo 'Найдено платежей: ' . count($payments) . PHP_EOL;
+
+        /** @var Payment $payment */
+        foreach ($payments as $payment) {
+            $prepayBillNo = $payment->bill_no;
+
+            // Проверяем имя канала платежа — должен содержать "_tinkoff_" или "_тинькофф_"
+            $channelName = $payment->apiChannel ? $payment->apiChannel->name : '';
+            if (mb_stripos($channelName, '_tinkoff_') === false && mb_stripos($channelName, '_тинькофф_') === false) {
+                echo "  [SKIP] Payment #{$payment->id}: канал '{$channelName}' не tinkoff" . PHP_EOL;
+                $skipped++;
+                continue;
+            }
+
+            // Проверяем, есть ли у авансового счёта инвойс
+            $hasInvoice = Invoice::find()
+                ->where(['bill_no' => $prepayBillNo])
+                ->exists();
+
+            if ($hasInvoice) {
+                echo "  [SKIP] Payment #{$payment->id}: у авансового счёта {$prepayBillNo} есть инвойс" . PHP_EOL;
+                $skipped++;
+                continue;
+            }
+
+            // Загружаем авансовый счёт для получения client_id и currency
+            $prepayBill = Bill::findOne(['bill_no' => $prepayBillNo]);
+            if (!$prepayBill) {
+                echo "  [SKIP] Payment #{$payment->id}: авансовый счёт {$prepayBillNo} не найден" . PHP_EOL;
+                $skipped++;
+                continue;
+            }
+
+            // Проверяем, что в авансовом счёте ровно одна строка и она типа zadatok
+            $billLines = $prepayBill->lines;
+            if (count($billLines) !== 1 || $billLines[0]->type !== BillLine::LINE_TYPE_ZADATOK) {
+                echo "  [SKIP] Payment #{$payment->id}: счёт {$prepayBillNo} не содержит единственную строку zadatok" . PHP_EOL;
+                $skipped++;
+                continue;
+            }
+
+            // Ищем ранний обычный счёт для того же client_id, currency, с bill_date <= payment_date
+            $targetBill = Bill::find()
+                ->where([
+                    'client_id' => $prepayBill->client_id,
+                    'currency' => $prepayBill->currency,
+                ])
+                ->andWhere(['!=', 'is_user_prepay', 1])
+                ->andWhere(['<=', 'bill_date', $payment->payment_date])
+                ->orderBy(['bill_date' => SORT_DESC])
+                ->one();
+
+            if (!$targetBill) {
+                echo "  [SKIP] Payment #{$payment->id}: не найден подходящий обычный счёт для client_id={$prepayBill->client_id}" . PHP_EOL;
+                $skipped++;
+                continue;
+            }
+
+            // Перепривязка платежа в транзакции
+            $transaction = $db->beginTransaction();
+            try {
+                $oldBillNo = $payment->bill_no;
+                $payment->bill_no = $targetBill->bill_no;
+                $payment->bill_vis_no = $targetBill->bill_no;
+
+                // Отключаем behaviors чтобы не триггерить побочные эффекты
+                $payment->detachBehaviors();
+
+                if (!$payment->save(false)) {
+                    throw new ModelValidationException($payment);
+                }
+
+                echo "  [OK] Payment #{$payment->id}: {$oldBillNo} -> {$targetBill->bill_no}" . PHP_EOL;
+                $relinked++;
+
+                // Проверяем, остались ли платежи на авансовом счёте
+                $remainingPayments = Payment::find()
+                    ->where(['bill_no' => $oldBillNo])
+                    ->exists();
+
+                if (!$remainingPayments) {
+                    // Удаляем авансовый счёт и его строки
+                    $prepayBill->isSkipCheckCorrection = true;
+                    $prepayBill->detachBehaviors();
+                    $prepayBill->delete();
+                    echo "  [DEL] Авансовый счёт {$oldBillNo} удалён" . PHP_EOL;
+                    $deletedBills++;
+                }
+
+                $transaction->commit();
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                echo "  [ERR] Payment #{$payment->id}: " . $e->getMessage() . PHP_EOL;
+                $skipped++;
+            }
+        }
+
+        echo PHP_EOL . "Итого: перепривязано={$relinked}, пропущено={$skipped}, удалено счетов={$deletedBills}" . PHP_EOL;
+    }
+
     public function actionFillLinkInvoceLine()
     {
         $query = InvoiceLine::find()->andWhere(['line_id' => null])->orderBy(['pk' => SORT_ASC])->with('invoice');

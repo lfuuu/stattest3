@@ -205,7 +205,9 @@ foreach (array_merge($paysPlus, $paysMinus) as $pay) {
 }
 
 $paymentInfoByInvoiceId = [];
+$paymentIdsByInvoiceId = [];
 $invoiceNumbersByPaymentId = [];
+$invoiceIdsByPaymentId = [];
 
 $invoiceIds = array_keys($invoiceNumbersById);
 
@@ -233,6 +235,9 @@ if ($invoiceIds) {
         if (isset($invoiceNumbersById[$invoiceId])) {
             $invoiceNumbersByPaymentId[$paymentId][] = $invoiceNumbersById[$invoiceId];
         }
+
+        $paymentIdsByInvoiceId[$invoiceId][] = $paymentId;
+        $invoiceIdsByPaymentId[$paymentId][] = $invoiceId;
     }
 }
 
@@ -240,8 +245,16 @@ foreach ($paymentInfoByInvoiceId as $invoiceId => $items) {
     $paymentInfoByInvoiceId[$invoiceId] = array_values($items);
 }
 
+foreach ($paymentIdsByInvoiceId as $invoiceId => $ids) {
+    $paymentIdsByInvoiceId[$invoiceId] = array_values(array_unique(array_filter($ids)));
+}
+
 foreach ($invoiceNumbersByPaymentId as $paymentId => $numbers) {
     $invoiceNumbersByPaymentId[$paymentId] = array_values(array_unique(array_filter($numbers)));
+}
+
+foreach ($invoiceIdsByPaymentId as $paymentId => $ids) {
+    $invoiceIdsByPaymentId[$paymentId] = array_values(array_unique(array_filter($ids)));
 }
 
 
@@ -249,11 +262,13 @@ foreach ($invoiceNumbersByPaymentId as $paymentId => $numbers) {
 foreach ($invoices as $invoice) {
 
     $v = [
+        'id' => $invoice->id,
         'number' => $invoice->number,
         'link' => $invoice->link,
         'date' => $invoice->date,
         'sum' => round($invoice->sum, 2),
         'payment_info' => $paymentInfoByInvoiceId[$invoice->id] ?? [],
+        'linked_payment_ids' => $paymentIdsByInvoiceId[$invoice->id] ?? [],
 //        'is_paid' => $paysPlusInv > $invoice->sum ? 1 : ($paysPlusInv > 0 ? 2 : 0),
         'is_paid' => $invoice->is_payed,
         'type' => 'invoice',
@@ -523,20 +538,22 @@ function getPaymentInfoJson(\app\models\Payment $pay)
 foreach ($paysPlus as $pay) {
 
     $invoiceNumbers = $invoiceNumbersByPaymentId[$pay->id] ?? [];
-    $infoBase = in_array($listFilter, ['income', 'full'], true)
+    $paymentHeader = in_array($listFilter, ['income', 'full'], true)
         ? $pay->headerFull
         : '';
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
     $v = [
+        'id' => $pay->id,
         'number' => $pay->payment_no,
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'info_base' => $infoBase,
+        'payment_header' => $paymentHeader,
         'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
         'invoice_numbers' => $invoiceNumbers,
+        'linked_invoice_ids' => $invoiceIdsByPaymentId[$pay->id] ?? [],
         'is_paid' => null,
         'type' => 'payment',
     ];
@@ -550,20 +567,22 @@ $vv = [];
 foreach ($paysMinus as $pay) {
 
     $invoiceNumbers = $invoiceNumbersByPaymentId[$pay->id] ?? [];
-    $infoBase = in_array($listFilter, ['income', 'full'], true)
+    $paymentHeader = in_array($listFilter, ['income', 'full'], true)
         ? $pay->headerFull
         : '';
     $invoiceLabel = formatInvoiceNumbersLabel($invoiceNumbers);
 
     $v = [
+        'id' => $pay->id,
         'number' => $pay->payment_no,
         'link' => "",
         'date' => $pay->payment_date,
         'sum' => round($pay->sum, 2),
-        'info_base' => $infoBase,
+        'payment_header' => $paymentHeader,
         'invoice_label' => $invoiceLabel,
         'info_json' => getPaymentInfoJson($pay),
         'invoice_numbers' => $invoiceNumbers,
+        'linked_invoice_ids' => $invoiceIdsByPaymentId[$pay->id] ?? [],
         'is_paid' => null,
         'type' => 'payment_minus',
     ];
@@ -640,6 +659,7 @@ class row
     public $invoice_for_correction = null;
 
     public $co = '';
+    public $payment_type_change = '';
 
     public $saldo = '';
     public $isListCutoffByBalance = false;
@@ -682,6 +702,36 @@ class ChangeCompanyFounder
     }
 }
 
+class ChangePaymentType
+{
+    private $changes = [];
+    private $idx = 0;
+
+    public function __construct($arr)
+    {
+        $this->changes = array_values($arr ?: []);
+    }
+
+    public function get()
+    {
+        if (!isset($this->changes[$this->idx])) {
+            return false;
+        }
+
+        $change = $this->changes[$this->idx++];
+        $date = $change['date'] ?? null;
+        if (!$date) {
+            return $this->get();
+        }
+
+        return (object)[
+            'date' => (new DateTimeImmutable($date))->setTime(0, 0, 0),
+            'from' => $change['from'] ?? null,
+            'to' => $change['to'] ?? null,
+        ];
+    }
+}
+
 class SaldoHelper
 {
     private $saldo = [];
@@ -721,6 +771,11 @@ $chCo = new ChangeCompanyFounder($changeCompany);
 
 $nextCo = $chCo->get();
 
+/** @var array $changePaymentScheme */
+$chPay = new ChangePaymentType($changePaymentScheme ?? []);
+$nextPay = $chPay->get();
+$paymentTypeLabel = (new ClientAccount())->getAttributeLabel('is_postpaid');
+
 $saldoHelper = (new SaldoHelper($saldo));
 
 $rr = [];
@@ -750,6 +805,15 @@ foreach ($d as $year => &$yearData) {
                 $isSetCo = true;
             }
 
+            $paymentTypeChangeText = '';
+            while ($nextPay && $date >= $nextPay->date) {
+                $to = $nextPay->to;
+                $toLabel = ClientAccount::$paymentTypes[$to] ?? $to;
+                $paymentTypeChangeText = $paymentTypeLabel . ': ' . $toLabel;
+
+                $nextPay = $chPay->get();
+            }
+
             $row = new row();
             $row->year = $year;
             $row->month = $month;
@@ -760,6 +824,7 @@ foreach ($d as $year => &$yearData) {
             $row->invoice_is_paid = $invoice_is_paid;
             $row->invoice_minus_is_paid = $invoice_minus_is_paid;
             $row->co = $isSetCo ? $prevCo : '';
+            $row->payment_type_change = $paymentTypeChangeText;
 
             if ($saldo && $isSaldoShown) {
                 if ($saldoHelper->getDate() <= $date) {
@@ -786,6 +851,7 @@ foreach ($d as $year => &$yearData) {
                     $row->invoice_is_paid = $invoice_is_paid;
                     $row->invoice_minus_is_paid = $invoice_minus_is_paid;
                     $row->co = '';
+                    $row->payment_type_change = '';
                     $row->isListCutoffByBalance = $isSaldoShown;
                 }
 
@@ -924,6 +990,12 @@ function contentNotShowInLkSpan()
         font-size: 7pt;
     }
 
+    .text-payment-type-change {
+        background-color: #f2e6b4;
+        text-align: center;
+        font-size: 7pt;
+    }
+
     .text-saldo {
         background-color: #dbf09e;
         text-align: center;
@@ -1001,7 +1073,7 @@ function contentNotShowInLkSpan()
 //                        'disabled' => true,
                     'hidden' => true,
                     'value' => function ($model) {
-                        return $model->comment || $model->co || $model->saldo ? GridView::ROW_EXPANDED : GridView::ROW_COLLAPSED;
+                        return $model->comment || $model->co || $model->payment_type_change || $model->saldo ? GridView::ROW_EXPANDED : GridView::ROW_COLLAPSED;
                     },
                     'detail' => function ($model) {
                         $return = '';
@@ -1013,6 +1085,13 @@ function contentNotShowInLkSpan()
 
                         if ($model->co) {
                             $return .= Html::tag('div', $model->co, ['class' => 'text-co' . $addClass]);
+                        }
+
+                        if ($model->payment_type_change) {
+                            $items = is_array($model->payment_type_change) ? $model->payment_type_change : [$model->payment_type_change];
+                            foreach ($items as $item) {
+                                $return .= Html::tag('div', $item, ['class' => 'text-payment-type-change' . $addClass]);
+                            }
                         }
 
                         if ($model->saldo) {
@@ -1112,8 +1191,16 @@ function contentNotShowInLkSpan()
                             if (!$row->invoice) {
                                 return '';
                             }
-                            return Html::a($row->invoice['number'], $row->invoice['link'])
+                            $content = Html::a($row->invoice['number'], $row->invoice['link'], ['class' => 'linked-entity-target'])
                                 . formatPaymentNumbersSuffix($row->invoice['payment_info'] ?? []);
+
+                            $attrs = [
+                                'class' => 'js-linked-entity js-linked-invoice',
+                                'data-invoice-id' => $row->invoice['id'] ?? '',
+                                'data-linked-payment-ids' => implode(',', $row->invoice['linked_payment_ids'] ?? []),
+                            ];
+
+                            return Html::tag('span', $content, $attrs);
                         },
                     ],
                     [
@@ -1137,13 +1224,21 @@ function contentNotShowInLkSpan()
                                 return '';
                             }
 
-                            $infoBase = $row->payment['info_base'] ?? '';
+                            $paymentHeader = $row->payment['payment_header'] ?? '';
                             $invoiceLabel = $row->payment['invoice_label'] ?? '';
+                            $linkedIds = implode(',', $row->payment['linked_invoice_ids'] ?? []);
+                            $paymentHeaderLabel = $paymentHeader !== ''
+                                ? Html::tag(
+                                    'small',
+                                    Html::tag('span', Html::encode($paymentHeader), ['class' => 'linked-entity-target'])
+                                )
+                                : '';
 
                             if ($row->payment['info_json']) {
+                                $buttonLabel = $paymentHeaderLabel !== '' ? $paymentHeaderLabel : 'детали';
                                 $button = Html::tag(
                                     'button',
-                                    $infoBase !== '' ? Html::tag('small', $infoBase) : 'детали',
+                                    $buttonLabel,
                                     [
                                         'class' => 'btn btn-xs',
                                         'data-toggle' => 'popover',
@@ -1155,14 +1250,22 @@ function contentNotShowInLkSpan()
                                 if ($invoiceLabel !== '') {
                                     $button .= ' ' . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                                 }
-                                return $button;
+                                return Html::tag('span', $button, [
+                                    'class' => 'js-linked-entity js-linked-payment',
+                                    'data-payment-id' => $row->payment['id'] ?? '',
+                                    'data-linked-invoice-ids' => $linkedIds,
+                                ]);
                             }
 
-                            $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
+                            $label = $paymentHeaderLabel !== '' ? $paymentHeaderLabel : '';
                             if ($invoiceLabel !== '') {
                                 $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                             }
-                            return $label;
+                            return Html::tag('span', $label, [
+                                'class' => 'js-linked-entity js-linked-payment',
+                                'data-payment-id' => $row->payment['id'] ?? '',
+                                'data-linked-invoice-ids' => $linkedIds,
+                            ]);
                         },
                         'contentOptions' => ['class' => 'info accounting-col-wide'],
                     ],
@@ -1226,13 +1329,21 @@ function contentNotShowInLkSpan()
                                 return '';
                             }
 
-                            $infoBase = $row->payment_minus['info_base'] ?? '';
+                            $paymentHeader = $row->payment_minus['payment_header'] ?? '';
                             $invoiceLabel = $row->payment_minus['invoice_label'] ?? '';
+                            $linkedIds = implode(',', $row->payment_minus['linked_invoice_ids'] ?? []);
+                            $paymentHeaderLabel = $paymentHeader !== ''
+                                ? Html::tag(
+                                    'small',
+                                    Html::tag('span', Html::encode($paymentHeader), ['class' => 'linked-entity-target'])
+                                )
+                                : '';
 
                             if ($row->payment_minus['info_json']) {
+                                $buttonLabel = $paymentHeaderLabel !== '' ? $paymentHeaderLabel : 'детали';
                                 $button = Html::tag(
                                     'button',
-                                    $infoBase !== '' ? Html::tag('small', $infoBase) : 'детали',
+                                    $buttonLabel,
                                     [
                                         'class' => 'btn btn-xs',
                                         'data-toggle' => 'popover',
@@ -1244,14 +1355,22 @@ function contentNotShowInLkSpan()
                                 if ($invoiceLabel !== '') {
                                     $button .= ' ' . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                                 }
-                                return $button;
+                                return Html::tag('span', $button, [
+                                    'class' => 'js-linked-entity js-linked-payment',
+                                    'data-payment-id' => $row->payment_minus['id'] ?? '',
+                                    'data-linked-invoice-ids' => $linkedIds,
+                                ]);
                             }
 
-                            $label = $infoBase !== '' ? Html::tag('small', $infoBase) : '';
+                            $label = $paymentHeaderLabel !== '' ? $paymentHeaderLabel : '';
                             if ($invoiceLabel !== '') {
                                 $label .= ($label !== '' ? ' ' : '') . Html::tag('small', $invoiceLabel, ['class' => 'text-muted']);
                             }
-                            return $label;
+                            return Html::tag('span', $label, [
+                                'class' => 'js-linked-entity js-linked-payment',
+                                'data-payment-id' => $row->payment_minus['id'] ?? '',
+                                'data-linked-invoice-ids' => $linkedIds,
+                            ]);
                         },
                         'contentOptions' => ['class' => 'info accounting-col-wide'],
                     ],
@@ -1297,11 +1416,66 @@ function contentNotShowInLkSpan()
 </form>
 <script>
     $(function () {
-        $('[data-toggle="popover"]').popover()
-    })
+        $('[data-toggle="popover"]').popover();
+
+        function parseIds(raw) {
+            if (!raw) {
+                return [];
+            }
+            return String(raw)
+                .split(',')
+                .map(function (v) { return v.trim(); })
+                .filter(function (v) { return v.length > 0; });
+        }
+
+        function toggleHighlight($el, shouldAdd) {
+            var $targets = $el.find('.linked-entity-target');
+            if ($targets.length === 0) {
+                return;
+            }
+            $targets.toggleClass('linked-entity-highlight', shouldAdd);
+        }
+
+        $(document).on('mouseenter', '.js-linked-entity', function () {
+            var $el = $(this);
+            var linkedPayments = parseIds($el.data('linkedPaymentIds'));
+            var linkedInvoices = parseIds($el.data('linkedInvoiceIds'));
+
+            toggleHighlight($el, true);
+
+            linkedPayments.forEach(function (id) {
+                toggleHighlight($('[data-payment-id="' + id + '"]'), true);
+            });
+
+            linkedInvoices.forEach(function (id) {
+                toggleHighlight($('[data-invoice-id="' + id + '"]'), true);
+            });
+        });
+
+        $(document).on('mouseleave', '.js-linked-entity', function () {
+            var $el = $(this);
+            var linkedPayments = parseIds($el.data('linkedPaymentIds'));
+            var linkedInvoices = parseIds($el.data('linkedInvoiceIds'));
+
+            toggleHighlight($el, false);
+
+            linkedPayments.forEach(function (id) {
+                toggleHighlight($('[data-payment-id="' + id + '"]'), false);
+            });
+
+            linkedInvoices.forEach(function (id) {
+                toggleHighlight($('[data-invoice-id="' + id + '"]'), false);
+            });
+        });
+    });
 </script>
 <style type="text/css">
     .popover {
         max-width: 600px;
+    }
+
+    .linked-entity-highlight {
+        background: #fff3b0;
+        border-radius: 2px;
     }
 </style>

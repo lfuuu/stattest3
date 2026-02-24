@@ -151,7 +151,7 @@ class NumberController extends Controller
                 echo "\n\r[ " . str_pad($counter . ' / ' . $countAll . ' => ' . round($counter / ($countAll / 100)) . '% ', 30, '.') . '] speed: ' . number_format($speed) . ' per sec';
             }
             try {
-                $numberInfo = Number::getNnpInfo($number->number);
+                $numberInfo = Number::getNnpInfo($number->number, $isWithPorting = true, $useCache = false); // перезаписываем кеш по номерам
             } catch (\Exception $e) {
                 echo PHP_EOL . 'ERROR: ' . $e->getMessage();
                 continue;

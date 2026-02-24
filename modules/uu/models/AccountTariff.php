@@ -103,6 +103,7 @@ class AccountTariff extends ActiveRecord
     const ERROR_CODE_ACCOUNT_TRUNK = 9; // Универсальную услугу транка можно добавить только ЛС с договором Межоператорка
     const ERROR_CODE_ACCOUNT_TRUNK_SINGLE = 10; // Для ЛС можно создать только одну базовую услугу транка. Зато можно добавить несколько пакетов.
     const ERROR_CODE_ACCOUNT_POSTPAID = 11; // ЛС и тариф должны быть либо оба предоплатные, либо оба постоплатные
+    const ERROR_CODE_ACCOUNT_NEED_VATS_OR_TRUNK = 12; // Тариф с опцией "Только для ВАТС/транк" требует активной услуги ВАТС или транк
 
     // Ошибки даты
     const ERROR_CODE_DATE_PREV = 21; // Нельзя менять задним числом

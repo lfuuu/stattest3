@@ -100,6 +100,7 @@ class AccountingController extends BaseController
                     'billOperations' => $billOperations,
                     'listFilter' => $listFilter,
                     'changeCompany' => Organization::dao()->getWhenOrganizationSwitched($account->contract_id),
+                    'changePaymentScheme' => ClientAccount::dao()->getWhenPaymentSchemeSwitched($account->id),
                     'saldo' => Saldo::getLastSaldo($account->id),
                 ]
             );
