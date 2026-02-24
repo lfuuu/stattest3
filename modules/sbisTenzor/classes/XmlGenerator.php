@@ -9,6 +9,7 @@ use app\models\Organization;
 use app\modules\sbisTenzor\helpers\SBISDataProvider;
 use app\modules\sbisTenzor\helpers\SBISInfo;
 use app\modules\sbisTenzor\models\SBISExchangeForm;
+use app\modules\uu\models_light\InvoiceBuyerLight;
 use app\modules\sbisTenzor\classes\XmlGenerator\Act2016Form5_02;
 use app\modules\sbisTenzor\classes\XmlGenerator\Invoice2016Form5_02;
 use app\modules\sbisTenzor\classes\XmlGenerator\Invoice2019Form5_01;
@@ -71,6 +72,8 @@ abstract class XmlGenerator// extends SBISExchangeForm
     protected $now;
     /** @var Organization */
     protected $organizationFrom;
+    /** @var InvoiceBuyerLight */
+    protected $buyer;
     /** @var string */
     protected $sbisIdSender;
     /** @var string */
@@ -144,6 +147,7 @@ abstract class XmlGenerator// extends SBISExchangeForm
         // set vars
         $this->bill = $bill;
         $this->client = $client;
+        $this->buyer = new InvoiceBuyerLight($this->client);
 
         $this->invoiceInitialDate = new DateTime($invoice->getInitialDate());
         $this->invoiceDate = new DateTime($invoice->date);
@@ -255,6 +259,10 @@ abstract class XmlGenerator// extends SBISExchangeForm
      */
     protected function formatNumber($number, $digits = 2)
     {
+        if ($number > 0 && $number < 0.01) {
+            $digits = 6;
+        }
+
         return number_format($number, $digits, '.', '');
     }
 
