@@ -45,6 +45,7 @@ use yii\web\Response;
  * @property int $is_invoice
  * @property int $is_act
  * @property int $is_upd2
+ * @property int $is_hide_payment_number
  * @property string $pay_bill_until
  * @property int $is_payed
  * @property string $payment_date
