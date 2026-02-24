@@ -45,6 +45,20 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
         return $elDoc;
     }
 
+    protected function addPaymentDocuments(\DOMDocument $dom, \DOMElement $elInvoiceInfo)
+    {
+        if ($this->invoice->is_hide_payment_number) {
+            return;
+        }
+
+        foreach ($this->invoice->getMatchedPayments() as $payment) {
+            $elPayment = $dom->createElement('СвПРД');
+            $elPayment->setAttribute('НомерПРД', $payment->getEffectivePaymentNo());
+            $elPayment->setAttribute('ДатаПРД', (new \DateTime($payment->payment_date))->format('d.m.Y'));
+            $elPayment->setAttribute('СуммаПРД', $this->formatNumber($payment->sum));
+            $elInvoiceInfo->appendChild($elPayment);
+        }
+    }
 
     protected function getFileDocumentContentsOfTheEconomicFact(\DOMDocument $dom)
     {

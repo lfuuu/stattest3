@@ -36,7 +36,14 @@ $form = ActiveForm::begin();
             <div class="col-sm-6">
                 <div class="form-group">
                     <label>Платежно-расчетный документ (стр. 5)</label>
-                    <?= Html::textInput('Invoice[upd_payment_number]', $invoice->upd_payment_number, ['class' => 'form-control input-sm']) ?>
+                    <?= Html::textInput(null, $invoice->upd_payment_number, ['class' => 'form-control input-sm', 'readonly' => true, 'id' => 'invoice-upd-payment-number']) ?>
+                    <div style="margin-top: 8px;">
+                        <?= Html::checkbox('Invoice[is_hide_payment_number]', $invoice->is_hide_payment_number, [
+                            'id' => 'invoice-hide-payment-number',
+                            'value' => 1,
+                            'label' => 'Не показывать п/п',
+                        ]) ?>
+                    </div>
                 </div>
             </div>
             <div class="col-sm-6">
@@ -48,7 +55,7 @@ $form = ActiveForm::begin();
         </div>
         <?php if ($isLocked): ?>
             <div class="alert alert-info" style="margin-top: 10px;">
-                Счёт‑фактура зарегистрирована. Можно редактировать только строки 5 и 5б.
+                Счёт‑фактура зарегистрирована. Можно редактировать строку 5б и переключать отображение строки 5.
             </div>
         <?php endif; ?>
     </div>
@@ -109,3 +116,20 @@ $form = ActiveForm::begin();
     </div>
 
 <?php ActiveForm::end() ?>
+
+<?php
+$this->registerJs(<<<JS
+(function () {
+    var hidePaymentCheckbox = $('#invoice-hide-payment-number');
+    var paymentNumberInput = $('#invoice-upd-payment-number');
+
+    var syncPaymentNumberState = function () {
+        paymentNumberInput.prop('disabled', hidePaymentCheckbox.is(':checked'));
+    };
+
+    syncPaymentNumberState();
+    hidePaymentCheckbox.on('change', syncPaymentNumberState);
+})();
+JS
+);
+?>
