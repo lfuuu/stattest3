@@ -259,7 +259,7 @@ class InvoiceBillLight extends Component implements InvoiceLightInterface
                     'number' => $contractNumber,
                     'date' => $contractDate,
                     'date_human' => $contractDateHuman,
-                    'sbis_name' => sprintf('%s от %s', $contractNumber, $contractDateHuman),
+                    'sbis_name' => sprintf('Договор №%s от %s', $contractNumber, $contractDateHuman),
                     'upd_name' => sprintf('Договор №%s от %s', $contractNumber, $contractDateHuman),
                 ];
 

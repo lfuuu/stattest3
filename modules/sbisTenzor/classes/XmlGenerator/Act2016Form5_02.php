@@ -129,7 +129,7 @@ class Act2016Form5_02 extends XmlGenerator
 
         $elInfoContentBase = $dom->createElement('Основание');
         $elInfoContentBase->setAttribute('ДатаОсн', $reasonForTransfer['date_human']);
-        $elInfoContentBase->setAttribute('НаимОсн', $reasonForTransfer['upd_name']);
+        $elInfoContentBase->setAttribute('НаимОсн', $reasonForTransfer['sbis_name']);
         $elInfoContentBase->setAttribute('НомОсн', $reasonForTransfer['number']);
         $elInfoContent->appendChild($elInfoContentBase);
 
