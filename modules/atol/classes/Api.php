@@ -43,10 +43,12 @@ class Api extends Singleton
     const TAX_VAT10 = 'vat10'; // НДС чека по ставке 10%
     const TAX_VAT18 = 'vat18'; // НДС чека по ставке 18%
     const TAX_VAT20 = 'vat20'; // НДС чека по ставке 20%
+    const TAX_VAT22 = 'vat22'; // НДС чека по ставке 22%
     const TAX_VAT105 = 'vat105'; // НДС чека по расчетной ставке 5/105
     const TAX_VAT110 = 'vat110'; // НДС чека по расчетной ставке 10/110
     const TAX_VAT118 = 'vat118'; // НДС чека по расчетной ставке 18/118
     const TAX_VAT120 = 'vat120'; // НДС чека по расчетной ставке 18/120
+    const TAX_VAT122 = 'vat122'; // НДС чека по расчетной ставке 22/122
 
     const RESPONSE_STATUS_WAIT = 'wait';
     const RESPONSE_STATUS_FAIL = 'fail';
@@ -83,9 +85,8 @@ class Api extends Singleton
         $inn = $access['inn'];
         $paymentAddress = $params['paymentAddress'];
         $itemName = $params['itemName'];
-        $tax = $params['tax'];
 
-        return $apiVersion && $url && $groupCode && $inn && $paymentAddress && $itemName && $tax;
+        return $apiVersion && $url && $groupCode && $inn && $paymentAddress && $itemName;
     }
 
     /**
@@ -132,45 +133,16 @@ class Api extends Singleton
         $paymentAddress = $params['paymentAddress'];
         $sno = isset($access['sno']) ? $access['sno'] : $params['sno']; // можно пустое
         $itemName = $params['itemName'];
-        $taxType = isset($access['tax']) ? $access['tax'] : $params['tax'];
+
+        $payment = Payment::findOne($externalId);
+        $taxRate = (int)$payment->client->getTaxRate();
+        $taxType = self::vatTypeByRate($taxRate);
 
         if (!$this->isAvailable()) {
             throw new InvalidConfigException('Не настроен конфиг Атол');
         }
 
-
         $itemTaxSum = 0;
-
-        switch ($taxType) {
-
-            case self::TAX_NONE:
-            case self::TAX_VAT0:
-                $taxRate = 0;
-                break;
-
-            case self::TAX_VAT5:
-            case self::TAX_VAT105:
-                $taxRate = 5;
-                break;
-
-            case self::TAX_VAT10:
-            case self::TAX_VAT110:
-                $taxRate = 10;
-                break;
-
-            case self::TAX_VAT18:
-            case self::TAX_VAT118:
-                $taxRate = 18;
-                break;
-
-            case self::TAX_VAT20:
-            case self::TAX_VAT120:
-                $taxRate = 20;
-                break;
-
-            default:
-                throw new InvalidConfigException('Не настроен конфиг Атол');
-        }
 
         if ($taxRate) {
             $itemTaxSum = round($taxRate / (100.0 + $taxRate) * $itemPrice, 2);
@@ -508,6 +480,29 @@ class Api extends Singleton
         }
 
         return $this->_token[$key] = $responseData['token'];
+    }
+
+    /**
+     * @param int $rate
+     * @return string
+     * @throws InvalidConfigException
+     */
+    public static function vatTypeByRate($rate)
+    {
+        $map = [
+            0 => self::TAX_NONE,
+            5 => self::TAX_VAT5,
+            10 => self::TAX_VAT10,
+            18 => self::TAX_VAT18,
+            20 => self::TAX_VAT20,
+            22 => self::TAX_VAT22,
+        ];
+
+        if (!isset($map[$rate])) {
+            throw new InvalidConfigException('Неизвестная ставка НДС: ' . $rate);
+        }
+
+        return $map[$rate];
     }
 
 }
