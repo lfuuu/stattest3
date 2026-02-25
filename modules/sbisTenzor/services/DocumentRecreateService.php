@@ -51,20 +51,21 @@ class DocumentRecreateService
                     'is_reversal' => 0,
                 ])
                 ->orderBy(['id' => SORT_DESC])
-                ->limit(1)
                 ->one();
-            if ($actualInvoice && $actualInvoice->id !== $draftInvoice->id) {
+            if (!$actualInvoice) {
+                throw new \LogicException('Актуальный закрывающий документ не найден');
+            }
+
+            if ($actualInvoice->id !== $draftInvoice->id) {
+                // Если для нового инвойса уже есть свой draft, используем его.
                 $actualDraft = SBISGeneratedDraft::findOne(['invoice_id' => $actualInvoice->id]);
                 if ($actualDraft) {
                     $draft = $actualDraft;
                 } else {
+                    // Иначе переносим текущий draft на актуальный инвойс.
                     $draft->invoice_id = $actualInvoice->id;
                     $draft->populateRelation('invoice', $actualInvoice);
                 }
-            }
-
-            if ($draft->sbis_document_id && $draft->sbis_document_id !== $id) {
-                throw new \LogicException('Актуальный черновик уже привязан к другому пакету документов');
             }
 
             $draft->sbis_document_id = null;
