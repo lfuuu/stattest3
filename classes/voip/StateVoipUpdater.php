@@ -82,8 +82,8 @@ SELECT usage_id,
        lines_amount,
        trim(device_address)                                   AS device_address,
        is_verified,
-       imsi,
-       iccid
+       iccid,
+       imsi
 FROM (
          SELECT u.id                                          AS usage_id,
                 c.id                                          AS client_id,
@@ -96,8 +96,8 @@ FROM (
                 no_of_lines                                   as lines_amount,
                 u.address                                     AS device_address,
                 null                                          AS is_verified,
-                null                                          AS imsi,
-                null                                          AS iccid
+                null                                          AS iccid,
+                null                                          AS imsi
          FROM usage_voip u,
               voip_numbers v,
               clients c
@@ -119,8 +119,8 @@ FROM (
                 lines_amount,
                 device_address,
                 is_verified,
-                imsi,
-                iccid
+                iccid,
+                imsi
          FROM (
                   SELECT u.id                                                     AS usage_id,
                          client_account_id                                        AS client_id,
@@ -143,8 +143,8 @@ FROM (
                           WHERE l.account_tariff_id = u.id AND l.resource_id = 7) as lines_amount,
                          u.device_address,
                          u.is_verified,
-                         CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.imsi')) AS UNSIGNED) as imsi,
-                         CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.iccid')) AS UNSIGNED) as iccid
+                         CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.iccid')) AS UNSIGNED) as iccid,
+                         CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.imsi')) AS UNSIGNED) as imsi
                   FROM uu_account_tariff u,
                        voip_numbers v,
                        clients c
