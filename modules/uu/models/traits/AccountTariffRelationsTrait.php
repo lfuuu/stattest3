@@ -16,7 +16,6 @@ use app\modules\uu\models\AccountLogPeriod;
 use app\modules\uu\models\AccountLogResource;
 use app\modules\uu\models\AccountLogSetup;
 use app\modules\uu\models\AccountTariff;
-use app\modules\uu\models\AccountTariffExtVoip;
 use app\modules\uu\models\AccountTariffHeap;
 use app\modules\uu\models\AccountTariffLog;
 use app\modules\uu\models\AccountTariffResourceLog;
@@ -60,11 +59,12 @@ use yii\db\Expression;
  * @property-read AccountLogResource[] $accountLogResourceTraffics
  *
  * @property-read AccountTariffHelper $helper
- * @property-read AccountTariffExtVoip $extVoip
  * @property-read Card $iccidModel
  *
  * @property string iccid
  * @property-read string iccid_saved_at_utc
+ * @property string imsi
+ * @property-read string imsi_saved_at_utc
  *
  * @method ActiveQuery hasMany($class, array $link) see [[BaseActiveRecord::hasMany()]] for more info
  * @method ActiveQuery hasOne($class, array $link) see [[BaseActiveRecord::hasOne()]] for more info
@@ -411,14 +411,6 @@ trait AccountTariffRelationsTrait
     /**
      * @return ActiveQuery
      */
-    public function getExtVoip()
-    {
-        return $this->hasOne(AccountTariffExtVoip::class, ['account_tariff_id' => 'id']);
-    }
-
-    /**
-     * @return ActiveQuery
-     */
     public function getAccountTroubles()
     {
         return $this->hasMany(AccountTrouble::class, ['account_tariff_id' => 'id']);
@@ -532,10 +524,26 @@ trait AccountTariffRelationsTrait
         return $this->getParam('iccid_saved_at_utc', null);
     }
 
-    public function setIccid($routeName)
+    public function setIccid($iccid)
     {
-        $this->addParam('iccid', $routeName);
+        $this->addParam('iccid', $iccid);
         $this->addParam('iccid_saved_at_utc', DateTimeZoneHelper::getUtcDateTime()->format(DateTimeZoneHelper::DATETIME_FORMAT));
+    }
+
+    public function getImsi()
+    {
+        return $this->getParam('imsi', '');
+    }
+
+    public function setImsi($imsi)
+    {
+        $this->addParam('imsi', $imsi);
+        $this->addParam('imsi_saved_at_utc', DateTimeZoneHelper::getUtcDateTime()->format(DateTimeZoneHelper::DATETIME_FORMAT));
+    }
+
+    public function getImsi_saved_at_utc()
+    {
+        return $this->getParam('imsi_saved_at_utc', null);
     }
 
     public function getIccidModel()
