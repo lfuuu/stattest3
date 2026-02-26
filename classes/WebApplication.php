@@ -3,6 +3,7 @@
 namespace app\classes;
 
 use app\classes\api\ApiVpbx;
+use app\classes\traits\ApplicationCountryTrait;
 use welltime\graylog\GelfMessage;
 use Yii;
 
@@ -11,6 +12,7 @@ use Yii;
 */
 class WebApplication extends \yii\web\Application
 {
+    use ApplicationCountryTrait;
     public function init()
     {
         parent::init();
@@ -119,21 +121,6 @@ class WebApplication extends \yii\web\Application
                 'request'
             );
         }, $isLogAAA);
-    }
-
-    private function _getProductCountry()
-    {
-        return ($_SERVER['COUNTRY'] ?? 'RU');
-    }
-
-    public function isEu()
-    {
-        return $this->_getProductCountry() == 'EU';
-    }
-
-    public function isRus()
-    {
-        return $this->_getProductCountry() == 'RU';
     }
 
     public function is2fAuth()
