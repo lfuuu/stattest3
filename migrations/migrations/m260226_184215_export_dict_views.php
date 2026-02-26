@@ -1,7 +1,10 @@
 <?php
 
 /**
- * Создание схемы export_dict и view'шек для экспорта данных.
+ * View'шки в схеме export_dict.
+ * Схема export_dict должна быть создана DBA до запуска миграции:
+ *   CREATE DATABASE IF NOT EXISTS `export_dict`;
+ *   GRANT ALL PRIVILEGES ON `export_dict`.* TO 'stat_operator'@'localhost';
  */
 class m260226_184215_export_dict_views extends \app\classes\Migration
 {
@@ -29,7 +32,18 @@ class m260226_184215_export_dict_views extends \app\classes\Migration
 
     public function safeUp()
     {
-        $this->execute("CREATE DATABASE IF NOT EXISTS `{$this->schema}`");
+        $schemaExists = (int)$this->db->createCommand(
+            "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = :schema",
+            [':schema' => $this->schema]
+        )->queryScalar();
+
+        if (!$schemaExists) {
+            throw new \yii\db\Exception(
+                "Схема `{$this->schema}` не существует. "
+                . "DBA должен выполнить: CREATE DATABASE `{$this->schema}`; "
+                . "GRANT ALL PRIVILEGES ON `{$this->schema}`.* TO 'stat_operator'@'localhost';"
+            );
+        }
 
         $missing = $this->checkRequiredTables();
         if ($missing) {
@@ -49,7 +63,7 @@ class m260226_184215_export_dict_views extends \app\classes\Migration
             $this->execute("DROP VIEW IF EXISTS `{$this->schema}`.`{$name}`");
         }
 
-        $this->execute("DROP DATABASE IF EXISTS `{$this->schema}`");
+        // Схему не удаляем -- она создается DBA вручную
     }
 
     /**
