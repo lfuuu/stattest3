@@ -7,6 +7,7 @@ use app\classes\Html;
 use app\classes\model\ActiveRecord;
 use app\classes\traits\AttributeLabelsTraits;
 use app\models\Number;
+use app\modules\sim\behaviors\AccountTariffVoipImsiBehavior;
 use app\modules\sim\behaviors\ImsiBehavior;
 use app\modules\sim\behaviors\ImsiTele2StatusBehavior;
 use app\modules\sim\dao\ImsiDao;
@@ -103,7 +104,8 @@ class Imsi extends ActiveRecord
             [
                 HistoryChanges::class,
                 ImsiBehavior::class,
-                ImsiTele2StatusBehavior::class
+                ImsiTele2StatusBehavior::class,
+                AccountTariffVoipImsiBehavior::class,
             ]
         );
     }

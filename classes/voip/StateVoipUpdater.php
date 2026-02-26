@@ -81,7 +81,9 @@ SELECT usage_id,
        IF(expire_dt > '3000-01-01 00:00:00', NULL, expire_dt) AS expire_dt,
        lines_amount,
        trim(device_address)                                   AS device_address,
-       is_verified
+       is_verified,
+       imsi,
+       iccid
 FROM (
          SELECT u.id                                          AS usage_id,
                 c.id                                          AS client_id,
@@ -93,7 +95,9 @@ FROM (
                 expire_dt,
                 no_of_lines                                   as lines_amount,
                 u.address                                     AS device_address,
-                null                                          AS is_verified
+                null                                          AS is_verified,
+                null                                          AS imsi,
+                null                                          AS iccid
          FROM usage_voip u,
               voip_numbers v,
               clients c
@@ -114,7 +118,9 @@ FROM (
                 expire_dt,
                 lines_amount,
                 device_address,
-                is_verified
+                is_verified,
+                imsi,
+                iccid
          FROM (
                   SELECT u.id                                                     AS usage_id,
                          client_account_id                                        AS client_id,
@@ -136,7 +142,9 @@ FROM (
                           FROM uu_account_tariff_resource_log l
                           WHERE l.account_tariff_id = u.id AND l.resource_id = 7) as lines_amount,
                          u.device_address,
-                         u.is_verified
+                         u.is_verified,
+                         CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.imsi')) AS UNSIGNED) as imsi,
+                         CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.iccid')) AS UNSIGNED) as iccid
                   FROM uu_account_tariff u,
                        voip_numbers v,
                        clients c
@@ -199,6 +207,8 @@ update
              or coalesce(a.device_address, '') != coalesce(b.device_address, '')
              or coalesce(a.is_verified, '') != coalesce(b.is_verified, '')
              or coalesce(a.region, '') != coalesce(b.region, '')
+             or coalesce(a.imsi, 0) != coalesce(b.imsi, 0)
+             or coalesce(a.iccid, 0) != coalesce(b.iccid, 0)
          )
          {$where}
     ) b
@@ -209,7 +219,9 @@ set s.lines_amount = b.lines_amount,
     s.activation_dt = b.activation_dt,
     s.device_address = b.device_address,
     s.region = b.region,
-    s.is_verified = b.is_verified    
+    s.is_verified = b.is_verified,
+    s.imsi = b.imsi,
+    s.iccid = b.iccid
 where s.usage_id = b.usage_id
 SQL;
     }
