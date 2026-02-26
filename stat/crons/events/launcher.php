@@ -69,7 +69,7 @@ $scriptDir = __DIR__;
 for ($i = 1; $i <= $workersNeeded; $i++) {
     $lockFile = "/tmp/handler_{$group}_{$i}";
     $cmd = sprintf(
-        'flock --nonblock %s php %s/handler.php %s %d >> /var/log/nispd/handler_%s.log 2>&1 &',
+        'flock --nonblock %s php %s/handler.php %s %d >> /var/log/nispd/handler_%s.log 2>&1 3>&- &',
         escapeshellarg($lockFile),
         escapeshellarg($scriptDir),
         escapeshellarg($group),

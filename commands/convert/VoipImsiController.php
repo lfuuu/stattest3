@@ -47,6 +47,8 @@ class VoipImsiController extends Controller
                 continue;
             }
 
+            $accountTariff->detachBehavior('ModelLifeRec');
+
             $accountTariff->imsi = $imsi;
             if ($iccid) {
                 $accountTariff->iccid = $iccid;
