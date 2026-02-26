@@ -21,19 +21,12 @@ require __DIR__ . '/config.php';
 
 const MAX_WORKERS = 10;
 
-// базовый порог: при достижении base запускается 2-й воркер, далее экспоненциально (x2 на каждый следующий)
-// workers = min(MAX, max(1, 1 + floor(log2(queueSize / base))))
-$baseThresholds = [
-    'with_account_tariff' => 10,   // 10, 20, 40, 80, 160, 320, 640, 1280, 2560 → 2..10
-    'kafka'               => 25,   // 25, 50, 100, 200, 400, 800, 1600, 3200, 6400 → 2..10
-    'kafka_low'           => 50,   // 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800 → 2..10
-    'uu_sync'             => 100,  // 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600 → 2..10
-];
+const DEFAULT_BASE_THRESHOLD = 10;
 
 $group = isset($_SERVER['argv'][1]) ? $_SERVER['argv'][1] : null;
 
-if (!$group || !isset($baseThresholds[$group]) || !isset($map[$group])) {
-    echo PHP_EOL . 'Использование: php launcher.php <' . implode('|', array_keys($baseThresholds)) . '>';
+if (!$group || !isset($map[$group])) {
+    echo PHP_EOL . 'Использование: php launcher.php <' . implode('|', array_keys($map)) . '>';
     echo PHP_EOL;
     exit(1);
 }
@@ -46,7 +39,7 @@ foreach ($map[$group] as $where) {
 $queueSize = $query->count();
 
 // определяем количество воркеров экспоненциально
-$base = $baseThresholds[$group];
+$base = $baseThresholds[$group] ?? DEFAULT_BASE_THRESHOLD;
 if ($queueSize < $base) {
     $workersNeeded = 1;
 } else {
