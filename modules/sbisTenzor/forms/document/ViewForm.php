@@ -8,6 +8,7 @@ use app\modules\sbisTenzor\classes\SBISDocumentStatus;
 use app\modules\sbisTenzor\classes\SBISGeneratedDraftStatus;
 use app\modules\sbisTenzor\models\SBISDocument;
 use app\modules\sbisTenzor\models\SBISGeneratedDraft;
+use app\modules\sbisTenzor\services\DocumentRecreateService;
 use yii\base\InvalidArgumentException;
 
 class ViewForm extends \app\classes\Form
@@ -336,40 +337,7 @@ class ViewForm extends \app\classes\Form
      */
     public static function recreate($id)
     {
-        $originalDocument = SBISDocument::findOne(['id' => $id]);
-        if (!$originalDocument) {
-            throw new \InvalidArgumentException('Документ не найден');
-        }
-
-        if (!self::getShowReCreateButton_st($originalDocument)) {
-            throw new \LogicException('Документ не может быть пересоздан');
-        }
-
-        $transaction = SBISDocument::getDb()->beginTransaction();
-        try {
-            $draft = SBISGeneratedDraft::findOne(['sbis_document_id' => $id]);
-            $draft->sbis_document_id = null;
-            $draft->state = SBISGeneratedDraftStatus::PROCESSING;
-            if (!$draft->save()) {
-                throw new ModelValidationException($draft);
-            }
-
-            $originalDocument->setState(SBISDocumentStatus::CANCELLED);
-            if (!$originalDocument->save()) {
-                throw new ModelValidationException($originalDocument);
-            }
-
-            $document = $draft->generateDocument();
-
-            $transaction->commit();
-
-            return $document->id;
-        } catch (\Exception $e) {
-            $transaction->rollBack();
-
-            \Yii::$app->session->addFlash('error', $e->getTraceAsString());
-            throw $e;
-        }
+        return DocumentRecreateService::recreate($id);
     }
 
     /**
