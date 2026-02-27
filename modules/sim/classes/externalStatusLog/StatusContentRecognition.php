@@ -6,9 +6,12 @@ use app\modules\sim\models\ImsiExternalStatusLog;
 
 class StatusContentRecognition extends \app\classes\Singleton
 {
-    public function getAsString(ImsiExternalStatusLog $log, $asHtml = false)
+    public function getAsString(ImsiExternalStatusLog $log, $asHtml = false, $resolvedStatus = null)
     {
-        $result = $this->getResultItem($log->status);
+        $status = $resolvedStatus ?? $log->status;
+        $result = $this->getResultItem($status);
+        $result->isRef = $resolvedStatus !== null;
+
         $result->insertDt = $log->insert_dt;
         $result->asHtml = $asHtml;
         return (string)$result;
@@ -167,7 +170,7 @@ class EslRefRecognizer extends EslRecognizer
 
     public function makeResult(): EslResultItem
     {
-        return new EslResultItem(['itemStatus' => EslResultItem::STATUS_INFO, 'itemText' => 'без изменений']);
+        return new EslResultItem(['itemStatus' => EslResultItem::STATUS_INFO, 'itemText' => '']);
     }
 }
 

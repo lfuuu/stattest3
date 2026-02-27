@@ -10,8 +10,17 @@ if (!$extLog) {
     <div class="row" style="border: 1px solid #ddd; border-radius: 5px; min-height: 100px; height: 100px; overflow-y: scroll;">
         <div class="col-md-12">
             <?php
-            /** @var \app\modules\sim\models\ImsiExternalStatusLog $log */
-            foreach ($imsi->getExternalStatusLog()->orderBy(['id' => SORT_DESC])->each() as $log) {
+            /** @var \app\modules\sim\models\ImsiExternalStatusLog[] $logs */
+            $logs = $imsi->getExternalStatusLog()->orderBy(['id' => SORT_ASC])->all();
+            $lastFullStatus = null;
+            foreach ($logs as $log) {
+                if (!$log->isRef()) {
+                    $lastFullStatus = $log->status;
+                } elseif ($lastFullStatus !== null) {
+                    $log->resolvedRefStatus = $lastFullStatus;
+                }
+            }
+            foreach (array_reverse($logs) as $log) {
                 echo $log->statusStringHtml;
             }
             ?>

@@ -20,6 +20,9 @@ class ImsiExternalStatusLog extends ActiveRecord
 {
     const REF_STATUS = ['_ref' => true];
 
+    /** @var array|null Resolved-статус для ref-записей, заполняется извне */
+    public $resolvedRefStatus;
+
     /**
      * @return string
      */
@@ -72,11 +75,11 @@ class ImsiExternalStatusLog extends ActiveRecord
 
     public function getStatusStringHtml()
     {
-        return StatusContentRecognition::me()->getAsString($this, true);
+        return StatusContentRecognition::me()->getAsString($this, true, $this->resolvedRefStatus);
     }
 
     public function __toString()
     {
-        return StatusContentRecognition::me()->getAsString($this, false);
+        return StatusContentRecognition::me()->getAsString($this, false, $this->resolvedRefStatus);
     }
 }

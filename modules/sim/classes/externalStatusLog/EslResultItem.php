@@ -25,6 +25,15 @@ class EslResultItem extends \yii\base\Component
     public array $info = [];
     public string $insertDt = '';
     public bool $asHtml = false;
+    public bool $isRef = false;
+
+    private function getMarker(): string
+    {
+        if ($this->isRef) {
+            return '<span style="color:#999">&gt; </span>';
+        }
+        return '<span style="color:#5cb85c">* </span>';
+    }
 
     public function __toString()
     {
@@ -43,7 +52,7 @@ class EslResultItem extends \yii\base\Component
         return <<<HTML
         <div class="row">
             <div class="col-md-3">{$insertDate}</div>
-            <div class="col-md-9 {$this->textClassMap[$this->itemStatus]}">{$this->itemText}{$infoBtn}</div>
+            <div class="col-md-9 {$this->textClassMap[$this->itemStatus]}">{$this->getMarker()}{$this->itemText}{$infoBtn}</div>
         </div>
 HTML;
     }
