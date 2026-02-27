@@ -8,7 +8,6 @@ use app\classes\model\ActiveRecord;
 use app\classes\traits\AttributeLabelsTraits;
 use app\models\Number;
 use app\modules\sim\behaviors\AccountTariffVoipImsiBehavior;
-use app\modules\sim\behaviors\ImsiBehavior;
 use app\modules\sim\behaviors\ImsiTele2StatusBehavior;
 use app\modules\sim\dao\ImsiDao;
 use Yii;
@@ -103,7 +102,6 @@ class Imsi extends ActiveRecord
             parent::behaviors(),
             [
                 HistoryChanges::class,
-                ImsiBehavior::class,
                 ImsiTele2StatusBehavior::class,
                 AccountTariffVoipImsiBehavior::class,
             ]
