@@ -37,18 +37,20 @@ if (!$card->isNewRecord) {
 ?>
 
 <div class="well chargePeriod">
+    <?php $imsiModels = array_values($imsies); ?>
     <?= TabularInput::widget([
-        'models' => array_values($imsies), // ключ должен быть автоинкрементный
+        'models' => $imsiModels, // ключ должен быть автоинкрементный
         'allowEmptyList' => false,
-        'addButtonOptions' => $optionDisable,
+        'min' => count($imsiModels),
+        'max' => count($imsiModels),
         'columns' => [
             [
                 'name' => 'imsi',
                 'title' => $attributeLabels['imsi'],
                 'options' => [
                     'class' => 'signature_imsi',
-                    'onFocus' => "if ($(this).parent().css('width') !== '150px') { $(this).parent().css('width', '150px'); }",
-                ] + $optionDisable,
+                    'disabled' => true,
+                ],
             ],
             [
                 'name' => 'msisdn',
