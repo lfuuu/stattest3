@@ -267,12 +267,6 @@ class AccountTariffCheckHlr extends Behavior
                 throw new ModelValidationException($card);
             }
 
-            $number = $accountTariff->number;
-            $number->imsi = $linkedImsi->imsi;
-
-            if (!$number->save()) {
-                throw new ModelValidationException($number);
-            }
             /*
                         EventQueue::go(EventQueue::SYNC_TELE2_LINK_IMSI, [
                             'account_tariff_id' => $accountTariff->id,

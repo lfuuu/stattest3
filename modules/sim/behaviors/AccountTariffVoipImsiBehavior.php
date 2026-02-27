@@ -5,6 +5,7 @@ namespace app\modules\sim\behaviors;
 use app\classes\model\ActiveRecord;
 use app\exceptions\ModelValidationException;
 use app\models\EventQueue;
+use app\models\Number;
 use app\modules\sim\models\Imsi;
 use app\modules\uu\models\AccountTariff;
 use yii\base\Behavior;
@@ -23,7 +24,7 @@ class AccountTariffVoipImsiBehavior extends Behavior
     }
 
     /**
-     * При смене msisdn на IMSI -- синхронизировать imsi/iccid в услугу теелфонии
+     * Синхронизация imsi/iccid в номер (voip_numbers) и услугу (uu_account_tariff)
      *
      * @param AfterSaveEvent $event
      * @throws ModelValidationException
@@ -37,24 +38,32 @@ class AccountTariffVoipImsiBehavior extends Behavior
         /** @var Imsi $model */
         $model = $event->sender;
 
-        if (!array_key_exists('msisdn', $event->changedAttributes)) {
+        if (!preg_match(Imsi::imsiPrefixRegExp, $model->imsi) || !$model->msisdn) {
             return;
         }
 
-        if (!preg_match(Imsi::imsiPrefixRegExp, $model->imsi)) {
+        $msisdnChanged = array_key_exists('msisdn', $event->changedAttributes)
+            && $event->changedAttributes['msisdn'] != $model->msisdn;
+        $imsiChanged = array_key_exists('imsi', $event->changedAttributes);
+
+        if (!$msisdnChanged && !$imsiChanged) {
             return;
         }
 
-        $oldMsisdn = $event->changedAttributes['msisdn'];
-        $newMsisdn = $model->msisdn;
-
-        if ($oldMsisdn == $newMsisdn) {
-            return;
+        $number = Number::findOne(['number' => $model->msisdn]);
+        if ($number) {
+            $number->imsi = $model->imsi;
+            if ($card = $model->card) {
+                $number->warehouse_status_id = $card->status_id;
+            }
+            if (!$number->save()) {
+                throw new ModelValidationException($number);
+            }
         }
 
         /** @var AccountTariff $accountTariff */
         $accountTariff = AccountTariff::find()
-            ->where(['voip_number' => $newMsisdn])
+            ->where(['voip_number' => $model->msisdn])
             ->andWhere(['NOT', ['tariff_period_id' => null]])
             ->one();
 
