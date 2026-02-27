@@ -6,7 +6,9 @@ use app\helpers\DateTimeZoneHelper;
 use app\models\Country;
 use app\models\EventQueue;
 use app\modules\nnp\models\NdcType;
+use app\classes\Utils;
 use app\modules\sim\models\Imsi;
+use app\modules\sim\models\ImsiExternalStatusLog;
 use app\modules\uu\models\AccountTariff;
 use app\modules\uu\models\ServiceType;
 use yii\console\Controller;
@@ -81,5 +83,57 @@ class OperateController extends Controller
             }
         } while (true);
         echo PHP_EOL . 'exit';
+    }
+
+    /**
+     * Замена дублирующихся записей в sim_imsi_external_status_log на ref-маркер
+     */
+    public function actionCleanExternalStatusLog()
+    {
+        $db = ImsiExternalStatusLog::getDb();
+        $table = ImsiExternalStatusLog::tableName();
+        $refJson = Utils::toJson(ImsiExternalStatusLog::REF_STATUS);
+
+        $imsies = $db->createCommand("SELECT DISTINCT imsi FROM {$table} ORDER BY imsi")->queryColumn();
+        echo 'IMSI count: ' . count($imsies) . PHP_EOL;
+
+        $totalConverted = 0;
+
+        foreach ($imsies as $imsi) {
+            $rows = $db->createCommand(
+                "SELECT id, status FROM {$table} WHERE imsi = :imsi ORDER BY id ASC",
+                [':imsi' => $imsi]
+            )->queryAll();
+
+            $lastFullStatus = null;
+            $convertedIds = [];
+
+            foreach ($rows as $row) {
+                $statusNorm = json_encode(json_decode($row['status'], true));
+
+                if ($statusNorm === json_encode(ImsiExternalStatusLog::REF_STATUS)) {
+                    continue;
+                }
+
+                if ($lastFullStatus !== null && $statusNorm === $lastFullStatus) {
+                    $convertedIds[] = $row['id'];
+                } else {
+                    $lastFullStatus = $statusNorm;
+                }
+            }
+
+            if ($convertedIds) {
+                $db->createCommand()->update(
+                    $table,
+                    ['status' => new Expression("'{$refJson}'::jsonb")],
+                    ['id' => $convertedIds]
+                )->execute();
+                $totalConverted += count($convertedIds);
+            }
+
+            echo $imsi . ': converted ' . count($convertedIds) . PHP_EOL;
+        }
+
+        echo PHP_EOL . 'Total converted: ' . $totalConverted . PHP_EOL;
     }
 }
