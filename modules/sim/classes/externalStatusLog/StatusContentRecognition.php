@@ -47,6 +47,7 @@ class EslRecognizerFactory
     private function getRecognizers()
     {
         return [
+            EslRefRecognizer::class,
             EslResultCode0Recognizer::class,
             EslSpmlRecognizer::class,
             EslStatusErrorRecognizer::class,
@@ -153,6 +154,20 @@ class EslResultCode0Recognizer extends EslRecognizer
             $return[$k] = $a;
         });
         return $return;
+    }
+}
+
+
+class EslRefRecognizer extends EslRecognizer
+{
+    public function isDetect(): bool
+    {
+        return !empty($this->status['_ref']);
+    }
+
+    public function makeResult(): EslResultItem
+    {
+        return new EslResultItem(['itemStatus' => EslResultItem::STATUS_INFO, 'itemText' => 'без изменений']);
     }
 }
 
