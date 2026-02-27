@@ -33,19 +33,17 @@ class EslResultItem extends \yii\base\Component
         }
 
         $insertDate = $this->insertDt ? DateTimeZoneHelper::getDateTime($this->insertDt) : '';
-        $title = "";
+        $infoBtn = '';
 
         if ($this->info) {
-            $titleStr = htmlspecialchars(var_export($this->info, true));
-            $title = <<<TITLE
- title="{$titleStr}"
-TITLE;
+            $infoData = htmlspecialchars(json_encode($this->info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), ENT_QUOTES);
+            $infoBtn = " <a href=\"#\" class=\"esl-info-btn\" data-info=\"{$infoData}\"><span class=\"glyphicon glyphicon-info-sign\"></span></a>";
         }
 
         return <<<HTML
         <div class="row">
             <div class="col-md-3">{$insertDate}</div>
-            <div class="col-md-9 {$this->textClassMap[$this->itemStatus]}"{$title}>{$this->itemText}</div>
+            <div class="col-md-9 {$this->textClassMap[$this->itemStatus]}">{$this->itemText}{$infoBtn}</div>
         </div>
 HTML;
     }
