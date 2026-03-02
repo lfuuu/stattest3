@@ -4,6 +4,7 @@ namespace app\modules\sbisTenzor\classes\XmlGenerator;
 
 use app\helpers\DateTimeZoneHelper;
 use app\models\Invoice;
+use app\modules\uu\models_light\InvoiceBillLight;
 
 class Upd2023Form5_03 extends Invoice2025Form5_03
 {
@@ -75,13 +76,7 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
 
     protected function getFileDocumentContentsOfTheEconomicFact(\DOMDocument $dom)
     {
-        $elPass = null;
-
-        $billDateTime = new \DateTime($this->bill->date);
-        $contract = $this->client->contract->getContractInfo($billDateTime);
-        if (!$contract) {
-            return $elPass;
-        }
+        $reasonForTransfer = InvoiceBillLight::reasonForTransferUpd($this->client, $this->bill);
 
 
         // Файл.Документ.СвПродПер
@@ -91,24 +86,9 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
         $elPass->appendChild($elPassInfo);
 
         $elPassInfoMain = $dom->createElement('ОснПер');
-
-        if ($this->invoice->date >= '2026-01-31') {
-            // по счету
-            $billDateTime = new \DateTime($this->bill->bill_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
-            $billDate = $billDateTime->format('d.m.Y');
-
-            $elPassInfoMain->setAttribute('РеквДатаДок', $billDate);
-            $elPassInfoMain->setAttribute('РеквНомерДок', $this->bill->bill_no);
-            $elPassInfoMain->setAttribute('РеквНаимДок', sprintf('Счет №%s от %s', $this->bill->bill_no, $billDate));
-        } else {
-            // по договору
-            $contractDateTime = new \DateTime($contract->contract_date, new \DateTimeZone(DateTimeZoneHelper::TIMEZONE_DEFAULT));
-            $contractDate = $contractDateTime->format('d.m.Y');
-
-            $elPassInfoMain->setAttribute('РеквДатаДок', $contractDate);
-            $elPassInfoMain->setAttribute('РеквНомерДок', $contract->contract_no);
-            $elPassInfoMain->setAttribute('РеквНаимДок', sprintf('%s от %s', $contract->contract_no, $contractDate));
-        }
+        $elPassInfoMain->setAttribute('РеквДатаДок', $reasonForTransfer['date_human']);
+        $elPassInfoMain->setAttribute('РеквНомерДок', $reasonForTransfer['number']);
+        $elPassInfoMain->setAttribute('РеквНаимДок', $reasonForTransfer['name']);
 
         $elPassInfo->appendChild($elPassInfoMain);
 
