@@ -148,6 +148,11 @@ class OneRubAndYearPackagesController extends Controller
 	 */
 	public function actionCheckYearlyPackages($mode = null)
 	{
+		if (!\Yii::$app->isRus()) {
+			echo PHP_EOL . 'Пропуск: не RU-окружение' . PHP_EOL;
+			return;
+		}
+
 		$isReal = $mode !== null;
 		$firstDayOfMonth = date('Y-m-01');
 

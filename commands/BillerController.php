@@ -648,6 +648,177 @@ GROUP BY client_id')->queryAll();
         }
     }
 
+    /**
+     * Подготовка агрегации звонков за текущий и предыдущий месяц
+     *
+     * @return int
+     * @throws \yii\db\Exception
+     */
+    public function actionPrepareCallsAggr()
+    {
+        $db = \Yii::$app->dbPg;
+
+        $currentSuffix = date('Ym');
+        $prevSuffix = date('Ym', strtotime('first day of previous month'));
+
+        echo PHP_EOL . 'Создание партиции calls_aggr...';
+        $db->createCommand("SELECT calls_aggr.create_calls_aggr_partition(now()::date)")->queryScalar();
+        echo ' OK';
+
+        foreach ([$currentSuffix, $prevSuffix] as $suffix) {
+            echo PHP_EOL . "Агрегация calls_aggr_{$suffix}...";
+
+            $db->createCommand("TRUNCATE calls_aggr.calls_aggr_{$suffix}")->execute();
+
+            $db->createCommand("
+                INSERT INTO calls_aggr.calls_aggr_{$suffix}(
+                    server_id, aggr_time, orig, trunk_id, account_id,
+                    trunk_service_id, number_service_id, destination_id, mob,
+                    last_call_id, billed_time, cost, tax_cost, interconnect_cost,
+                    total_calls, notzero_calls
+                ) SELECT
+                    server_id, date_trunc('hour', connect_time) AS aggr_time, orig, trunk_id, account_id,
+                    trunk_service_id, number_service_id, destination_id, mob,
+                    max(id) AS last_call_id, sum(billed_time) AS billed_time,
+                    sum(cost) AS cost, sum(tax_cost) AS tax_cost,
+                    sum(interconnect_cost) AS interconnect_cost, sum(1) AS total_calls,
+                    sum(CASE abs(cost) >= 0.0001 WHEN true THEN 1 ELSE 0 END) AS notzero_calls
+                FROM calls_raw.calls_raw_{$suffix}
+                GROUP BY
+                    server_id, aggr_time, orig, trunk_id, account_id,
+                    trunk_service_id, number_service_id, destination_id, mob
+            ")->execute();
+
+            echo ' OK';
+        }
+
+        echo PHP_EOL;
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * Массовые счета по старым проводкам
+     *
+     * @return int
+     */
+    public function actionBillMassLegacy()
+    {
+        set_time_limit(0);
+
+        $partSize = 500;
+        $date = new DateTime();
+        $totalCount = 0;
+        $totalAmount = 0;
+        $totalErrors = 0;
+
+        echo PHP_EOL . 'Массовое выставление счетов';
+
+        $count = $partSize;
+        $offset = 0;
+
+        while ($count >= $partSize) {
+            $clientAccounts = ClientAccount::find()
+                ->andWhere(['NOT IN', 'status', [
+                    ClientAccount::STATUS_CLOSED,
+                    ClientAccount::STATUS_DENY,
+                    ClientAccount::STATUS_TECH_DENY,
+                    ClientAccount::STATUS_TRASH,
+                    ClientAccount::STATUS_ONCE,
+                ]])
+                ->limit($partSize)
+                ->offset($offset)
+                ->orderBy('id')
+                ->all();
+
+            foreach ($clientAccounts as $clientAccount) {
+                $offset++;
+
+                try {
+                    $bill = \app\classes\bill\BillFactory::create($clientAccount, $date)->process();
+
+                    if ($bill) {
+                        $totalCount++;
+                        $totalAmount += $bill->sum;
+                        echo PHP_EOL . "{$offset}. ЛС {$clientAccount->id}: счет {$bill->bill_no} на {$bill->sum}";
+                    }
+                } catch (\Exception $e) {
+                    $totalErrors++;
+                    echo PHP_EOL . "{$offset}. ЛС {$clientAccount->id}: ОШИБКА " . $e->getMessage();
+                    Yii::error($e);
+                }
+            }
+
+            $count = count($clientAccounts);
+        }
+
+        echo PHP_EOL . "Счетов: {$totalCount}, сумма: {$totalAmount}, ошибок: {$totalErrors}" . PHP_EOL;
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * Месячная биллинговая рутина (крон, 1-е число месяца)
+     *
+     * @return int
+     */
+    public function actionMonthlyRoutine()
+    {
+        ini_set('memory_limit', '6G');
+        set_time_limit(0);
+
+        $lockFile = UbillerController::LOCK_FILE;
+
+        // Остановить текущий ubiller и захватить lock на весь процесс
+        $this->runStep('ubiller/stop-biller', [], 'Остановка ubiller');
+
+        $fp = fopen($lockFile, 'c');
+        if (!$fp || !flock($fp, LOCK_EX)) {
+            echo PHP_EOL . 'ОШИБКА: не удалось захватить lock-файл' . PHP_EOL;
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $steps = [
+            ['ubiller/clear-min-entry', [0], 'Очистка минималок'],
+            ['convert/one-rub-and-year-packages/check-yearly-packages', [], 'Проверка годовых пакетов'],
+            ['biller/prepare-calls-aggr', [], 'Агрегация звонков'],
+            ['biller/tariffication', [], 'Тарификация'],
+            ['biller/bill-mass-legacy', [], 'Массовые счета по старым проводкам'],
+            ['ubiller/fix-bill-last-day', [], 'Исправление последнего дня'],
+            ['ubiller/index', [], 'Универсальный биллер'],
+        ];
+
+        foreach ($steps as [$action, $params, $label]) {
+            $this->runStep($action, $params, $label);
+        }
+
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
+        echo PHP_EOL . date('Y-m-d H:i:s') . ' Месячная рутина завершена' . PHP_EOL;
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * @param string $action
+     * @param array $params
+     * @param string $label
+     */
+    protected function runStep($action, array $params, $label)
+    {
+        $time = microtime(true);
+        echo PHP_EOL . date('Y-m-d H:i:s') . " [{$label}] ...";
+
+        try {
+            \Yii::$app->runAction($action, $params);
+            echo ' ' . round(microtime(true) - $time) . ' сек';
+        } catch (\Exception $e) {
+            echo " ОШИБКА: " . $e->getMessage();
+            Yii::error($e);
+        }
+    }
+
     public function actionListenAiDialogRaw()
     {
         /**

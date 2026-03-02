@@ -41,6 +41,8 @@ use yii\console\ExitCode;
  */
 class UbillerController extends Controller
 {
+    const LOCK_FILE = '/tmp/yii-ubiller';
+
     protected $logger;
     protected $queryCounter;
 
@@ -623,6 +625,89 @@ SQL;
         AccountEntry::deleteAll($where);
         echo 'OK (' . round(microtime(true) - $timeStart, 2) . ' sec)';
         echo PHP_EOL;
+    }
+
+    /**
+     * Остановка процессов ubiller (lock-файл /tmp/yii-ubiller)
+     *
+     * @return int
+     */
+    public function actionStopBiller()
+    {
+        $lockFile = self::LOCK_FILE;
+
+        $output = '';
+        exec("fuser {$lockFile} 2>/dev/null", $outputLines);
+        $output = implode(' ', $outputLines);
+
+        $pids = preg_split('/\s+/', trim($output), -1, PREG_SPLIT_NO_EMPTY);
+
+        if (!$pids) {
+            echo PHP_EOL . 'Нет процессов на lock-файле' . PHP_EOL;
+            return ExitCode::OK;
+        }
+
+        foreach ($pids as $pid) {
+            $pid = (int) $pid;
+            if ($pid > 0) {
+                posix_kill($pid, SIGTERM);
+                echo PHP_EOL . "SIGTERM -> PID {$pid}";
+            }
+        }
+
+        echo PHP_EOL;
+
+        return ExitCode::OK;
+    }
+
+    /**
+     * Исправление последнего дня в счетах (newbill_lines + uu_bill.is_converted)
+     *
+     * @return int
+     * @throws \yii\db\Exception
+     */
+    public function actionFixBillLastDay()
+    {
+        $db = \Yii::$app->db;
+
+        $countSql = "
+            SELECT count(*)
+            FROM `newbill_lines`
+            WHERE bill_no LIKE CONCAT(DATE_FORMAT(NOW(), '%Y%m'), '-%')
+              AND item LIKE DATE_FORMAT(LAST_DAY(NOW() - INTERVAL 1 MONTH) - INTERVAL 1 DAY, '%%1-%d %% %Y%%')
+        ";
+
+        $count = $db->createCommand($countSql)->queryScalar();
+        echo PHP_EOL . "Строк newbill_lines для исправления: {$count}";
+
+        if (!$count) {
+            echo PHP_EOL;
+            return ExitCode::OK;
+        }
+
+        $db->createCommand("
+            CREATE TEMPORARY TABLE _aa
+            SELECT DISTINCT bill_id
+            FROM uu_account_entry
+            WHERE id IN (
+                SELECT uu_account_entry_id
+                FROM `newbill_lines`
+                WHERE bill_no LIKE CONCAT(DATE_FORMAT(NOW(), '%Y%m'), '-%')
+                  AND item LIKE DATE_FORMAT(LAST_DAY(NOW() - INTERVAL 1 MONTH) - INTERVAL 1 DAY, '%%1-%d %% %Y%%')
+            )
+        ")->execute();
+
+        $updated = $db->createCommand("
+            UPDATE uu_bill SET is_converted = 0 WHERE id IN (SELECT bill_id FROM _aa)
+        ")->execute();
+
+        echo PHP_EOL . "Обновлено uu_bill: {$updated}";
+
+        $db->createCommand("DROP TEMPORARY TABLE _aa")->execute();
+
+        echo PHP_EOL;
+
+        return ExitCode::OK;
     }
 
     public function actionRecalc()
