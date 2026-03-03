@@ -114,7 +114,8 @@ class MailJob {
 			$ins = true;
 			$v['object_id'] = $db->QueryInsert('mail_object',$v);
 		}
-        return Yii::$app->params['LK_PATH'].'docs/?o='.$r['object_id'].'&k='.self::get_object_key($r);
+
+        return /* Yii::$app->params['LK_PATH'] . 'docs' */ 'https://base.' . (\Yii::$app->isEu() ? 'kompaas.tech' : 'mcn.ru') . '/api/public/api/v1/billing/docs?scope=mail&number=' . $r['object_id'] . '&key=' . self::get_object_key($r);
 	}
 
     public function _get_assignments($match)
