@@ -177,6 +177,16 @@ class BillDocumentDao extends Singleton
     public function _isSF($accountId, $type, $documentDate = null, $objId = null)
     {
         static $cache = [];
+        static $countryCache = [];
+
+        // для не-российских ЛС только счет-фактура (invoice), дата не важна
+        if (!isset($countryCache[$accountId])) {
+            $countryCache[$accountId] = ClientAccount::findOne(['id' => $accountId])->getUuCountryId();
+        }
+
+        if ($countryCache[$accountId] != Country::RUSSIA) {
+            return $type == BillDocument::TYPE_INVOICE;
+        }
 
         if (!$documentDate) {
             return null;
