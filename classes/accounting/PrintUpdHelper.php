@@ -13,7 +13,9 @@ class PrintUpdHelper
             $rowSize = self::$defaultRowSize;
         }
 
-        $changeSize = \Yii::$app->request->get('is_pdf', 0);
+        $changeSize = (\Yii::$app instanceof \yii\console\Application)
+            ? 1
+            : \Yii::$app->request->get('is_pdf', 0);
 
         if (!$changeSize) {
             self::changePageSize(720);
