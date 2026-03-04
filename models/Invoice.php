@@ -1009,12 +1009,22 @@ class Invoice extends ActiveRecord
 
     public function getLink()
     {
-        return Url::to(['/',
-            'module' => 'newaccounts',
-            'bill' => $this->bill_no,
-            'invoice2' => 1,
-            'action' => 'bill_mprint',
-            'invoice_id' => $this->id
-        ]);
+        if ($this->bill->clientAccount->getUuCountryId() == Country::RUSSIA) {
+            return Url::to(['/',
+                'module' => 'newaccounts',
+                'bill' => $this->bill_no,
+                'upd2-'.$this->type_id => 1,
+                'action' => 'bill_mprint',
+                'invoice_id' => $this->id
+            ]);
+        } else {
+            return Url::to(['/',
+                'module' => 'newaccounts',
+                'bill' => $this->bill_no,
+                'invoice2' => 1,
+                'action' => 'bill_mprint',
+                'invoice_id' => $this->id
+            ]);
+        }
     }
 }
