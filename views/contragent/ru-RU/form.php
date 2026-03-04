@@ -273,20 +273,6 @@ endif;
         echo Form::widget([
             'model' => $model,
             'form' => $f,
-            'columns' => 1,
-            'options' => ['class' => 'pull-left percent50 block-right-indent'],
-            'attributeDefaults' => [
-                'type' => Form::INPUT_TEXT
-            ],
-            'attributes' => [
-                'inn_person' => [
-                    'label' => 'ИНН Физического Лица',
-                ],
-            ],
-        ]);
-        echo Form::widget([
-            'model' => $model,
-            'form' => $f,
             'columns' => 2,
             'columnOptions' => ['class' => 'col-sm-6'],
             'options' => ['class' => 'percent50 block-left-indent block-right-indent'] + $optionState,
@@ -363,6 +349,11 @@ endif;
             <?=
             $f->field($model, 'branch_code')
                 ->textInput()
+            ?>
+            <?=
+            $f->field($model, 'inn_person')
+                ->textInput()
+                ->label('ИНН Физического Лица')
             ?>
         </div>
 
