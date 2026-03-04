@@ -180,6 +180,30 @@ class Invoice2025Form5_03 extends Invoice2016Form5_02
         return $this->invoice->type_id == Invoice::TYPE_GOOD ? 'ТОРГ12' : 'АКТ';
     }
 
+    /**
+     * Информация о Покупателе - ФЛ (формат 5.03)
+     *
+     * @param \DOMElement $elInfoBuyerId
+     */
+    protected function addBuyerInfoPerson(\DOMElement $elInfoBuyerId)
+    {
+        $dom = $elInfoBuyerId->ownerDocument;
+
+        $elInfoBuyerIdType = $dom->createElement('СвФЛУч');
+        if ($this->client->contragent->person->inn) {
+            $elInfoBuyerIdType->setAttribute('ИННФЛ', $this->client->contragent->person->inn);
+        }
+
+        $elInfoBuyerIdTypeData = $dom->createElement('ФИО');
+        $initials = $this->getInitials($this->client->contragent->name_full);
+        $elInfoBuyerIdTypeData->setAttribute('Имя', ($this->client->contragent->person->first_name ?: $initials[1]));
+        $elInfoBuyerIdTypeData->setAttribute('Отчество', ($this->client->contragent->person->middle_name ?: $initials[2]));
+        $elInfoBuyerIdTypeData->setAttribute('Фамилия', ($this->client->contragent->person->last_name ?: $initials[0]));
+        $elInfoBuyerIdType->appendChild($elInfoBuyerIdTypeData);
+
+        $elInfoBuyerId->appendChild($elInfoBuyerIdType);
+    }
+
     protected function getFileDocumentContentsOfTheEconomicFact($dom)
     {
         $reasonForTransfer = InvoiceBillLight::reasonForTransferUpd($this->client, $this->bill);

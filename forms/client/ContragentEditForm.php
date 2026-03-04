@@ -4,6 +4,7 @@ namespace app\forms\client;
 
 use app\classes\validators\PassportNumberUniqValidator;
 use app\classes\validators\PassportValuesValidator;
+use app\classes\validators\InnValidator;
 use yii\base\Exception;
 use app\classes\Form;
 use app\classes\traits\DoubleAttributeLabelTrait;
@@ -66,6 +67,7 @@ class ContragentEditForm extends Form
         $first_name,
         $last_name,
         $middle_name,
+        $inn_person,
         $passport_date_issued,
         $passport_serial,
         $passport_number,
@@ -163,6 +165,7 @@ class ContragentEditForm extends Form
                     'first_name',
                     'last_name',
                     'middle_name',
+                    'inn_person',
                     'passport_date_issued',
                     'passport_serial',
                     'passport_number',
@@ -181,6 +184,7 @@ class ContragentEditForm extends Form
                     'first_name',
                     'last_name',
                     'middle_name',
+                    'inn_person',
                     'passport_serial',
                     'passport_number',
                     'passport_issued',
@@ -206,6 +210,7 @@ class ContragentEditForm extends Form
             ],
             [['super_id', 'country_id', 'opf_id', 'sale_channel_id', 'is_take_signatory'], 'integer'],
             ['lang_code', 'string'],
+            [['inn_person'], InnValidator::class],
             [['passport_serial', 'passport_number'], PassportValuesValidator::class],
             [['passport_serial', 'passport_number'], PassportNumberUniqValidator::class],
             [['branch_code'], 'string', 'max' => 8],
@@ -246,6 +251,7 @@ class ContragentEditForm extends Form
             }
 
             $this->setAttributes($this->contragent->getAttributes() + $this->person->getAttributes(), false);
+            $this->inn_person = $this->person->inn;
         } else {
             $this->contragent = new ClientContragent();
             $this->person = new ClientContragentPerson();
@@ -418,6 +424,7 @@ class ContragentEditForm extends Form
         $person->first_name = $this->first_name;
         $person->last_name = $this->last_name;
         $person->middle_name = $this->middle_name;
+        $person->inn = $this->inn_person;
         $person->passport_date_issued = $this->passport_date_issued;
         $person->passport_serial = $this->passport_serial;
         $person->passport_number = $this->passport_number;

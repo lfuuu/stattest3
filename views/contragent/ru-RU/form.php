@@ -267,6 +267,7 @@ endif;
                 'last_name' => [],
                 'first_name' => [],
                 'middle_name' => [],
+                'inn' => [],
             ],
         ]);
         echo Form::widget([
@@ -348,6 +349,11 @@ endif;
             <?=
             $f->field($model, 'branch_code')
                 ->textInput()
+            ?>
+            <?=
+            $f->field($model, 'inn_person')
+                ->textInput()
+                ->label('ИНН Физического Лица')
             ?>
         </div>
 
