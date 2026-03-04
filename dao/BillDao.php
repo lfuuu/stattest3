@@ -1108,27 +1108,7 @@ SQL;
     {
         $clientAccount = $bill->clientAccount;
 
-        $sql = 'SELECT (SELECT coalesce(sum(pk + sum_without_tax + sum_tax + price + sum + date_from + date_to + coalesce(id_service, 0) + amount), 0) + count(*) AS cnt
-        FROM newbill_lines
-        WHERE bill_no = :billNo) +
-       (SELECT coalesce(sum(pk + sum + date_from + date_to + bill_correction_id + amount) + count(*), 0) AS cnt
-        FROM newbill_lines_correction
-        WHERE bill_no = :billNo) as check_sum';
-
-
-        $tagsDep = new TagDependency(['tags' => [DependecyHelper::TAG_BILL]]);
-        $dbDep = new DbDependency(['sql' => $sql, 'params' => [':billNo' => $bill->bill_no]]);
-
-        $dependency = new ChainedDependency(['dependencies' => [$dbDep, $tagsDep]]);
-
-        $key = 'getLineByTypeId' . str_replace(['-', '/'], ['i', 'g'], $bill->bill_no) . 't' . $typeId . 't' . $clientAccount->type_of_bill;
-//
-//        if (($value = \Yii::$app->cache->get($key)) !== false) {
-//            return $value;
-//        }
-
         $lines = [];
-
 
         $billLines = $bill->lines;
 
@@ -1136,9 +1116,37 @@ SQL;
             return $billLines;
         }
 
+        // prepaid_2: выставляется только с/ф TYPE_2, остальные типы — пустые
+        $isPrepaid2 = $clientAccount->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2;
+
+        if ($isPrepaid2 && $typeId != Invoice::TYPE_2) {
+            return [];
+        }
+
+        $isPrepaid2Type2 = $isPrepaid2 && self::isAutoBill($bill);
+
+        // для prepaid_2 дополняем проводками из предыдущего счёта (без дублей по uu_account_entry_id)
+        $prevBill = $isPrepaid2Type2 ? self::getPreviousAutoBill($bill) : null;
+
+        if ($prevBill) {
+            $seenEntryIds = [];
+            foreach ($billLines as $line) {
+                if ($line->uu_account_entry_id) {
+                    $seenEntryIds[$line->uu_account_entry_id] = true;
+                }
+            }
+            foreach ($prevBill->lines as $prevLine) {
+                if ($prevLine->uu_account_entry_id && isset($seenEntryIds[$prevLine->uu_account_entry_id])) {
+                    continue;
+                }
+                $billLines[] = $prevLine;
+            }
+        }
+
+
         if ($clientAccount->type_of_bill == ClientAccount::TYPE_OF_BILL_SIMPLE) {
             $billLines = BillLine::compactLines(
-                $bill->lines,
+                $billLines,
                 $bill->clientAccount->contragent->lang_code,
                 $bill->price_include_vat
             );
@@ -1157,6 +1165,9 @@ SQL;
         }
 
 
+        $billDate = (new \DateTimeImmutable($bill->bill_date))->modify('first day of this month');
+        $prevMonth = $isPrepaid2Type2 ? $billDate->modify('-1 month') : null;
+
         /** @var BillLine $line */
         foreach ($billLines as $line) {
 
@@ -1164,7 +1175,6 @@ SQL;
             $dateFrom == BillLine::DATE_DEFAULT && $dateFrom = $bill->bill_date; // ручная проводка без даты
 
             $dateFrom = (new \DateTimeImmutable($dateFrom))->modify('first day of this month');
-            $billDate = (new \DateTimeImmutable($bill->bill_date))->modify('first day of this month');
 
             $type = is_array($line) ? $line['type'] : $line->type;
 
@@ -1187,9 +1197,14 @@ SQL;
                     $isAllow = true;
                 }
             } elseif ($typeId == Invoice::TYPE_2) {
-                if ($dateFrom != BillLine::DATE_DEFAULT
-                    && $dateFrom < $billDate)
-                    $isAllow = true;
+                if ($dateFrom != BillLine::DATE_DEFAULT && $dateFrom < $billDate) {
+                    if ($isPrepaid2Type2) {
+                        // prepaid_2: только проводки за предыдущий месяц от даты счёта
+                        $isAllow = $dateFrom >= $prevMonth;
+                    } else {
+                        $isAllow = true;
+                    }
+                }
             } elseif ($typeId == Invoice::TYPE_GOOD) {
                 $isAllow = $type == BillLine::LINE_TYPE_GOOD;
             }
@@ -1205,11 +1220,36 @@ SQL;
             $lines = BillLine::refactLinesWithFourOrderFacture($bill, $lines);
         }
 
-
-        \Yii::$app->cache->set($key, $lines, DependecyHelper::DEFAULT_TIMELIFE, $dependency);
-
         return $lines;
 
+    }
+
+    /**
+     * Счёт сформирован автоматически (из UU)
+     * @param Bill $bill
+     * @return bool
+     */
+    public static function isAutoBill(Bill $bill)
+    {
+        return (bool)$bill->uu_bill_id;
+    }
+
+    /**
+     * Предыдущий автоматический счёт (по bill_date = 1-е число предыдущего месяца)
+     * @param Bill $bill
+     * @return Bill|null
+     */
+    private static function getPreviousAutoBill(Bill $bill)
+    {
+        $prevMonthFirstDay = (new \DateTimeImmutable($bill->bill_date))
+            ->modify('first day of this month')
+            ->modify('-1 month');
+
+        return Bill::find()
+            ->where(['client_id' => $bill->client_id])
+            ->andWhere(['not', ['uu_bill_id' => null]])
+            ->andWhere(['bill_date' => $prevMonthFirstDay->format(DateTimeZoneHelper::DATE_FORMAT)])
+            ->one();
     }
 
     /**
@@ -1257,11 +1297,13 @@ SQL;
                 $types = [Invoice::TYPE_PREPAID];
             }
 
-            // Для Prepaid 2.0: TYPE_1 (абонентка) - формируется только если счёт за прошлый месяц
+            // Для Prepaid 2.0: исключить TYPE_GOOD; TYPE_1 - только если проводки счёта за прошлый месяц
             if (
                 !$is4Invoice
                 && $bill->clientAccountModel->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2
             ) {
+                $types = array_filter($types, fn($typeId) => $typeId !== Invoice::TYPE_GOOD);
+
                 $billMonth = (new \DateTimeImmutable($bill->bill_date))->modify('first day of this month')->setTime(0, 0, 0,);
                 $currentMonth = (new \DateTimeImmutable())->modify('first day of this month')->setTime(0, 0, 0,);
 
@@ -1574,6 +1616,38 @@ WHERE
         });
 
         return !$info; // имеется хоть одна зарегистрированная с/ф
+    }
+
+    /**
+     * Периоды строк счёта для dropdown
+     *
+     * @param string $billDate дата счёта (Y-m-d)
+     * @param array $lines строки счёта
+     * @return array ключ "date_from|date_to", значение — label
+     */
+    public function getBillLinePeriods($billDate, $lines)
+    {
+        $currentFrom = date('Y-m-01', strtotime($billDate));
+        $currentTo = date('Y-m-t', strtotime($billDate));
+
+        $prevFrom = date('Y-m-01', strtotime('first day of previous month', strtotime($billDate)));
+        $prevTo = date('Y-m-t', strtotime('first day of previous month', strtotime($billDate)));
+
+        $periods = [];
+        $periods["$currentFrom|$currentTo"] = "абонентка ($currentFrom -- $currentTo)";
+        $periods["$prevFrom|$prevTo"] = "ресурсы ($prevFrom -- $prevTo)";
+
+        foreach ($lines as $line) {
+            if (empty($line['date_from']) || empty($line['date_to'])) {
+                continue;
+            }
+            $key = $line['date_from'] . '|' . $line['date_to'];
+            if (!isset($periods[$key])) {
+                $periods[$key] = "({$line['date_from']} -- {$line['date_to']})";
+            }
+        }
+
+        return $periods;
     }
 
 }
