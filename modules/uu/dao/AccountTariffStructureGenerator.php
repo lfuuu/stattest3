@@ -137,7 +137,7 @@ class AccountTariffStructureGenerator extends Singleton
             'account_tariff_light_ids' => !$isDefaultTariff ? $this->_getAccountTariffLights($accountTariff->id) : [],
         ];
 
-        if ($accountTariff->comment) {
+        if ($accountTariff->service_type_id == ServiceType::ID_ONE_TIME && $accountTariff->comment) {
             $record['comment'] = $accountTariff->comment;
         }
 
