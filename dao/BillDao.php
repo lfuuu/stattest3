@@ -1108,44 +1108,25 @@ SQL;
     {
         $clientAccount = $bill->clientAccount;
 
-        $isPrepaid2Type2 = $typeId == Invoice::TYPE_2
-            && $clientAccount->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2
-            && $bill->uu_bill_id;
-
-        $prevBill = $isPrepaid2Type2 ? self::getPreviousAutoBill($bill) : null;
-
-        $sql = 'SELECT (SELECT coalesce(sum(pk + sum_without_tax + sum_tax + price + sum + date_from + date_to + coalesce(id_service, 0) + amount), 0) + count(*) AS cnt
-        FROM newbill_lines
-        WHERE bill_no = :billNo) +
-       (SELECT coalesce(sum(pk + sum + date_from + date_to + bill_correction_id + amount) + count(*), 0) AS cnt
-        FROM newbill_lines_correction
-        WHERE bill_no = :billNo) as check_sum';
-
-
-        $tagsDep = new TagDependency(['tags' => [DependecyHelper::TAG_BILL]]);
-        $dbDep = new DbDependency(['sql' => $sql, 'params' => [':billNo' => $bill->bill_no]]);
-
-        $deps = [$dbDep, $tagsDep];
-
-        if ($prevBill) {
-            $deps[] = new DbDependency(['sql' => $sql, 'params' => [':billNo' => $prevBill->bill_no]]);
-        }
-
-        $dependency = new ChainedDependency(['dependencies' => $deps]);
-
-        $key = 'getLineByTypeId' . str_replace(['-', '/'], ['i', 'g'], $bill->bill_no) . 't' . $typeId . 't' . $clientAccount->type_of_bill;
-        if ($prevBill) {
-            $key .= 'p' . str_replace(['-', '/'], ['i', 'g'], $prevBill->bill_no);
-        }
-//
-//        if (($value = \Yii::$app->cache->get($key)) !== false) {
-//            return $value;
-//        }
-
         $lines = [];
 
-
         $billLines = $bill->lines;
+
+        if ($typeId == Invoice::TYPE_PREPAID) {
+            return $billLines;
+        }
+
+        // prepaid_2: выставляется только с/ф TYPE_2, остальные типы — пустые
+        $isPrepaid2 = $clientAccount->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2;
+
+        if ($isPrepaid2 && $typeId != Invoice::TYPE_2) {
+            return [];
+        }
+
+        $isPrepaid2Type2 = $isPrepaid2 && self::isAutoBill($bill);
+
+        // для prepaid_2 дополняем проводками из предыдущего счёта (без дублей по uu_account_entry_id)
+        $prevBill = $isPrepaid2Type2 ? self::getPreviousAutoBill($bill) : null;
 
         if ($prevBill) {
             $seenEntryIds = [];
@@ -1162,9 +1143,6 @@ SQL;
             }
         }
 
-        if ($typeId == Invoice::TYPE_PREPAID) {
-            return $billLines;
-        }
 
         if ($clientAccount->type_of_bill == ClientAccount::TYPE_OF_BILL_SIMPLE) {
             $billLines = BillLine::compactLines(
@@ -1187,6 +1165,9 @@ SQL;
         }
 
 
+        $billDate = (new \DateTimeImmutable($bill->bill_date))->modify('first day of this month');
+        $prevMonth = $isPrepaid2Type2 ? $billDate->modify('-1 month') : null;
+
         /** @var BillLine $line */
         foreach ($billLines as $line) {
 
@@ -1194,7 +1175,6 @@ SQL;
             $dateFrom == BillLine::DATE_DEFAULT && $dateFrom = $bill->bill_date; // ручная проводка без даты
 
             $dateFrom = (new \DateTimeImmutable($dateFrom))->modify('first day of this month');
-            $billDate = (new \DateTimeImmutable($bill->bill_date))->modify('first day of this month');
 
             $type = is_array($line) ? $line['type'] : $line->type;
 
@@ -1217,9 +1197,14 @@ SQL;
                     $isAllow = true;
                 }
             } elseif ($typeId == Invoice::TYPE_2) {
-                if ($dateFrom != BillLine::DATE_DEFAULT
-                    && $dateFrom < $billDate)
-                    $isAllow = true;
+                if ($dateFrom != BillLine::DATE_DEFAULT && $dateFrom < $billDate) {
+                    if ($isPrepaid2Type2) {
+                        // prepaid_2: только проводки за предыдущий месяц от даты счёта
+                        $isAllow = $dateFrom >= $prevMonth;
+                    } else {
+                        $isAllow = true;
+                    }
+                }
             } elseif ($typeId == Invoice::TYPE_GOOD) {
                 $isAllow = $type == BillLine::LINE_TYPE_GOOD;
             }
@@ -1235,11 +1220,18 @@ SQL;
             $lines = BillLine::refactLinesWithFourOrderFacture($bill, $lines);
         }
 
-
-        \Yii::$app->cache->set($key, $lines, DependecyHelper::DEFAULT_TIMELIFE, $dependency);
-
         return $lines;
 
+    }
+
+    /**
+     * Счёт сформирован автоматически (из UU)
+     * @param Bill $bill
+     * @return bool
+     */
+    public static function isAutoBill(Bill $bill)
+    {
+        return (bool)$bill->uu_bill_id;
     }
 
     /**
