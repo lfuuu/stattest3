@@ -65,6 +65,7 @@ class SBISInfo
             case ClientContragent::PERSON_TYPE:
                 $groupIds2 = [
                     SBISExchangeGroup::ACT,
+                    SBISExchangeGroup::UPD_2023,
                 ];
                 break;
         }
