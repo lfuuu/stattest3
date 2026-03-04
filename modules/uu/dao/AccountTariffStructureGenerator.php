@@ -137,6 +137,10 @@ class AccountTariffStructureGenerator extends Singleton
             'account_tariff_light_ids' => !$isDefaultTariff ? $this->_getAccountTariffLights($accountTariff->id) : [],
         ];
 
+        if ($accountTariff->comment) {
+            $record['comment'] = $accountTariff->comment;
+        }
+
         if ($accountTariff->service_type_id == ServiceType::ID_VOIP) {
             $lines = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_LINE);
             $hasTrunkService = UsageTrunk::dao()->hasService($accountTariff->client_account_id);
