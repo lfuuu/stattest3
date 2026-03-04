@@ -1484,6 +1484,8 @@ class m_newaccounts extends IModule
             $uuLines = array_map(function(\app\models\BillLineUu $line){return $line->getAttributes();}, $uuLines);
         }
 
+        $periods = \app\dao\BillDao::me()->getBillLinePeriods($bill->Get('bill_date'), $bill->GetLines());
+        $design->assign('periods', $periods);
         $design->assign('bill_lines', $lines);
         $design->assign('bill_lines_uu', $uuLines);
         $design->AddMain('newaccounts/bill_edit.tpl');
@@ -1696,6 +1698,7 @@ class m_newaccounts extends IModule
         $type = get_param_raw("type");
         $tax_rate = get_param_raw("tax_rate");
         $del = get_param_raw("del", []);
+        $period = get_param_raw("period", []);
 
         if (!$item || !$amount || !$price || !$type) { // Сохранение только "шапки" счета     
             $bill->Save();
@@ -1719,20 +1722,31 @@ class m_newaccounts extends IModule
 //                        continue;
 //                    }
 
+                    $dateFrom = null;
+                    $dateTo = null;
+                    if (!empty($period[$k])) {
+                        $periodParts = explode('|', $period[$k]);
+                        if (count($periodParts) == 2) {
+                            $dateFrom = $periodParts[0];
+                            $dateTo = $periodParts[1];
+                        }
+                    }
+
                     if ((!isset($item[$k]) || (isset($item[$k]) && !$item[$k]) || (isset($del[$k]) && $del[$k])) && isset($arr_v['item'])) {
                         $bill->RemoveLine($k);
                     } elseif (isset($item[$k]) && $item[$k] && isset($arr_v['item'])) {
                         if (
-                            $item[$k] != $arr_v['item'] 
-                            || $amount[$k] != $arr_v['amount'] 
-                            || $price[$k] != $arr_v['price'] 
+                            $item[$k] != $arr_v['item']
+                            || $amount[$k] != $arr_v['amount']
+                            || $price[$k] != $arr_v['price']
                             || $type[$k] != $arr_v['type']
                             || $tax_rate[$k] != $arr_v['tax_rate']
+                            || ($dateFrom !== null && ($dateFrom != $arr_v['date_from'] || $dateTo != $arr_v['date_to']))
                             ) {
-                            $bill->EditLine($k, $item[$k], $amount[$k], $price[$k], $type[$k], $tax_rate[$k], $arr_v['uu_account_entry_id']);
+                            $bill->EditLine($k, $item[$k], $amount[$k], $price[$k], $type[$k], $tax_rate[$k], $arr_v['uu_account_entry_id'], $dateFrom, $dateTo);
                         }
                     } elseif (isset($item[$k]) && $item[$k]) {
-                        $bill->AddLine($item[$k], $amount[$k], $price[$k], $type[$k], '', '', '', '', 0, $tax_rate[$k]);
+                        $bill->AddLine($item[$k], $amount[$k], $price[$k], $type[$k], '', '', $dateFrom ?: '', $dateTo ?: '', 0, $tax_rate[$k]);
                     }
                 }
             }

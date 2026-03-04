@@ -296,7 +296,7 @@ class Bill {
         $this->Set('is_to_uu_invoice', (int)(bool)$isToUuInvoice);
     }
 
-    public function EditLine($sort, $title, $amount, $price, $type, $tax_rate = null, $accountEntryId = null)
+    public function EditLine($sort, $title, $amount, $price, $type, $tax_rate = null, $accountEntryId = null, $dateFrom = null, $dateTo = null)
     {
 
         $this->changed = 1;
@@ -320,6 +320,11 @@ class Bill {
 
         if ($tax_rate !== null) {
             $line->tax_rate = $tax_rate;
+        }
+
+        if ($dateFrom !== null && $dateTo !== null) {
+            $line->date_from = $dateFrom;
+            $line->date_to = $dateTo;
         }
 
         if ($this->bill['operation_type_id'] == OperationType::ID_COST) {
