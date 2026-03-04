@@ -267,6 +267,21 @@ endif;
                 'last_name' => [],
                 'first_name' => [],
                 'middle_name' => [],
+                'inn' => [],
+            ],
+        ]);
+        echo Form::widget([
+            'model' => $model,
+            'form' => $f,
+            'columns' => 1,
+            'options' => ['class' => 'pull-left percent50 block-right-indent'],
+            'attributeDefaults' => [
+                'type' => Form::INPUT_TEXT
+            ],
+            'attributes' => [
+                'inn_person' => [
+                    'label' => 'ИНН Физического Лица',
+                ],
             ],
         ]);
         echo Form::widget([
