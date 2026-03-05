@@ -462,7 +462,7 @@ class SBISTensorAPI
      * @throws SBISTensorException
      * @throws \yii\base\Exception
      */
-    public function getContractorInfoPerson($inn = '', $inila = '')
+    public function getContractorInfoPerson($inn = '', $inila = '', $lastName = '', $firstName = '')
     {
         $data = [
             'Участник' => [
@@ -478,6 +478,12 @@ class SBISTensorAPI
         }
         if ($inila) {
             $data['Участник']['СвФЛ']['СНИЛС'] = $inila;
+        }
+        if ($lastName) {
+            $data['Участник']['СвФЛ']['Фамилия'] = $lastName;
+        }
+        if ($firstName) {
+            $data['Участник']['СвФЛ']['Имя'] = $firstName;
         }
 
         $result = $this->sendRequest($this->serviceUrl, self::METHOD_CONTRACTOR_INFO, $data);
@@ -498,7 +504,13 @@ class SBISTensorAPI
     {
         switch ($client->contragent->legal_type) {
             case ClientContragent::PERSON_TYPE:
-                $result = $this->getContractorInfoPerson($client->getInn());
+                $person = $client->contragent->person;
+                $result = $this->getContractorInfoPerson(
+                    $person ? $person->inn : '',
+                    '',
+                    $person ? $person->last_name : '',
+                    $person ? $person->first_name : ''
+                );
                 break;
 
             case ClientContragent::IP_TYPE:
@@ -532,22 +544,27 @@ class SBISTensorAPI
             ($result['СвЮЛ']['ИНН'] !== $client->getInn())
         ) {
             throw new \LogicException(sprintf('ИНН ЮЛ %s не совпадает с ИНН ЮЛ в системе СБИС: %s, %s', $client->getInn(), $result['СвЮЛ']['ИНН'], $result['СвЮЛ']['Название']));
-        } elseif (
-            array_key_exists('СвФЛ', $result) &&
-            ($result['СвФЛ']['ИНН'] !== $client->getInn())
-        ) {
+        } elseif (array_key_exists('СвФЛ', $result)) {
+            $expectedInn = $client->getInn();
+            if ($client->contragent->legal_type === ClientContragent::PERSON_TYPE) {
+                $person = $client->contragent->person;
+                $expectedInn = $person ? $person->inn : '';
+            }
+
+            if (!empty($result['СвФЛ']['ИНН']) && $expectedInn && ($result['СвФЛ']['ИНН'] !== $expectedInn)) {
             $type = $result['СвФЛ']['ЧастноеЛицо'] === 'Да' ? 'ФЛ' : 'ИП';
             throw new \LogicException(
                 sprintf(
                     'ИНН %s %s не совпадает с ИНН %s в системе СБИС: %s, %s %s',
                     $type,
-                    $client->getInn(),
+                    $expectedInn,
                     $type,
                     $result['СвФЛ']['ИНН'],
                     $type,
                     $result['СвФЛ']['Фамилия']
                 )
             );
+            }
         }
 
         // КПП
