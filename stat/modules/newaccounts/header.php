@@ -32,6 +32,7 @@ class m_newaccounts_head extends IModuleHead{
 					'bill_balance_minus' => array('newaccounts_bills','read'),
 
 					'saldo'				=> array('newaccounts_bills','edit'),
+					'payment_saldo_date' => array('newaccounts_bills','edit'),
 
 					'bill_balance_mass'	=> array('newaccounts_mass','access'),
 
