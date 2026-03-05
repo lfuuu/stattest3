@@ -6,6 +6,7 @@ use app\classes\HttpClient;
 use app\helpers\DateTimeZoneHelper;
 use app\models\ClientAccount;
 use app\models\ClientContragent;
+use app\models\ClientContragentPerson;
 use app\models\Organization;
 use app\modules\sbisTenzor\classes\SBISTensorAPI\SBISDocumentInfo;
 use app\modules\sbisTenzor\exceptions\SBISTensorException;
@@ -455,14 +456,14 @@ class SBISTensorAPI
     /**
      * Получить информацию о контрагенте
      *
-     * @param string $inn
+     * @param ClientContragentPerson|null $person
      * @param string $inila СНИЛС
      * @return array
      * @throws BadRequestHttpException
      * @throws SBISTensorException
      * @throws \yii\base\Exception
      */
-    public function getContractorInfoPerson($inn = '', $inila = '', $lastName = '', $firstName = '')
+    public function getContractorInfoPerson(ClientContragentPerson $person = null, $inila = '')
     {
         $data = [
             'Участник' => [
@@ -473,17 +474,20 @@ class SBISTensorAPI
             ],
         ];
 
-        if ($inn) {
-            $data['Участник']['СвФЛ']['ИНН'] = $inn;
+        if ($person && $person->inn) {
+            $data['Участник']['СвФЛ']['ИНН'] = $person->inn;
         }
         if ($inila) {
             $data['Участник']['СвФЛ']['СНИЛС'] = $inila;
         }
-        if ($lastName) {
-            $data['Участник']['СвФЛ']['Фамилия'] = $lastName;
+        if ($person && $person->last_name) {
+            $data['Участник']['СвФЛ']['Фамилия'] = $person->last_name;
         }
-        if ($firstName) {
-            $data['Участник']['СвФЛ']['Имя'] = $firstName;
+        if ($person && $person->first_name) {
+            $data['Участник']['СвФЛ']['Имя'] = $person->first_name;
+        }
+        if ($person && $person->middle_name) {
+            $data['Участник']['СвФЛ']['Отчество'] = $person->middle_name;
         }
 
         $result = $this->sendRequest($this->serviceUrl, self::METHOD_CONTRACTOR_INFO, $data);
@@ -505,12 +509,7 @@ class SBISTensorAPI
         switch ($client->contragent->legal_type) {
             case ClientContragent::PERSON_TYPE:
                 $person = $client->contragent->person;
-                $result = $this->getContractorInfoPerson(
-                    $person ? $person->inn : '',
-                    '',
-                    $person ? $person->last_name : '',
-                    $person ? $person->first_name : ''
-                );
+                $result = $this->getContractorInfoPerson($person);
                 break;
 
             case ClientContragent::IP_TYPE:
