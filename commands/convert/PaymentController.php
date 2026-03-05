@@ -3,8 +3,12 @@
 namespace app\commands\convert;
 
 use app\classes\payments\PaymentParser;
+use app\dao\ClientAccountDao;
 use app\exceptions\ModelValidationException;
+use app\forms\client\ClientAccountOptionsForm;
 use app\helpers\DateTimeZoneHelper;
+use app\models\ClientAccount;
+use app\models\ClientAccountOptions;
 use app\models\Payment;
 use yii\console\Controller;
 
@@ -83,6 +87,71 @@ class PaymentController extends Controller
         if (!$info->save()) {
             throw new ModelValidationException($info);
         }
+    }
+
+    /**
+     * Установка платежного сальдо для всех активных клиентов.
+     * Дата = 1 января года, следующего за (дата первой с/ф + 3 месяца).
+     */
+    public function actionSetSaldoDate()
+    {
+        $query = ClientAccount::find()
+            ->alias('c')
+            ->where(['c.is_active' => 1])
+            ->andWhere([
+                'not in',
+                'c.id',
+                ClientAccountOptions::find()
+                    ->select('client_account_id')
+                    ->where(['option' => ClientAccountOptions::OPTION_PAYMENT_SALDO_DATE])
+            ])
+            ->orderBy(['c.id' => SORT_ASC]);
+
+        $total = $query->count();
+        $i = 0;
+        $skipped = 0;
+
+        /** @var ClientAccount $client */
+        foreach ($query->each() as $client) {
+            $i++;
+
+            $firstInvoiceDate = (new \yii\db\Query())
+                ->select('MIN(i.date)')
+                ->from('invoice i')
+                ->innerJoin('newbills b', 'b.bill_no = i.bill_no')
+                ->where(['b.client_id' => $client->id])
+                ->scalar();
+
+            if (!$firstInvoiceDate) {
+                $skipped++;
+                continue;
+            }
+
+            $date = new \DateTimeImmutable($firstInvoiceDate);
+            $date = $date->modify('+3 months');
+            $year = (int)$date->format('Y');
+            if ($date->format('m-d') > '01-01') {
+                $year++;
+            }
+            $saldoDate = "$year-01-01";
+
+            echo "\r$i/$total #{$client->id} $saldoDate";
+
+            try {
+                (new ClientAccountOptionsForm())
+                    ->setClientAccountId($client->id)
+                    ->setOption(ClientAccountOptions::OPTION_PAYMENT_SALDO_DATE)
+                    ->setValue($saldoDate)
+                    ->save();
+
+                ClientAccountDao::me()->updateInvoicePayments($client->id);
+                echo " +";
+            } catch (\Exception $e) {
+                echo " ERR: " . $e->getMessage();
+            }
+        }
+
+        echo "\nSkipped (no invoices): $skipped\n";
     }
 
     public function actionAddOrganizationId()
