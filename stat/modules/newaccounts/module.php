@@ -118,7 +118,7 @@ class m_newaccounts extends IModule
                 ->setValue($date)
                 ->save();
 
-            ClientAccountDao::me()->updateInvoicePayments($fixclient_data['id']);
+            \app\dao\ClientAccountDao::me()->updateInvoicePayments($fixclient_data['id']);
         } catch (\Exception $e) {
             \Yii::$app->session->addFlash('error', $e->getMessage());
         }
