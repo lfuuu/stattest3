@@ -9,6 +9,7 @@ use app\forms\client\ClientAccountOptionsForm;
 use app\helpers\DateTimeZoneHelper;
 use app\models\ClientAccount;
 use app\models\ClientAccountOptions;
+use app\models\EventQueue;
 use app\models\Payment;
 use yii\console\Controller;
 
@@ -145,6 +146,7 @@ class PaymentController extends Controller
                     ->save();
 
                 ClientAccountDao::me()->updateInvoicePayments($client->id);
+                EventQueue::go(EventQueue::UPDATE_BALANCE, $client->id);
                 echo " +";
             } catch (\Exception $e) {
                 echo " ERR: " . $e->getMessage();
