@@ -40,6 +40,8 @@ class ClientAccountOptions extends ActiveRecord
     const OPTION_SBIS_DOC_BASE_BILL = 'bill'; // default
     const OPTION_SBIS_DOC_BASE_CONTRACT = 'contract';
 
+    const OPTION_PAYMENT_SALDO_DATE = 'payment_saldo_date';
+
     public static $settingsAdvance = [
         self::SETTINGS_ADVANCE_NOT_SET => 'Не выставляются автоматически',
         self::SETTINGS_ADVANCE_1_AND_15 => 'Выставляются каждого 1 и 15 числа',

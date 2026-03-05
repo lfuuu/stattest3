@@ -99,6 +99,34 @@ class m_newaccounts extends IModule
         }
     }
 
+    function newaccounts_payment_saldo_date($fixclient)
+    {
+        global $design, $fixclient_data;
+        $date = get_param_protected('payment_saldo_date');
+
+        try {
+            $minDate = '2000-01-01';
+            $today = date('Y-m-d');
+            $parsed = date_create($date);
+            if (!$parsed || $date !== $parsed->format('Y-m-d') || $date < $minDate || $date > $today) {
+                throw new \InvalidArgumentException("Некорректная дата. Допустимый диапазон: $minDate — $today");
+            }
+
+            (new \app\forms\client\ClientAccountOptionsForm())
+                ->setClientAccountId($fixclient_data['id'])
+                ->setOption(ClientAccountOptions::OPTION_PAYMENT_SALDO_DATE)
+                ->setValue($date)
+                ->save();
+
+            ClientAccountDao::me()->updateInvoicePayments($fixclient_data['id']);
+        } catch (\Exception $e) {
+            \Yii::$app->session->addFlash('error', $e->getMessage());
+        }
+
+        header("Location: " . $design->LINK_START . "module=newaccounts&action=bill_list");
+        exit();
+    }
+
     function newaccounts_bill_balance($fixclient)
     {
         global $design, $db, $user, $fixclient_data;
@@ -456,6 +484,9 @@ class m_newaccounts extends IModule
                     'ts' => ''
                 ];
         }
+
+        $paymentSaldoDate = $clientAccount->getOptionValue(ClientAccountOptions::OPTION_PAYMENT_SALDO_DATE);
+        $design->assign('payment_saldo_date', $paymentSaldoDate ?: '');
 
         $get_income_goods_on_bill_list = get_param_integer('get_income_goods_on_bill_list', false);
         $design->assign('get_income_goods_on_bill_list', $get_income_goods_on_bill_list);
