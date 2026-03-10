@@ -5,7 +5,6 @@ namespace app\modules\sbisTenzor\forms\document;
 use app\exceptions\ModelValidationException;
 use app\helpers\DateTimeZoneHelper;
 use app\modules\sbisTenzor\classes\SBISDocumentStatus;
-use app\modules\sbisTenzor\classes\SBISGeneratedDraftStatus;
 use app\modules\sbisTenzor\models\SBISDocument;
 use app\modules\sbisTenzor\models\SBISGeneratedDraft;
 use app\modules\sbisTenzor\services\DocumentRecreateService;
