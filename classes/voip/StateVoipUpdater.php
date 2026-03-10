@@ -15,19 +15,12 @@ class StateVoipUpdater extends Singleton
 
     public function update(?int $accountTariffId = null)
     {
+        $this->sql = [];
         echo PHP_EOL . date('r');
         $this->table = StateServiceVoip::tableName();
 
-        if (!$accountTariffId) {
-            $this->binLogOff();
-        }
-
         $this->createTable();
         $this->makeActual($accountTariffId);
-
-        if (!$accountTariffId) {
-            $this->binLogOff();
-        }
 
         $this->addMissing();
         $this->deleteMissing($accountTariffId);
@@ -58,7 +51,7 @@ class StateVoipUpdater extends Singleton
     {
         $sql = "DROP TEMPORARY TABLE IF EXISTS {$this->table}_tmp";
         if ($isExecuteNow) {
-            \Yii::$app->db->createCommand($sql);
+            \Yii::$app->db->createCommand($sql)->execute();
         } else {
             $this->sql[] = $sql;
         }
@@ -66,8 +59,15 @@ class StateVoipUpdater extends Singleton
 
     private function makeActual($accountTariffId)
     {
-        $where = $accountTariffId ? 'AND u.id = '.$accountTariffId : '';
+        if ($accountTariffId) {
+            $this->makeActualSingle($accountTariffId);
+        } else {
+            $this->makeActualFull();
+        }
+    }
 
+    private function makeActualSingle(int $accountTariffId)
+    {
         $this->sql[] = <<<SQL
 
 INSERT INTO {$this->table}_tmp
@@ -104,7 +104,7 @@ FROM (
          WHERE true
            AND c.client = u.client
            AND u.e164 = v.number
-           {$where}
+           AND u.id = {$accountTariffId}
 
          UNION
 
@@ -152,8 +152,88 @@ FROM (
                     AND u.voip_number = v.number
                     AND c.id = u.client_account_id
                     AND service_type_id = 2
-                    {$where}
+                    AND u.id = {$accountTariffId}
               ) a
+     ) a;
+SQL;
+    }
+
+    private function makeActualFull()
+    {
+        $this->sql[] = <<<SQL
+
+INSERT INTO {$this->table}_tmp
+SELECT usage_id,
+       client_id,
+       e164,
+       region                                                 as region,
+       actual_from,
+       actual_to,
+       activation_dt,
+       IF(expire_dt > '3000-01-01 00:00:00', NULL, expire_dt) AS expire_dt,
+       lines_amount,
+       trim(device_address)                                   AS device_address,
+       is_verified,
+       iccid,
+       imsi
+FROM (
+         SELECT u.id                                          AS usage_id,
+                c.id                                          AS client_id,
+                u.e164,
+                v.region,
+                actual_from                                   AS actual_from,
+                IF(actual_to > '3000-01-01', NULL, actual_to) AS actual_to,
+                activation_dt,
+                expire_dt,
+                no_of_lines                                   as lines_amount,
+                u.address                                     AS device_address,
+                null                                          AS is_verified,
+                null                                          AS iccid,
+                null                                          AS imsi
+         FROM usage_voip u,
+              voip_numbers v,
+              clients c
+         WHERE true
+           AND c.client = u.client
+           AND u.e164 = v.number
+
+         UNION
+
+         SELECT u.id                                                      AS usage_id,
+                client_account_id                                         AS client_id,
+                voip_number                                               AS e164,
+                v.region,
+                cast(atl_act.activation_dt as date)                       as actual_from,
+                cast(atl_exp.expire_dt as date)                           as actual_to,
+                atl_act.activation_dt,
+                atl_exp.expire_dt,
+                atrl.lines_amount,
+                u.device_address,
+                u.is_verified,
+                CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.iccid')) AS UNSIGNED) as iccid,
+                CAST(JSON_UNQUOTE(JSON_EXTRACT(u.calltracking_params, '$.imsi')) AS UNSIGNED) as imsi
+         FROM uu_account_tariff u
+         JOIN voip_numbers v ON u.voip_number = v.number
+         JOIN clients c ON c.id = u.client_account_id
+         LEFT JOIN (
+             SELECT account_tariff_id, MIN(actual_from_utc) as activation_dt
+             FROM uu_account_tariff_log
+             WHERE tariff_period_id IS NOT NULL
+             GROUP BY account_tariff_id
+         ) atl_act ON atl_act.account_tariff_id = u.id
+         LEFT JOIN (
+             SELECT account_tariff_id, MAX(actual_from_utc) as expire_dt
+             FROM uu_account_tariff_log
+             WHERE tariff_period_id IS NULL
+             GROUP BY account_tariff_id
+         ) atl_exp ON atl_exp.account_tariff_id = u.id
+         LEFT JOIN (
+             SELECT account_tariff_id, MAX(amount) as lines_amount
+             FROM uu_account_tariff_resource_log
+             WHERE resource_id = 7
+             GROUP BY account_tariff_id
+         ) atrl ON atrl.account_tariff_id = u.id
+         WHERE service_type_id = 2
      ) a;
 SQL;
     }
@@ -181,9 +261,9 @@ FROM {$this->table} z,
          FROM {$this->table} a
                   LEFT JOIN {$this->table}_tmp b USING (usage_id)
          WHERE b.usage_id is null
+               {$where}
      ) a
 WHERE a.usage_id = z.usage_id
-      {$where}
 SQL;
     }
 
@@ -225,16 +305,5 @@ set s.lines_amount = b.lines_amount,
 where s.usage_id = b.usage_id
 SQL;
     }
-
-    private function binLogOn()
-    {
-        $this->sql[] = 'SET SQL_LOG_BIN=1;';
-    }
-
-    private function binLogOff()
-    {
-        $this->sql[] = 'SET SQL_LOG_BIN=0;';
-    }
-
 
 }
