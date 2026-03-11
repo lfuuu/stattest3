@@ -548,18 +548,18 @@ class SBISTensorAPI
             $expectedInn = $person ? $person->inn : '';
 
             if (!empty($result['СвФЛ']['ИНН']) && $expectedInn && ($result['СвФЛ']['ИНН'] !== $expectedInn)) {
-            $type = $result['СвФЛ']['ЧастноеЛицо'] === 'Да' ? 'ФЛ' : 'ИП';
-            throw new \LogicException(
-                sprintf(
-                    'ИНН %s %s не совпадает с ИНН %s в системе СБИС: %s, %s %s',
-                    $type,
-                    $expectedInn,
-                    $type,
-                    $result['СвФЛ']['ИНН'],
-                    $type,
-                    $result['СвФЛ']['Фамилия']
-                )
-            );
+                $type = $result['СвФЛ']['ЧастноеЛицо'] === 'Да' ? 'ФЛ' : 'ИП';
+                throw new \LogicException(
+                    sprintf(
+                        'ИНН %s %s не совпадает с ИНН %s в системе СБИС: %s, %s %s',
+                        $type,
+                        $expectedInn,
+                        $type,
+                        $result['СвФЛ']['ИНН'],
+                        $type,
+                        $result['СвФЛ']['Фамилия']
+                    )
+                );
             }
         }
 
