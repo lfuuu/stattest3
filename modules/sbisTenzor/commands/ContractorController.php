@@ -165,7 +165,7 @@ class ContractorController extends Controller
 
             switch ($client->contragent->legal_type) {
                 case ClientContragent::PERSON_TYPE:
-                    $result = $api->getContractorInfoPerson($client->getInn());
+                    $result = $api->getContractorInfoPerson($client->contragent->person);
                     break;
 
                 case ClientContragent::IP_TYPE:
