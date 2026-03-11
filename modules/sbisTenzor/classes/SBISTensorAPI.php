@@ -544,11 +544,8 @@ class SBISTensorAPI
         ) {
             throw new \LogicException(sprintf('ИНН ЮЛ %s не совпадает с ИНН ЮЛ в системе СБИС: %s, %s', $client->getInn(), $result['СвЮЛ']['ИНН'], $result['СвЮЛ']['Название']));
         } elseif (array_key_exists('СвФЛ', $result)) {
-            $expectedInn = $client->getInn();
-            if ($client->contragent->legal_type === ClientContragent::PERSON_TYPE) {
-                $person = $client->contragent->person;
-                $expectedInn = $person ? $person->inn : '';
-            }
+            $person = $client->contragent->person;
+            $expectedInn = $person ? $person->inn : '';
 
             if (!empty($result['СвФЛ']['ИНН']) && $expectedInn && ($result['СвФЛ']['ИНН'] !== $expectedInn)) {
             $type = $result['СвФЛ']['ЧастноеЛицо'] === 'Да' ? 'ФЛ' : 'ИП';
