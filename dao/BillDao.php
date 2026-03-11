@@ -1116,17 +1116,29 @@ SQL;
             return $billLines;
         }
 
-        // prepaid_2: выставляется только с/ф TYPE_2, остальные типы — пустые
+        // prepaid_2: специальная логика только для автоматических счетов
+        // ручные prepaid_2 счета обрабатываются как prepaid
         $isPrepaid2 = $clientAccount->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2;
+        $isPrepaid2Auto = $isPrepaid2 && self::isAutoBill($bill);
 
-        if ($isPrepaid2 && $typeId != Invoice::TYPE_2) {
+        if ($isPrepaid2Auto && $typeId != Invoice::TYPE_2) {
             return [];
         }
 
-        $isPrepaid2Type2 = $isPrepaid2 && self::isAutoBill($bill);
+        $isPrepaid2Type2 = $isPrepaid2Auto;
 
-        // для prepaid_2 дополняем проводками из предыдущего счёта (без дублей по uu_account_entry_id)
-        $prevBill = $isPrepaid2Type2 ? self::getPreviousAutoBill($bill) : null;
+        // merge из предыдущего счёта:
+        // 1) prepaid_2 TYPE_2 — дополняем проводками из предыдущего счёта
+        // 2) переход prepaid_2 → prepaid — подтягиваем непопавшие проводки (абонентка)
+        $needMergePrev = $isPrepaid2Type2;
+        if (!$needMergePrev && !$isPrepaid2 && self::isAutoBill($bill)) {
+            $prevBillCheck = self::getPreviousAutoBill($bill);
+            if ($prevBillCheck && $prevBillCheck->clientAccount->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2) {
+                $needMergePrev = true;
+            }
+        }
+
+        $prevBill = $needMergePrev ? ($prevBillCheck ?? self::getPreviousAutoBill($bill)) : null;
 
         if ($prevBill) {
             $seenEntryIds = [];
