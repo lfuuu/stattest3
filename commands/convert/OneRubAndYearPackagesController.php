@@ -6,11 +6,13 @@ use app\classes\Assert;
 use app\classes\HandlerLogger;
 use app\models\PriceLevel;
 use app\modules\nnp\models\NdcType;
+use app\modules\uu\models\AccountLogPeriod;
 use app\modules\uu\models\AccountTariff;
 use app\modules\uu\models\AccountTariffLog;
 use app\modules\uu\models\Period;
 use app\modules\uu\models\ServiceType;
 use app\modules\uu\models\Tariff;
+use app\modules\uu\models\TariffPeriod;
 use app\modules\uu\models\traits\AccountTariffPackageTrait;
 use Yii;
 use yii\console\Controller;
@@ -167,7 +169,9 @@ class OneRubAndYearPackagesController extends Controller
                 alp.date_from,
                 alp.price as log_price,
                 alp.period_price,
-                (alp.price - alp.period_price) as diff,
+                tp.price_per_period as tp_price,
+                alp.coefficient,
+                (tp.price_per_period - alp.period_price) as pp_diff,
                 (SELECT COUNT(*) FROM uu_account_tariff at_pkg
                  INNER JOIN uu_tariff_period tp_pkg ON tp_pkg.id = at_pkg.tariff_period_id
                  WHERE at_pkg.prev_account_tariff_id = at_main.id
@@ -192,29 +196,40 @@ class OneRubAndYearPackagesController extends Controller
 		])->queryAll();
 
 		echo PHP_EOL . sprintf(
-			'%-15s %-20s %-20s %-12s %-12s %-14s %-6s %-10s',
+			'%-15s %-20s %-20s %-12s %-12s %-14s %-10s %-8s %-8s %-10s',
 			'log_period_id', 'account_tariff_id', 'client_account_id',
-			'date_from', 'log_price', 'period_price', 'diff', 'pkg_1rub'
+			'date_from', 'log_price', 'period_price', 'tp_price', 'coeff', 'pp_diff', 'pkg_1rub'
 		);
-		echo PHP_EOL . str_repeat('-', 115);
+		echo PHP_EOL . str_repeat('-', 140);
 
 		$toFix = [];
 		foreach ($rows as $row) {
 			echo PHP_EOL . sprintf(
-				'%-15s %-20s %-20s %-12s %-12s %-14s %-6s %-10s',
+				'%-15s %-20s %-20s %-12s %-12s %-14s %-10s %-8s %-8s %-10s',
 				$row['log_period_id'],
 				$row['account_tariff_id'],
 				$row['client_account_id'],
 				$row['date_from'],
 				$row['log_price'],
 				$row['period_price'],
-				$row['diff'],
+				$row['tp_price'],
+				$row['coefficient'],
+				$row['pp_diff'],
 				$row['has_1rub_package']
 			);
 
-			if ($row['has_1rub_package'] > 0 && (float)$row['diff'] == 0) {
-				echo ' <-- FIX';
-				$toFix[] = $row['log_period_id'];
+			$tpPrice = (float)$row['tp_price'];
+			$coefficient = (float)$row['coefficient'];
+			$packageDiscount = $row['has_1rub_package'] > 0 ? 1 : 0;
+			$expectedPeriodPrice = $tpPrice - $packageDiscount;
+			$expectedPrice = $expectedPeriodPrice * $coefficient;
+
+			if ((float)$row['period_price'] != $expectedPeriodPrice || (float)$row['log_price'] != $expectedPrice) {
+				echo ' <-- FIX (expected pp=' . $expectedPeriodPrice . ', price=' . $expectedPrice . ')';
+				$toFix[] = [
+					'id' => $row['log_period_id'],
+					'has_1rub_package' => $row['has_1rub_package'] > 0,
+				];
 			}
 		}
 
@@ -222,11 +237,18 @@ class OneRubAndYearPackagesController extends Controller
 
 		if ($isReal && $toFix) {
 			echo PHP_EOL . 'Fixing...';
-			$ids = implode(',', array_map('intval', $toFix));
-			$affected = Yii::$app->db->createCommand(
-				"UPDATE uu_account_log_period SET price = price - 1 WHERE id IN ({$ids})"
-			)->execute();
-			echo PHP_EOL . 'Updated rows: ' . $affected;
+			$fixed = 0;
+			foreach ($toFix as $fix) {
+				$alp = AccountLogPeriod::findOne($fix['id']);
+				$tp = TariffPeriod::findOne($alp->tariff_period_id);
+				$discount = $fix['has_1rub_package'] ? 1 : 0;
+				$alp->period_price = $tp->price_per_period - $discount;
+				$alp->price = $alp->period_price * $alp->coefficient;
+				$alp->save(false);
+				$fixed++;
+				echo PHP_EOL . "  #{$fix['id']}: period_price={$alp->period_price}, price={$alp->price}";
+			}
+			echo PHP_EOL . 'Updated rows: ' . $fixed;
 		}
 
 		echo PHP_EOL;
