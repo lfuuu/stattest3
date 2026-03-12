@@ -156,10 +156,24 @@ class OneRubAndYearPackagesController extends Controller
 		}
 
 		$isReal = $mode !== null;
+		$skipWithInvoice = false; // true = только л/с без invoice
 		$firstDayOfMonth = date('Y-m-01');
 
 		echo PHP_EOL . ($isReal ? '*** ИСПРАВЛЕНИЕ ***' : '--- ОТЧЁТ ---');
-		echo PHP_EOL . 'First day of month: ' . $firstDayOfMonth . PHP_EOL;
+		echo PHP_EOL . 'First day of month: ' . $firstDayOfMonth;
+		echo PHP_EOL . 'Skip with invoice: ' . ($skipWithInvoice ? 'YES' : 'NO') . PHP_EOL;
+
+		$invoiceFilter = '';
+		if ($skipWithInvoice) {
+			$invoiceFilter = "
+              AND NOT EXISTS (
+                  SELECT 1 FROM uu_account_entry ae
+                  INNER JOIN uu_bill ub ON ub.id = ae.bill_id
+                  INNER JOIN bill b ON b.uu_bill_id = ub.id
+                  INNER JOIN invoice i ON i.bill_no = b.bill_no
+                  WHERE ae.id = alp.account_entry_id
+              )";
+		}
 
 		$sql = "
             SELECT
@@ -186,6 +200,7 @@ class OneRubAndYearPackagesController extends Controller
               AND t.service_type_id = :serviceType
               AND tp.charge_period_id = :chargePeriod
               AND alp.date_from = :firstDayOfMonth
+              {$invoiceFilter}
             ORDER BY alp.price
         ";
 
