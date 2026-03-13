@@ -127,6 +127,11 @@ class ContractorInfo
         $client = $this->client;
 
         $inn = $client->getInn();
+        if ($client->contragent->legal_type === ClientContragent::PERSON_TYPE) {
+            $person = $client->contragent->person;
+            $inn = $person ? $person->inn : '';
+        }
+
         if (!$inn) {
             return 'У контрагента данного клиента не заполнен ИНН!';
         }
