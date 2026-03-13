@@ -169,7 +169,7 @@ class OneRubAndYearPackagesController extends Controller
               AND NOT EXISTS (
                   SELECT 1 FROM uu_account_entry ae
                   INNER JOIN uu_bill ub ON ub.id = ae.bill_id
-                  INNER JOIN bill b ON b.uu_bill_id = ub.id
+                  INNER JOIN newbills b ON b.uu_bill_id = ub.id
                   INNER JOIN invoice i ON i.bill_no = b.bill_no
                   WHERE ae.id = alp.account_entry_id
               )";
