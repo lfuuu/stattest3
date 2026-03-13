@@ -127,9 +127,10 @@ class SBISDataProvider
                 break;
 
             case ClientContragent::PERSON_TYPE:
+                $person = $client->contragent->person;
                 $query
                     ->where([
-                        'itn' => $client->getInn(),
+                        'itn' => $person ? $person->inn : '',
                         'is_private' => '1',
                     ]);
                 break;
