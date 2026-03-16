@@ -608,7 +608,8 @@
         </tr>
     </table>
 
-    {if $bill.sum > 0 || $bill_is_one_zadatok}
+    {if $bill.sum > 0 || $bill_is_one_zadatok || $invoice2_info}
+        $
         <div style="float: left; margin: 0 4px 4px 4px" class="well well-sm">
             <table border="0">
                 <tr>
