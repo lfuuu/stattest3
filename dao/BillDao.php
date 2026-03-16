@@ -1345,6 +1345,7 @@ SQL;
 
                 if ($isForceUpdate && $invoice->lines) {
                     array_walk($invoice->lines, fn($line) => $line->delete());
+                    $invoice->populateRelation('lines', []);
                 }
 
                 $lines = $invoice && $invoice->lines ?
