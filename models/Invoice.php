@@ -510,8 +510,11 @@ class Invoice extends ActiveRecord
         // @TODO
         // проверка - можно ли по этому счету выписать авансовую с/ф
 
-        // нет проводок - нет документа. Кроме авансовой с/ф
-        if ($typeId != self::TYPE_PREPAID && !$lines) {
+        // нет проводок - нет документа. Кроме авансовой с/ф и случаев, когда с/ф уже выписана
+        $hasInvoices = Invoice::find()
+            ->where(['bill_no' => $bill->bill_no, 'type_id' => $typeId])
+            ->exists();
+        if ($typeId != self::TYPE_PREPAID && !$lines && !$hasInvoices) {
             return false;
         }
 
