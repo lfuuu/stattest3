@@ -1,65 +1,147 @@
 <?php
-/** @var PartnerRewardsNewFilter $filterModel*/
+/** @var PartnerRewardsNewFilter $filterModel */
+/** @var array $documentData */
 
-use app\models\ClientContract;
 use app\models\filter\PartnerRewardsNewFilter;
 
-$keys = [
-    'paid_summary', 'paid_summary_reward', 'once', 'percentage_once',
-    'percentage_of_fee', 'percentage_of_over', 'percentage_of_margin'
-];
-$dataProvider = $filterModel->search();
-$summary = $filterModel->summary;
-
-$partnerName = "#".$filterModel->partner_contract_id;
-if ($contract = ClientContract::findOne(['id' => $filterModel->partner_contract_id])) {
-    $partnerName = $contract->contragent->name;
-}
-
+$documentData = $documentData ?? $filterModel->getDocumentData();
+$summary = $documentData['summary'];
 ?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<style>
+    body {
+        font-family: "Times New Roman", serif;
+        font-size: 12px;
+        color: #000;
+    }
+    .partner-reward-document {
+        width: 100%;
+    }
+    .partner-reward-document__meta {
+        margin-bottom: 18px;
+        font-size: 13px;
+    }
+    .partner-reward-document__meta table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .partner-reward-document__meta td {
+        padding: 0 0 6px 0;
+        vertical-align: top;
+    }
+    .partner-reward-document__table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+    .partner-reward-document__table th,
+    .partner-reward-document__table td {
+        border: 1px solid #000;
+        padding: 6px 8px;
+    }
+    .partner-reward-document__table th {
+        background: #d9eaf7;
+        font-weight: 700;
+        text-align: center;
+    }
+    .partner-reward-document__summary td {
+        background: #f5f0da;
+        font-weight: 700;
+        text-align: center;
+    }
+    .partner-reward-document__number {
+        text-align: right;
+        white-space: nowrap;
+    }
+    .partner-reward-document__center {
+        text-align: center;
+    }
+    .partner-reward-document__total {
+        margin-top: 18px;
+        font-weight: 700;
+        text-align: right;
+        font-size: 13px;
+    }
+    .partner-reward-document__signatures {
+        width: 100%;
+        margin-top: 48px;
+        border-collapse: collapse;
+    }
+    .partner-reward-document__signatures td {
+        width: 50%;
+        padding-top: 18px;
+        text-align: center;
+        vertical-align: top;
+    }
+    .partner-reward-document__signatures-title {
+        margin-bottom: 48px;
+    }
+</style>
+</head>
+<body>
 
-<b>Отчет по партнерскому вознаграждению</b>
-<br>
-<span>Агент:
-    <b><?= $partnerName ?></b>
-</span>
-<br>
-<span>Расчетный период за <?= $filterModel->payment_date_before ?> - <?= $filterModel->payment_date_after ?> г.</span>
-<br>
-<table border="1" style="margin-top: 30px; border: 1px solid black;border-collapse: collapse;">
-    <thead style="text-align: center;">
-        <tr>
-            <td>Наименование клиента</td>
-            <td>Дата регистрации клиента</td>
-            <td width="15%">Сумма оплаченных счетов</td>
-            <td width="15%">Сумма оплаченных услуг, за которые начисленно вознаграждение</td>
-            <td width="15%">Сумма вознаграждения</td>
-        </tr>
-        <tr>
-            <td colspan="2"><b>ИТОГО</b></td>
-            <td><b><?= PartnerRewardsNewFilter::getNumberFormat($summary['paid_summary']); ?></b></td>
-            <td><b><?= PartnerRewardsNewFilter::getNumberFormat($summary['paid_summary_reward']); ?></b></td>
-            <td><b><?= PartnerRewardsNewFilter::getNumberFormat($summary['sum']); ?></b></td>
-        </tr>
-    </thead>
-    <tbody>
-        <?php foreach($dataProvider->allModels as $model) : ?>
+<div class="partner-reward-document">
+    <div class="partner-reward-document__meta">
+        <table>
             <tr>
-                <td><?= $model['contragent_name']; ?></td>
-                <td><?= $model['client_created']; ?></td>
-                <td><?= PartnerRewardsNewFilter::getNumberFormat($model['paid_summary']); ?></td>
-                <td><?= PartnerRewardsNewFilter::getNumberFormat($model['paid_summary_reward']); ?> </td>
-                <td><?= PartnerRewardsNewFilter::getNumberFormat($model['sum']); ?></td>
+                <td><strong>Агент:</strong> <?= $documentData['partnerName'] ?></td>
+                <td style="text-align: right;"><strong>Расчетный период:</strong> <?= $documentData['periodText'] ?></td>
             </tr>
-        <?php endforeach; ?>
-    </tbody>
-</table>
+        </table>
+    </div>
 
-<div style="margin-top: 30px;">
-    <b>Итого по начисленному вознаграждению: <?= PartnerRewardsNewFilter::getNumberFormat($filterModel->summary['sum']); ?> руб.</b>
+    <table class="partner-reward-document__table">
+        <thead>
+            <tr>
+                <th style="width: 29%;">Наименование клиента</th>
+                <th style="width: 17%;">Дата регистрации клиента</th>
+                <th style="width: 22%;">Сумма оплаченных услуг, за которые начислено вознаграждение</th>
+                <th style="width: 17%;">Сумма оплаченных счетов</th>
+                <th style="width: 15%;">Сумма вознаграждения</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="partner-reward-document__summary">
+                <td colspan="2">Итого</td>
+                <td class="partner-reward-document__number"><?= PartnerRewardsNewFilter::getNumberFormat($summary['paid_summary_reward']); ?></td>
+                <td class="partner-reward-document__number"><?= PartnerRewardsNewFilter::getNumberFormat($summary['paid_summary']); ?></td>
+                <td class="partner-reward-document__number"><?= PartnerRewardsNewFilter::getNumberFormat($summary['sum']); ?></td>
+            </tr>
+            <?php foreach ($documentData['rows'] as $model) : ?>
+                <tr>
+                    <td><?= $model['contragent_name']; ?></td>
+                    <td class="partner-reward-document__center"><?= $model['client_created']; ?></td>
+                    <td class="partner-reward-document__number"><?= PartnerRewardsNewFilter::getNumberFormat($model['paid_summary_reward']); ?></td>
+                    <td class="partner-reward-document__number"><?= PartnerRewardsNewFilter::getNumberFormat($model['paid_summary']); ?></td>
+                    <td class="partner-reward-document__number"><?= PartnerRewardsNewFilter::getNumberFormat($model['sum']); ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+
+    <div class="partner-reward-document__total">
+        Итого сумма вознаграждения <?= PartnerRewardsNewFilter::getNumberFormat($summary['sum']); ?> руб.
+    </div>
+
+    <table class="partner-reward-document__signatures">
+        <tr>
+            <td>
+                <div class="partner-reward-document__signatures-title">
+                    <?= trim($documentData['operatorDirectorPost'] . ' ' . $documentData['operatorOrganizationName']) ?>
+                </div>
+                <div><?= $documentData['operatorDirectorName'] ?></div>
+            </td>
+            <td>
+                <div class="partner-reward-document__signatures-title">
+                    <?= $documentData['partnerName'] ?>
+                </div>
+                <div>____________________</div>
+            </td>
+        </tr>
+    </table>
 </div>
-<br>
-<div>
-    <div style="width: 50%; float: left;">Оператор __________________________________/ ___________ /</div>
-    <div style="width: 50%; float: left;">Агент __________________________________/ ___________ /</div>
-</div>
+</body>
+</html>

@@ -72,11 +72,45 @@ echo Breadcrumbs::widget([
                 ],
             ]) ?>
         </div>
+        <div class="col-sm-4" style="padding-top: 6px;">
+            <?= Html::hiddenInput('filter[show_zero_rewards]', 0) ?>
+            <label style="font-weight: normal;">
+                <?= Html::checkbox('filter[show_zero_rewards]', $filterModel->show_zero_rewards, ['value' => 1]) ?>
+                Показать клиентов с нулевым вознаграждением
+            </label>
+        </div>
     </div>
     <?php ActiveForm::end(); ?>
 </div>
 <?php
 if ($filterModel->partner_contract_id) {
+    $documentIssue = $filterModel->getDocumentExportIssue();
+    $documentRouteParams = array_merge(
+        ['stats/partner-rewards-new/document'],
+        Yii::$app->request->get()
+    );
+    ?>
+    <div class="row" style="margin-top: 15px;">
+        <div class="col-sm-12">
+            <?php if ($filterModel->canExportDocument()) : ?>
+                <?= Html::a(
+                    'Скачать XLSX',
+                    array_merge($documentRouteParams, ['format' => 'xlsx']),
+                    ['class' => 'btn btn-success']
+                ) ?>
+                <?= Html::a(
+                    'Скачать PDF',
+                    array_merge($documentRouteParams, ['format' => 'pdf']),
+                    ['class' => 'btn btn-default', 'style' => 'margin-left: 10px;']
+                ) ?>
+            <?php elseif ($documentIssue) : ?>
+                <div class="alert alert-warning" style="margin-bottom: 15px;">
+                    <?= $documentIssue ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
     echo $this->render(('_grid'), [
         'filterModel' => $filterModel,
     ]);

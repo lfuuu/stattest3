@@ -5,11 +5,26 @@
  * @var \app\classes\BaseView $this
  * @var array $details
  * @var bool $isExtendsMode
+ * @var array $issues
  */
 
+use app\models\filter\PartnerRewardsNewFilter;
 use yii\helpers\Url;
 
 ?>
+
+<?php if (empty($details)) : ?>
+    <?php if (!empty($issues)) : ?>
+        <div class="alert alert-warning" style="margin-bottom: 0;">
+            <?= implode('; ', $issues) ?>
+        </div>
+    <?php else : ?>
+        <div class="alert alert-info" style="margin-bottom: 0;">
+            Для этого клиента нет рассчитанных строк вознаграждения.
+        </div>
+    <?php endif; ?>
+    <?php return; ?>
+<?php endif; ?>
 
 <table class="table table-hover table-bordered table-striped">
     <colgroup>
@@ -49,7 +64,7 @@ use yii\helpers\Url;
                     <?= $record['payment_date'] ?>
                 </td>
                 <td class="text-center">
-                    <?= $record['usage_paid'] ?>
+                    <?= PartnerRewardsNewFilter::getNumberFormat($record['usage_paid']) ?>
                 </td>
             </tr>
         <?php endforeach; ?>

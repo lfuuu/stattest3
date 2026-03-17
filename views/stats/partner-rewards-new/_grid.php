@@ -41,6 +41,7 @@ echo GridView::widget([
                 return $baseView->render('_details', [
                     'isExtendsMode' => $filterModel->isExtendsMode,
                     'details' => $row['details'],
+                    'issues' => $row['issues'],
                 ]);
             },
             'headerOptions' => ['class' => 'hidden kartik-sheet-style'],
@@ -49,11 +50,21 @@ echo GridView::widget([
             'headerOptions' => ['class' => 'hidden'],
             'format' => 'raw',
             'value' => function ($row) {
-                return Html::a(
+                $content = Html::a(
                     $row['contragent_name'],
                     ['client/view', 'id' => $row['client_id']],
                     ['target' => '_blank']
                 );
+
+                if (!empty($row['issues'])) {
+                    $content .= Html::tag(
+                        'div',
+                        implode('; ', $row['issues']),
+                        ['class' => 'text-danger small']
+                    );
+                }
+
+                return $content;
             },
         ],
         [
@@ -67,21 +78,21 @@ echo GridView::widget([
             'headerOptions' => ['class' => 'hidden'],
             'format' => 'raw',
             'value' => function ($row) {
-                return $row['paid_summary_reward'];
+                return PartnerRewardsNewFilter::getNumberFormat($row['paid_summary_reward']);
             },
         ],
         [
             'headerOptions' => ['class' => 'hidden'],
             'format' => 'raw',
             'value' => function ($row) {
-                return $row['paid_summary'];
+                return PartnerRewardsNewFilter::getNumberFormat($row['paid_summary']);
             },
         ],
         [
             'headerOptions' => ['class' => 'hidden'],
             'format' => 'raw',
             'value' => function ($row) {
-                return number_format($row['sum'], 2);
+                return PartnerRewardsNewFilter::getNumberFormat($row['sum']);
             },
         ],
 
@@ -98,13 +109,13 @@ echo GridView::widget([
                     'options' => ['colspan' => 2, 'class' => 'text-left'],
                 ],
                 [
-                    'content' => $filterModel->summary['paid_summary_reward'],
+                    'content' => PartnerRewardsNewFilter::getNumberFormat($filterModel->summary['paid_summary_reward']),
                 ],
                 [
-                    'content' => number_format($filterModel->summary['paid_summary'], 2),
+                    'content' => PartnerRewardsNewFilter::getNumberFormat($filterModel->summary['paid_summary']),
                 ],
                 [
-                    'content' => number_format($filterModel->summary['sum'], 2),
+                    'content' => PartnerRewardsNewFilter::getNumberFormat($filterModel->summary['sum']),
                 ],
             ],
         ]
