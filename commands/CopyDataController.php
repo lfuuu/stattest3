@@ -244,7 +244,38 @@ class CopyDataController extends Controller
             "SELECT * FROM invoice_payment_link WHERE client_account_id = :id", [':id' => $clientId]
         )->queryAll();
 
-        // 3b. history_version по всем версионируемым объектам
+        // 3b. Услуги (uu_account_tariff)
+        $data['uu_account_tariff'] = $stage->createCommand(
+            "SELECT * FROM uu_account_tariff WHERE client_account_id = :id", [':id' => $clientId]
+        )->queryAll();
+
+        $accountTariffIds = array_column($data['uu_account_tariff'], 'id');
+        if ($accountTariffIds) {
+            $atIdIn = implode(',', $accountTariffIds);
+            $data['uu_account_tariff_log'] = $stage->createCommand(
+                "SELECT * FROM uu_account_tariff_log WHERE account_tariff_id IN ($atIdIn)"
+            )->queryAll();
+            $data['uu_account_tariff_resource_log'] = $stage->createCommand(
+                "SELECT * FROM uu_account_tariff_resource_log WHERE account_tariff_id IN ($atIdIn)"
+            )->queryAll();
+            $data['uu_account_tariff_change'] = $stage->createCommand(
+                "SELECT * FROM uu_account_tariff_change WHERE account_tariff_id IN ($atIdIn)"
+            )->queryAll();
+            $data['uu_account_tariff_heap'] = $stage->createCommand(
+                "SELECT * FROM uu_account_tariff_heap WHERE account_tariff_id IN ($atIdIn)"
+            )->queryAll();
+            $data['uu_account_tariff_flat'] = $stage->createCommand(
+                "SELECT * FROM uu_account_tariff_flat WHERE account_tariff_id IN ($atIdIn)"
+            )->queryAll();
+        } else {
+            $data['uu_account_tariff_log'] = [];
+            $data['uu_account_tariff_resource_log'] = [];
+            $data['uu_account_tariff_change'] = [];
+            $data['uu_account_tariff_heap'] = [];
+            $data['uu_account_tariff_flat'] = [];
+        }
+
+        // 3c. history_version по всем версионируемым объектам
         $historyConditions = [];
         $historyConditions[] = "(model = 'app\\\\models\\\\ClientAccount' AND model_id = $clientId)";
         if ($contragentIds) {
@@ -270,8 +301,15 @@ class CopyDataController extends Controller
         )->queryAll();
 
         // 4. DELETE в dev в обратном порядке зависимостей
+        $atSubquery = "account_tariff_id IN (SELECT id FROM uu_account_tariff WHERE client_account_id = :id)";
         $deleteOrder = [
             'history_version' => implode(' OR ', $historyConditions),
+            'uu_account_tariff_flat' => $atSubquery,
+            'uu_account_tariff_heap' => $atSubquery,
+            'uu_account_tariff_change' => $atSubquery,
+            'uu_account_tariff_resource_log' => $atSubquery,
+            'uu_account_tariff_log' => $atSubquery,
+            'uu_account_tariff' => "client_account_id = :id",
             'invoice_payment_link' => "client_account_id = :id",
             'newpayments_orders' => "client_id = :id",
             'payment_atol' => "id IN (SELECT id FROM newpayments WHERE client_id = :id)",
@@ -343,6 +381,12 @@ class CopyDataController extends Controller
             'invoice_lines',
             'newpayments_orders',
             'invoice_payment_link',
+            'uu_account_tariff',
+            'uu_account_tariff_log',
+            'uu_account_tariff_resource_log',
+            'uu_account_tariff_change',
+            'uu_account_tariff_heap',
+            'uu_account_tariff_flat',
             'history_version',
         ];
 
@@ -374,6 +418,70 @@ class CopyDataController extends Controller
         }
 
         return $this->_copyData($dev, $data, $deleteOrder, self::DICTIONARY_TABLES);
+    }
+
+    /**
+     * Таблицы справочников тарифов (не зависят от uu_tariff)
+     */
+    const TARIFF_REFERENCE_TABLES = [
+        'uu_tariff_person',
+        'uu_tariff_status',
+        'uu_tariff_vm',
+        'uu_tariff_voip_group',
+        'uu_tariff_tag',
+    ];
+
+    /**
+     * Дочерние таблицы тарифов (FK на uu_tariff.id)
+     */
+    const TARIFF_CHILD_TABLES = [
+        'uu_tariff_bundle',
+        'uu_tariff_country',
+        'uu_tariff_organization',
+        'uu_tariff_period',
+        'uu_tariff_resource',
+        'uu_tariff_tags',
+        'uu_tariff_voip_city',
+        'uu_tariff_voip_country',
+        'uu_tariff_voip_ndc_type',
+        'uu_tariff_voip_source',
+    ];
+
+    /**
+     * Копирование всех тарифов
+     *
+     * @return int
+     */
+    public function actionTariff()
+    {
+        $stage = $this->_getStageDb();
+        if (!$stage) {
+            return ExitCode::CONFIG;
+        }
+        /** @var Connection $dev */
+        $dev = Yii::$app->db;
+
+        $allTables = array_merge(
+            self::TARIFF_REFERENCE_TABLES,
+            ['uu_tariff'],
+            self::TARIFF_CHILD_TABLES
+        );
+
+        $data = [];
+        foreach ($allTables as $table) {
+            $data[$table] = $stage->createCommand("SELECT * FROM $table")->queryAll();
+        }
+
+        $deleteOrder = [];
+        foreach (self::TARIFF_CHILD_TABLES as $table) {
+            $deleteOrder[$table] = '1=1';
+        }
+        $deleteOrder['uu_tariff'] = '1=1';
+        foreach (array_reverse(self::TARIFF_REFERENCE_TABLES) as $table) {
+            $deleteOrder[$table] = '1=1';
+        }
+
+        return $this->_copyData($dev, $data, $deleteOrder, $allTables);
     }
 
     /**
