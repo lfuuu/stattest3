@@ -490,13 +490,13 @@ class AccountTariffResourceLog extends ActiveRecord
         $warnings = $clientAccount->getVoipWarnings();
 
         if ($clientAccount->is_blocked) {
-            $this->addError('ЛС заблокирован');
+            $this->addError($attribute,'ЛС заблокирован');
             $this->errorCode = AccountTariff::ERROR_CODE_ACCOUNT_BLOCKED_PERMANENT;
             return null;
         }
 
         if (isset($warnings[ClientAccount::WARNING_OVERRAN])) {
-            $this->addError('ЛС заблокирован из-за превышения лимитов');
+            $this->addError($attribute,'ЛС заблокирован из-за превышения лимитов');
             $this->errorCode = AccountTariff::ERROR_CODE_ACCOUNT_BLOCKED_TEMPORARY;
             return null;
         }
