@@ -132,6 +132,7 @@ class AccountTariffStructureGenerator extends Singleton
             'is_mobile_outbound_active' => $isMobileOutboundActive,
             'log' => $this->_getAccountTariffLogLightRecord($accountTariff->accountTariffLogs, $minutesStatistic, $internetStatistic, $priceMinutesStatistic, $smsStatistic),
             'resources' => $this->_getAccountTariffResourceLightRecord($accountTariff),
+            'resources_hidden' => $this->_getAccountTariffResourceLightRecord($accountTariff, true),
             'default_actual_from' => $accountTariff->getDefaultActualFrom(),
             'packages' => [],
             'account_tariff_light_ids' => !$isDefaultTariff ? $this->_getAccountTariffLights($accountTariff->id) : [],
@@ -470,7 +471,7 @@ class AccountTariffStructureGenerator extends Singleton
      * @param AccountTariff $accountTariff
      * @return array
      */
-    private function _getAccountTariffResourceLightRecord($accountTariff)
+    private function _getAccountTariffResourceLightRecord($accountTariff, $onlyHidden = false)
     {
         $accountTariffResourceRecords = [];
 
@@ -481,7 +482,15 @@ class AccountTariffStructureGenerator extends Singleton
         foreach ($accountTariff->serviceType->resources as $resource) {
             $tariffResource = $tariffResourcesIndexedByResourceId[$resource->id] ?? null;
 
-            if (!$tariffResource || !$tariffResource->is_show_resource) {
+            if (!$tariffResource) {
+                continue;
+            }
+
+            if ($onlyHidden && $tariffResource->is_show_resource) {
+                continue;
+            }
+
+            if (!$onlyHidden && !$tariffResource->is_show_resource) {
                 continue;
             }
 
