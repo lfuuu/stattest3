@@ -490,13 +490,13 @@ class AccountTariffResourceLog extends ActiveRecord
         $warnings = $clientAccount->getVoipWarnings();
 
         if ($clientAccount->is_blocked) {
-            $this->_shiftActualFrom('ЛС заблокирован');
+            $this->addError('ЛС заблокирован');
             $this->errorCode = AccountTariff::ERROR_CODE_ACCOUNT_BLOCKED_PERMANENT;
             return null;
         }
 
         if (isset($warnings[ClientAccount::WARNING_OVERRAN])) {
-            $this->_shiftActualFrom('ЛС заблокирован из-за превышения лимитов');
+            $this->addError('ЛС заблокирован из-за превышения лимитов');
             $this->errorCode = AccountTariff::ERROR_CODE_ACCOUNT_BLOCKED_TEMPORARY;
             return null;
         }
@@ -516,7 +516,7 @@ class AccountTariffResourceLog extends ActiveRecord
 
             if ($realtimeBalanceWithCredit < 0 || isset($warnings[ClientAccount::WARNING_FINANCE]) || isset($warnings[ClientAccount::WARNING_CREDIT])) {
                 $error = sprintf('Платные ресурсы нельзя подключить, потому что ЛС находится в финансовой блокировке. На счету %.2f %s и кредит %.2f %s', $realtimeBalance, $clientAccount->currency, $credit, $clientAccount->currency);
-                $this->_shiftActualFrom($error);
+                $this->addError($attribute, $error);
                 $this->errorCode = AccountTariff::ERROR_CODE_ACCOUNT_BLOCKED_FINANCE;
                 return null;
             }
@@ -530,9 +530,9 @@ class AccountTariffResourceLog extends ActiveRecord
                     $clientAccount->currency,
                     $priceResources
                 );
-                $this->_shiftActualFrom($error);
+                $this->addError($attribute, $error);
                 $this->errorCode = AccountTariff::ERROR_CODE_ACCOUNT_MONEY;
-                return $accountLogResource;
+                return null;
             }
         }
 
