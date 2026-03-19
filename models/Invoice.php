@@ -498,6 +498,30 @@ class Invoice extends ActiveRecord
     }
 
     /**
+     * Флаги документов по реально существующим invoice
+     *
+     * @param string $billNo
+     * @return array
+     */
+    public static function getRealDocFlags($billNo)
+    {
+        $flags = [];
+
+        foreach (self::getInfo($billNo) as $typeId => $typeInfo) {
+            foreach ($typeInfo['invoices'] as $invoice) {
+                if ($invoice->is_reversal) {
+                    continue;
+                }
+                $invoice->is_invoice && $flags['i' . $typeId] = 1;
+                $invoice->is_act && $flags['a' . $typeId] = 1;
+                $invoice->is_upd2 && $flags['upd2_' . $typeId] = 1;
+            }
+        }
+
+        return $flags;
+    }
+
+    /**
      * @param Bill $bill
      * @param $typeId
      * @return array|bool

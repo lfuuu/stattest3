@@ -1171,7 +1171,7 @@ class m_newaccounts extends IModule
                 ->asArray()
                 ->column();
         }
-        [$bill_akts, $bill_invoices, $bill_upd, $bill_upd2] = $this->get_bill_docs($bill, $L);
+        [$bill_akts, $bill_invoices, $bill_upd, $bill_upd2] = $this->get_bill_docs($bill, false);
 
         if ($invoices) {
             foreach (Invoice::$types as $invoiceType) {
@@ -1306,18 +1306,16 @@ class m_newaccounts extends IModule
         return $clientAccount->contract->partner_contract_id;
     }
 
-    function get_bill_docs(\Bill &$bill, $L = null)
+    function get_bill_docs(\Bill &$bill, $onlyReal = true)
     {
-        return self::get_bill_docs_static($bill->GetNo(), $L);
+        return self::get_bill_docs_static($bill->GetNo(), $onlyReal);
     }
 
-    static function get_bill_docs_static($billNo, $L = null)
+    static function get_bill_docs_static($billNo, $onlyReal = true)
     {
         $bill_akts = $bill_invoices = $bill_upd = $bill_upd2 = [];
 
-        if (($doctypes = BillDocument::dao()->getByBillNo($billNo)) == false) {
-            $doctypes = BillDocument::dao()->updateByBillNo($billNo, $L, true);
-        }
+        $doctypes = BillDocument::dao()->getByBillNo($billNo, $onlyReal);
 
         if ($doctypes && count($doctypes) > 0) {
             for ($i = 1; $i <= 3; $i++) {
@@ -2109,7 +2107,7 @@ class m_newaccounts extends IModule
             $bills = [$bills];
         }
 
-        $bills = array_filter($bills, function($bill) {return strlen($bill) > 1;});
+        $bills = array_filter($bills, fn($bill) => $bill && strlen($bill) > 1);
 
         $link = [];
         $document_link = [];

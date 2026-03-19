@@ -21,21 +21,21 @@ class BillDocumentDao extends Singleton
      * Получение доступных документов по номеру счета
      *
      * @param string $billNo
+     * @param bool $onlyReal только реально существующие invoice
      * @return array|bool
      */
-    public function getByBillNo($billNo)
+    public function getByBillNo($billNo, $onlyReal = true)
     {
         $docs = BillDocument::findOne($billNo);
+        $docsArr = $onlyReal
+            ? []
+            : ($docs ? $docs->toArray() : $this->updateByBillNo($billNo, null, true));
 
-        if (!$docs) {
-            $docsArr =  $this->updateByBillNo($billNo, null, true);
-        } else {
-            $docsArr = $docs->toArray();
-        }
+        $docsArr = array_merge($docsArr, Invoice::getRealDocFlags($billNo));
 
-        $docsArr['upd2-1'] = $docsArr['i1'];
-        $docsArr['upd2-2'] = $docsArr['i2'];
-        $docsArr['upd2-3'] = $docsArr['i3'];
+        $docsArr['upd2-1'] = $docsArr['i1'] ?? 0;
+        $docsArr['upd2-2'] = $docsArr['i2'] ?? 0;
+        $docsArr['upd2-3'] = $docsArr['i3'] ?? 0;
 
         return $docsArr;
     }
