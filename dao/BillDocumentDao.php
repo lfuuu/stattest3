@@ -7,6 +7,7 @@ use app\helpers\DateTimeZoneHelper;
 use app\models\BillDocument;
 use app\models\ClientAccount;
 use app\models\Country;
+use app\models\Invoice;
 use app\models\Organization;
 use app\modules\uu\models_light\InvoiceLight;
 
