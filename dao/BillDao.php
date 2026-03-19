@@ -1624,9 +1624,8 @@ WHERE
             return false;
         }
 
-        $info = array_filter(Invoice::getInfo($bill->bill_no), function ($v) {
-            return $v['status'] == 'invoice';
-        });
+        // @TODO можно редактировать только строки, не занесенные в с/ф
+        $info = array_filter(Invoice::getInfo($bill->bill_no), fn ($v) => $v['status'] == 'invoice');
 
         return !$info; // имеется хоть одна зарегистрированная с/ф
     }
