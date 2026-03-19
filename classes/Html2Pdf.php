@@ -92,13 +92,23 @@ class Html2Pdf extends BaseObject
         $filenameOfPdf .= '.pdf';
 
         /** wkhtmltopdf */
-        $options = ' --quiet -L 15 -R 15 -T 15 -B 15';
+        $options = ' --quiet --encoding utf-8 -L 15 -R 15 -T 15 -B 15';
 
         if ($this->isLandscape) {
             $options .= ' -O landscape';
         }
 
-        $this->html = str_replace("<head>", "<head><base href='" . \Yii::$app->params['SITE_URL'] . "' />", $this->html);
+        if (stripos($this->html, '<head>') === false) {
+            $this->html = '<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8" />'
+                . "<base href='" . \Yii::$app->params['SITE_URL'] . "' />"
+                . '</head><body>' . $this->html . '</body></html>';
+        } else {
+            $this->html = str_ireplace(
+                '<head>',
+                "<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /><base href='" . \Yii::$app->params['SITE_URL'] . "' />",
+                $this->html
+            );
+        }
 
         file_put_contents($filenameOfHtml, $this->html);
 
