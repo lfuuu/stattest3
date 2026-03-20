@@ -6,6 +6,7 @@ use app\classes\Html;
 use app\models\ClientAccount;
 use app\modules\uu\models\AccountTariff;
 use yii\base\Model;
+use yii\helpers\Json;
 
 class UniversalServiceDecorator extends Model implements ServiceDecoratorInterface
 {
@@ -26,7 +27,7 @@ class UniversalServiceDecorator extends Model implements ServiceDecoratorInterfa
      */
     public function getValue()
     {
-        return '';
+        return (string)($this->service->voip_number ?? '');
     }
 
     /**
@@ -59,7 +60,26 @@ class UniversalServiceDecorator extends Model implements ServiceDecoratorInterfa
      */
     public function getExtendsData()
     {
-        return '';
+        $number = $this->service->number;
+        if (!$number) {
+            return '';
+        }
+
+        return Json::encode(['didGroupId' => $number->did_group_id]);
+    }
+
+    /**
+     * Название текущего тарифа для метки "Оставить как есть"
+     *
+     * @return string
+     */
+    public function getCurrentTariffLabel()
+    {
+        if (!$this->service->tariff_period_id || !$this->service->tariffPeriod) {
+            return '';
+        }
+
+        return $this->service->tariffPeriod->getName();
     }
 
 }
