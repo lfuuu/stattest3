@@ -302,6 +302,7 @@ abstract class TariffForm extends \app\classes\Form
                     case ServiceType::ID_TRUNK_PACKAGE_ORIG:
                     case ServiceType::ID_TRUNK_PACKAGE_TERM:
                     case ServiceType::ID_VOIP_PACKAGE_INTERNET_ROAMABILITY:
+                    case ServiceType::ID_VOIP_PACKAGE_MAV:
 
                         if (!$this->id) {
                             break;
