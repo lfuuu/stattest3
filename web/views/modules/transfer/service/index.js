@@ -114,7 +114,7 @@
                 },
                 select: function(event, ui) {
                     // Apply scenario based at target account version
-                    if (ui.item.version >= clientAccountVersion) {
+                    if (ui.item.version > clientAccountVersion) {
                         enableExtendsScenario(false, ui.item.value);
                     } else if (ui.item.version == universalVersion) {
                         enableExtendsScenario(true, ui.item.value);
