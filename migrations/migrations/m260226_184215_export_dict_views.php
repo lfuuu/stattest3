@@ -4,7 +4,6 @@
  * View'шки в схеме export_dict.
  * Схема export_dict должна быть создана DBA до запуска миграции:
  *   CREATE DATABASE IF NOT EXISTS `export_dict`;
- *   GRANT ALL PRIVILEGES ON `export_dict`.* TO 'stat_operator'@'localhost';
  */
 class m260226_184215_export_dict_views extends \app\classes\Migration
 {
@@ -40,8 +39,7 @@ class m260226_184215_export_dict_views extends \app\classes\Migration
         if (!$schemaExists) {
             throw new \yii\db\Exception(
                 "Схема `{$this->schema}` не существует. "
-                . "DBA должен выполнить: CREATE DATABASE `{$this->schema}`; "
-                . "GRANT ALL PRIVILEGES ON `{$this->schema}`.* TO 'stat_operator'@'localhost';"
+                . "DBA должен выполнить: CREATE DATABASE `{$this->schema}`;"
             );
         }
 
