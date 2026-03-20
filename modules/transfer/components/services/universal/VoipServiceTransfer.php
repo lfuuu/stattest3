@@ -46,7 +46,8 @@ class VoipServiceTransfer extends BasicServiceTransfer
         parent::finalizeOpen($preProcessor);
 
         // Try to process packages
-        $this->_packagesProcess($preProcessor);
+        // Пакеты в данной реализации не переносятся.
+//        $this->_packagesProcess($preProcessor);
     }
 
     /**
@@ -68,10 +69,11 @@ class VoipServiceTransfer extends BasicServiceTransfer
         if ($packages->count()) {
             /** @var AccountTariff $package */
             foreach ($packages->each() as $package) {
-//                if ($package->tariffPeriod->tariff->is_default) {
-                    // Skip if package is default
-//                    continue;
-//                }
+                // При выборе конкретного тарифа — переносить только ручные пакеты.
+                // Дефолтные и бандл-пакеты будут созданы автоматически при применении нового тарифа.
+                if ($package->tariffPeriod->tariff->is_default || $package->tariffPeriod->tariff->is_bundle) {
+                    continue;
+                }
 
                 $preProcessor->processor->run(
                     (new PreProcessor)

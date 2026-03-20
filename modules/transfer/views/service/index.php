@@ -149,6 +149,7 @@ $actionButton = $this->render('//layouts/_submitButton', [
                                 'data-service-type' => $serviceKey,
                                 'data-service-value' => $service->value,
                                 'data-service-extends-data' => $service->extendsData,
+                                'data-current-tariff' => $service->currentTariffLabel,
                             ],
                         ])
                         ?>
