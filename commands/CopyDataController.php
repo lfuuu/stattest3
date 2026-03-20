@@ -485,6 +485,58 @@ class CopyDataController extends Controller
     }
 
     /**
+     * Копирование номеров телефонов (voip_numbers) по city_id
+     *
+     * @param int $cityId ID города
+     * @return int
+     */
+    public function actionVoipNumbers($cityId)
+    {
+        $cityId = (int)$cityId;
+
+        $stage = $this->_getStageDb();
+        if (!$stage) {
+            return ExitCode::CONFIG;
+        }
+        /** @var Connection $dev */
+        $dev = Yii::$app->db;
+
+        $numbers = $stage->createCommand(
+            "SELECT * FROM voip_numbers WHERE city_id = :cityId",
+            [':cityId' => $cityId]
+        )->queryAll();
+
+        if (!$numbers) {
+            $this->stderr("voip_numbers city_id=$cityId не найдены в stage\n");
+            return ExitCode::DATAERR;
+        }
+
+        $numberList = array_column($numbers, 'number');
+        $numberIn = implode(',', array_map(fn($n) => $stage->quoteValue($n), $numberList));
+
+        $data = [];
+        $data['voip_numbers'] = $numbers;
+
+        $data['e164_stat'] = $stage->createCommand(
+            "SELECT * FROM e164_stat WHERE e164 IN ($numberIn)"
+        )->queryAll();
+
+        $deleteOrder = ['voip_numbers' => "city_id = :cityId"];
+
+        $e164StatPks = array_column($data['e164_stat'], 'pk');
+        if ($e164StatPks) {
+            $deleteOrder = ['e164_stat' => "pk IN (" . implode(',', $e164StatPks) . ")"] + $deleteOrder;
+        }
+
+        $insertOrder = [
+            'voip_numbers',
+            'e164_stat',
+        ];
+
+        return $this->_copyData($dev, $data, $deleteOrder, $insertOrder, null, [':cityId' => $cityId]);
+    }
+
+    /**
      * @return Connection|null
      */
     private function _getStageDb()
@@ -510,11 +562,13 @@ class CopyDataController extends Controller
      * @param array $deleteOrder
      * @param array $insertOrder
      * @param int|null $clientId
+     * @param array $extraParams
      * @return int
      */
-    private function _copyData(Connection $dev, array $data, array $deleteOrder, array $insertOrder, $clientId = null)
+    private function _copyData(Connection $dev, array $data, array $deleteOrder, array $insertOrder, $clientId = null, array $extraParams = [])
     {
         $params = $clientId !== null ? [':id' => $clientId] : [];
+        $params = array_merge($params, $extraParams);
 
         $transaction = $dev->beginTransaction();
         try {
