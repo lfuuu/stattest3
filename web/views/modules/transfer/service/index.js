@@ -26,7 +26,7 @@
                 $('.process-btn').prop('disabled', isDisabled);
             },
 
-            enableExtendsScenario = function () {
+            enableExtendsScenario = function (withKeepAsIs, targetClientAccountId) {
                 var $tariffChoose = $('[data-tariff-choose]');
 
                 $tariffChoose.find('select').select2('data', null);
@@ -37,10 +37,16 @@
                         .find('select')
                         .on('change', function () {
                             var $selectedItem = $(this).find('option:selected');
+                            var selectedVal = $selectedItem.val();
+
+                            if (!selectedVal) {
+                                $(this).parent('div').find('div.tariff-info').html('');
+                                return;
+                            }
 
                             $(this).parent('div').find('div.tariff-info').find('a').replaceWith(
                                 $('<a />')
-                                    .attr('href', '/uu/tariff/edit-by-tariff-period?tariffPeriodId=' + $selectedItem.val())
+                                    .attr('href', '/uu/tariff/edit-by-tariff-period?tariffPeriodId=' + selectedVal)
                                     .attr('target', '_blank')
                                     .text('Подробнее о тарифном плане')
                             )
@@ -49,7 +55,7 @@
                     $.ajax({
                         url: '/transfer/service/get-universal-tariffs',
                         data: $.extend({
-                            'clientAccountId': $clientSearchField.val(),
+                            'clientAccountId': targetClientAccountId,
                             'serviceTypeKey': $selectBox.data('service-type'),
                             'serviceValue': $selectBox.data('service-value')
                         }, $selectBox.data('service-extends-data')),
@@ -69,7 +75,16 @@
                                 .find('input[type="checkbox"]')
                                     .prop('disabled', false)
                                     .prop('checked', false);
-                        $selectBox.val('').html(response);
+
+                        if (withKeepAsIs) {
+                            var currentTariff = $selectBox.data('current-tariff');
+                            var keepAsIsOption = '<option value="">Оставить как есть (' + currentTariff + ')</option>';
+                            $selectBox.val('').html(keepAsIsOption + response);
+                            $selectBox.val('');
+                        } else {
+                            $selectBox.val('').html(response);
+                        }
+
                         $selectBox.trigger('change');
                     });
                 });
@@ -99,7 +114,13 @@
                 },
                 select: function(event, ui) {
                     // Apply scenario based at target account version
-                    ui.item.version > clientAccountVersion ? enableExtendsScenario() : disableExtendsScenario();
+                    if (ui.item.version >= clientAccountVersion) {
+                        enableExtendsScenario(false, ui.item.value);
+                    } else if (ui.item.version == universalVersion) {
+                        enableExtendsScenario(true, ui.item.value);
+                    } else {
+                        disableExtendsScenario();
+                    }
 
                     // Apply selected value
                     $(this).val(ui.item.label);
