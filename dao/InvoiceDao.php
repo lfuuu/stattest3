@@ -173,9 +173,18 @@ class InvoiceDao extends Singleton
             throw new \InvalidArgumentException('Invoice not found');
         }
 
+        $this->stornoInvoice($invoice);
+    }
+
+    /**
+     * Создание сторнирующей с/ф для переданного инвойса.
+     *
+     * @param Invoice $invoice
+     */
+    public function stornoInvoice(Invoice $invoice)
+    {
         $revertInvoice = new Invoice();
         $revertInvoice->setAttributes($invoice->getAttributes(null, ['id', 'add_date', 'number', 'idx', 'reversal_date']), false);
-
         $revertInvoice->setReversal(true);
     }
 
