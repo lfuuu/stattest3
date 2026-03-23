@@ -4,6 +4,7 @@ namespace app\commands\convert;
 
 use app\forms\client\ClientAccountOptionsForm;
 use app\forms\client\ClientAccountOptionsSaveForm;
+use app\models\Business;
 use app\models\BusinessProcessStatus;
 use app\models\ClientAccount;
 use app\models\ClientAccountOptions;
@@ -51,5 +52,41 @@ class ClientAccountController extends Controller
 
         echo "\n";
         echo "Всего: {$total}, обновлено: {$updated}, пропущено: {$skipped}\n";
+    }
+
+    /**
+     * Перевод ЛС Межоператорки с Prepaid 2.0 на Prepaid
+     */
+    public function actionPrepaid2ToPrepaid()
+    {
+        $query = ClientAccount::find()
+            ->alias('ca')
+            ->innerJoinWith(['clientContractModel cc'])
+            ->where([
+                'ca.is_postpaid' => ClientAccount::PAYMENT_TYPE_PREPAID_2,
+                'cc.business_id' => Business::OPERATOR,
+            ]);
+
+        $total = 0;
+        $updated = 0;
+
+        /** @var ClientAccount $account */
+        foreach ($query->each() as $account) {
+            $total++;
+
+            $account->is_postpaid = ClientAccount::PAYMENT_TYPE_PREPAID;
+            if (!$account->save(false, ['is_postpaid'])) {
+                echo "x";
+                continue;
+            }
+
+            $updated++;
+            if ($updated % 100 === 0) {
+                echo ".";
+            }
+        }
+
+        echo "\n";
+        echo "Всего: {$total}, обновлено: {$updated}\n";
     }
 }
