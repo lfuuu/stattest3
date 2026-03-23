@@ -279,7 +279,6 @@ class ClientAccount extends HistoryActiveRecord
         'bank_name',
         'bank_city',
         'bill_rename1',
-        'is_postpaid',
     ];
 
     // Свойства модели которые должны обновляться версионно
