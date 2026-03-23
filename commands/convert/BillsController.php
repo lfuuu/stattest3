@@ -321,6 +321,152 @@ class BillsController extends Controller
         echo PHP_EOL . "Итого: перепривязано={$relinked}, пропущено={$skipped}, удалено счетов={$deletedBills}" . PHP_EOL;
     }
 
+    /**
+     * Поиск не сторнированных с/ф в автоматических февральских счетах с январскими проводками,
+     * которые также присутствуют в январском автоматическом счете того же клиента.
+     * По умолчанию — анализ. С доп. параметром ($mode != null) — выполнение сторнирования.
+     *
+     * @param string|null $mode любое значение запускает сторнирование
+     */
+    public function actionFixFebInvoicesWithJanLines($mode = null)
+    {
+        $isReal  = $mode !== null;
+        $febDate = '2026-02-01';
+        $janDate = '2026-01-01';
+        $janFrom = '2026-01-01';
+        $janTo   = '2026-01-31';
+
+        echo PHP_EOL . ($isReal ? '*** ИСПРАВЛЕНИЕ ***' : '--- АНАЛИЗ ---') . PHP_EOL;
+
+        // Не сторнированные с/ф автоматических февральских счетов
+        /** @var Invoice[] $febInvoices */
+        $febInvoices = Invoice::find()
+            ->alias('i')
+            ->innerJoinWith(['bill b'])
+            ->where(['i.is_reversal' => 0, 'b.bill_date' => $febDate])
+            ->andWhere(['b.client_id' => [
+                47853, 48123, 48248, 48706, 49305, 49960, 50033, 50291, 50741, 51489,
+                51766, 52509, 52881, 55789, 55985, 56011, 56949, 56997, 57329, 57568,
+                57769, 57907, 58026, 58130, 58268, 58307, 58356, 58440, 58444, 58739,
+                58763, 58860, 59199, 59268, 59274, 60010, 60117, 60302, 60442, 60856,
+                61007, 61334, 61355, 63103, 65430, 66057, 66099, 66309, 66683, 66776,
+                67138, 67987, 69116, 70352, 70856, 70894, 75533, 95452, 95538, 95554,
+                97459, 99603, 101414, 103312, 107993, 108834, 108855, 108936, 109131, 109729,
+                110917, 111140, 111194, 111778, 112389, 112680, 113255, 114248, 114494, 115288,
+                115665, 115957, 117585, 117973, 118310, 118547, 118836, 119379, 120452, 120859,
+                121168, 121189, 121507, 121661, 121840, 121874, 121891, 122032, 122410, 122502,
+                122543, 122586, 122588, 123187, 123285, 123294, 123698, 123699, 123963, 124042,
+                124488, 124630, 125113, 125240, 125364, 126505, 127432, 127723, 128772, 128790,
+                129641, 131893, 132208, 132731, 133521, 133656, 133715, 133743, 133744, 133745,
+                133748, 133749, 133923, 133926, 134107, 134357, 134602, 134603, 134604, 134605,
+                134877, 134911, 134960, 135004, 135259, 135265, 135270, 135271, 135474, 135580,
+                135581, 135582, 135583, 135759, 136007, 136082, 136120, 136271, 136298, 136369,
+                136658, 136681, 136712, 136721, 136864, 136891, 136892, 136893, 136896, 136979,
+                137063, 137267, 137340, 137685, 137922, 137934, 138095, 138494, 138650, 138864,
+                138878, 139258, 139476, 139649, 139655, 139735, 139788, 139905, 139921, 140009,
+                140156, 140332, 140461, 140541, 140630, 140701, 140711, 140776, 140795, 140797,
+                140916, 141055, 141122, 141458, 141562, 141755, 141780, 141826, 141944, 142031,
+                142081, 142145, 142369, 142508, 142559, 142598, 142664, 142761, 142833, 142839,
+                142871, 142898, 143050, 143121, 143123, 143140, 143185, 143196, 143236, 143239,
+                143255, 143256, 143259, 143302, 143309, 143330, 143331, 143354, 143387, 143388,
+                143390, 143394, 143425, 143426, 143433, 143537,
+            ]])
+            ->andWhere(['NOT', ['b.uu_bill_id' => null]])
+            ->with('lines')
+            ->orderBy(['i.id' => SORT_ASC])
+            ->all();
+
+        echo sprintf(
+            '%-10s %-10s %-22s %-8s %-14s %-22s %-8s %-12s %s',
+            'client_id', 'invoice_id', 'feb_bill_no', 'type_id', 'sum', 'jan_bill_no', 'reversal', 'contragent_id', 'contragent'
+        ) . PHP_EOL . str_repeat('-', 145) . PHP_EOL;
+
+        $toFix = [];
+
+        foreach ($febInvoices as $febInvoice) {
+            // Строки февральской с/ф за январь, только с заданным line_id
+            $febJanLineIds = [];
+            foreach ($febInvoice->lines as $l) {
+                if ($l->line_id && $l->date_from >= $janFrom && $l->date_from <= $janTo) {
+                    $febJanLineIds[$l->line_id] = true;
+                }
+            }
+
+            if (!$febJanLineIds) {
+                continue;
+            }
+
+            $clientId = $febInvoice->bill->client_id;
+
+            // Автоматический январский счёт того же ЛС
+            $janBill = Bill::find()
+                ->where(['client_id' => $clientId, 'bill_date' => $janDate])
+                ->andWhere(['NOT', ['uu_bill_id' => null]])
+                ->one();
+
+            if (!$janBill) {
+                continue;
+            }
+
+            // Все с/ф в январском счёте
+            $janInvoices = Invoice::find()
+                ->where(['bill_no' => $janBill->bill_no])
+                ->with('lines')
+                ->all();
+
+            // Ищем совпадение хотя бы одной строки по line_id
+            $matchFound = false;
+            foreach ($janInvoices as $janInvoice) {
+                foreach ($janInvoice->lines as $janLine) {
+                    if ($janLine->line_id && isset($febJanLineIds[$janLine->line_id])) {
+                        $matchFound = true;
+                        break 2;
+                    }
+                }
+            }
+
+            if (!$matchFound) {
+                continue;
+            }
+
+            $hasReversal = Invoice::find()
+                ->where(['bill_no' => $febInvoice->bill_no, 'type_id' => $febInvoice->type_id, 'is_reversal' => 1])
+                ->exists();
+
+            $contragent = $febInvoice->bill->clientAccountModel->contragent;
+
+            echo sprintf(
+                '%-10s %-10s %-22s %-8s %-14s %-22s %-8s %-12s %s',
+                $clientId,
+                $febInvoice->id,
+                $febInvoice->bill_no,
+                $febInvoice->type_id,
+                $febInvoice->sum,
+                $janBill->bill_no,
+                $hasReversal ? 'есть' : 'НЕТ',
+                $contragent->id ?? '',
+                $contragent->name ?? ''
+            );
+
+            if (!$hasReversal) {
+                $toFix[] = $febInvoice->id;
+                echo ' <-- сторнировать';
+            }
+
+            echo PHP_EOL;
+        }
+
+        echo PHP_EOL . 'Нужно сторнировать: ' . count($toFix) . PHP_EOL;
+
+        if ($isReal && $toFix) {
+            foreach ($toFix as $invoiceId) {
+                $inv = Invoice::findOne($invoiceId);
+                Invoice::dao()->stornoInvoice($inv);
+                echo 'invoice_id=' . $invoiceId . ' сторнирован' . PHP_EOL;
+            }
+        }
+    }
+
     public function actionFillLinkInvoceLine()
     {
         $query = InvoiceLine::find()->andWhere(['line_id' => null])->orderBy(['pk' => SORT_ASC])->with('invoice');
