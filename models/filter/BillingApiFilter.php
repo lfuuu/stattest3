@@ -40,7 +40,7 @@ class BillingApiFilter extends ApiRaw
         return array_merge(parent::rules(), [
             [$fieldList, 'required'],
             [array_merge($fieldList, ['api_method_id', 'group_by', 'group_by_method']), 'string'],
-            ['group_by', 'in', 'range' => ['', 'day', 'month', 'year', 'api_method']],
+            ['group_by', 'in', 'range' => ['', 'day', 'month', 'year', 'api_method', 'account']],
         ]);
     }
 
@@ -74,6 +74,11 @@ class BillingApiFilter extends ApiRaw
         return $this->group_by === 'api_method';
     }
 
+    public function isGroupByAccount(): bool
+    {
+        return $this->group_by === 'account';
+    }
+
     public function isGroupedByDate(): bool
     {
         return in_array($this->group_by, ['day', 'month', 'year'], true);
@@ -81,7 +86,7 @@ class BillingApiFilter extends ApiRaw
 
     public function isGrouped(): bool
     {
-        return $this->isGroupByMethod() || $this->isGroupedByDate();
+        return $this->isGroupByMethod() || $this->isGroupedByDate() || $this->isGroupByAccount();
     }
 
     private function makeQuery(bool $withGrouping = true)
@@ -116,6 +121,14 @@ class BillingApiFilter extends ApiRaw
                         'cost_total' => new Expression('-sum(cost)'),
                     ])
                     ->groupBy(['api_method_id']);
+            } elseif ($this->isGroupByAccount()) {
+                $query
+                    ->select([
+                        'account_id',
+                        'api_weight_total' => new Expression('sum(api_weight)'),
+                        'cost_total' => new Expression('-sum(cost)'),
+                    ])
+                    ->groupBy(['account_id']);
             } elseif ($this->isGroupedByDate()) {
                 $groupExpression = new Expression("date_trunc('{$this->group_by}', connect_time)");
                 $query
@@ -155,6 +168,25 @@ class BillingApiFilter extends ApiRaw
                     ],
                 ],
             ]
+            : ($this->isGroupByAccount()
+                ? [
+                    'defaultOrder' => [
+                        'account_id' => SORT_ASC,
+                    ],
+                    'attributes' => [
+                        'account_id',
+                        'api_weight_total' => [
+                            'asc' => ['api_weight_total' => SORT_ASC],
+                            'desc' => ['api_weight_total' => SORT_DESC],
+                            'default' => SORT_DESC,
+                        ],
+                        'cost_total' => [
+                            'asc' => ['cost_total' => SORT_ASC],
+                            'desc' => ['cost_total' => SORT_DESC],
+                            'default' => SORT_DESC,
+                        ],
+                    ],
+                ]
             : ($this->isGroupedByDate()
                 ? [
                     'defaultOrder' => [
@@ -179,26 +211,27 @@ class BillingApiFilter extends ApiRaw
                     ],
                 ]
             : [
-                'defaultOrder' => [
-                    'id' => SORT_ASC,
-                ],
-                'attributes' => [
-                    'id',
-                    'connect_time',
-                    'api_method_id',
-                    'api_weight',
-                    'rate' => [
-                        'asc' => ['rate' => SORT_ASC],
-                        'desc' => ['rate' => SORT_DESC],
-                        'default' => SORT_DESC,
+                    'defaultOrder' => [
+                        'id' => SORT_ASC,
                     ],
-                    'cost' => [
-                        'asc' => ['cost' => SORT_DESC],
-                        'desc' => ['cost' => SORT_ASC],
-                        'default' => SORT_DESC,
+                    'attributes' => [
+                        'id',
+                        'account_id',
+                        'connect_time',
+                        'api_method_id',
+                        'api_weight',
+                        'rate' => [
+                            'asc' => ['rate' => SORT_ASC],
+                            'desc' => ['rate' => SORT_DESC],
+                            'default' => SORT_DESC,
+                        ],
+                        'cost' => [
+                            'asc' => ['cost' => SORT_DESC],
+                            'desc' => ['cost' => SORT_ASC],
+                            'default' => SORT_DESC,
+                        ],
                     ],
-                ],
-            ]);
+                ]));
 
         $dataProvider = new ActiveDataProvider([
             'query' => $this->makeQuery(),

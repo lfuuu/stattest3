@@ -53,6 +53,19 @@ $previousMonth = $periodAnchor->modify('first day of previous month');
 $currentPeriodMonth = $periodAnchor->modify('first day of this month');
 $today = $utcNow->format(DateTimeZoneHelper::DATE_FORMAT);
 
+$moneyFormat = function ($value) {
+    return number_format((float)$value, 4, '.', ' ');
+};
+
+$integerFormat = function ($value) {
+    return number_format((float)$value, 0, '.', ' ');
+};
+
+$moneyColumnOptions = [
+    'contentOptions' => ['style' => 'text-align: right; white-space: nowrap;'],
+    'headerOptions' => ['style' => 'text-align: center;'],
+];
+
 $previousMonthUrl = $buildPeriodUrl(
     $previousMonth->format('Y-m-01'),
     $previousMonth->format('Y-m-t')
@@ -68,7 +81,7 @@ if (!$filterModel->isLoad) {
 
     <div class="row">
         <div class="col-sm-6 text-left">
-            <div class="well">Итоговое потребление: <?=round($filterModel->getTotal(), 4)?></div>
+            <div class="well">Итоговое потребление: <?=$moneyFormat($filterModel->getTotal())?></div>
         </div>
     </div>
 
@@ -98,6 +111,7 @@ $form = ActiveForm::begin(['method' => 'get', 'action' => $baseUrl]);
             'month' => 'месяцам',
             'year' => 'годам',
             'api_method' => 'API-методам',
+            'account' => 'ЛС',
         ], [
             'class' => 'form-control input-sm',
         ]) ?>
@@ -130,17 +144,46 @@ if ($filterModel->isGroupByMethod()) {
         [
             'attribute' => 'api_weight_total',
             'label' => 'Суммарный вес вызова',
-            'value' => function (ApiRaw $row) {
-                return $row->api_weight_total;
+            'value' => function (ApiRaw $row) use ($integerFormat) {
+                return $integerFormat($row->api_weight_total);
             }
-        ],
+        ] + $moneyColumnOptions,
         [
             'attribute' => 'cost_total',
             'label' => 'Суммарная стоимость',
-            'value' => function (ApiRaw $row) {
-                return round((float)$row->cost_total, 3);
+            'value' => function (ApiRaw $row) use ($moneyFormat) {
+                return $moneyFormat($row->cost_total);
+            }
+        ] + $moneyColumnOptions,
+    ];
+} elseif ($filterModel->isGroupByAccount()) {
+    $columns = [
+        [
+            'attribute' => 'connect_time',
+            'label' => 'Время вызова, UTC',
+            'class' => DateRangeDoubleColumn::class,
+            'value' => function () use ($filterModel) {
+                return $filterModel->connect_time_from . ' - ' . $filterModel->connect_time_to;
             }
         ],
+        [
+            'attribute' => 'account_id',
+            'label' => 'ЛС',
+        ],
+        [
+            'attribute' => 'api_weight_total',
+            'label' => 'Суммарный вес вызова',
+            'value' => function (ApiRaw $row) use ($integerFormat) {
+                return $row instanceof BillingApiFilter ? $integerFormat($row->api_weight_total) : null;
+            }
+        ] + $moneyColumnOptions,
+        [
+            'attribute' => 'cost_total',
+            'label' => 'Суммарная стоимость',
+            'value' => function (ApiRaw $row) use ($moneyFormat) {
+                return $row instanceof BillingApiFilter ? $moneyFormat($row->cost_total) : null;
+            }
+        ] + $moneyColumnOptions,
     ];
 } elseif ($filterModel->isGroupedByDate()) {
     $periodLabel = [
@@ -175,20 +218,29 @@ if ($filterModel->isGroupByMethod()) {
         [
             'attribute' => 'api_weight_total',
             'label' => 'Суммарный вес вызова',
-            'value' => function (ApiRaw $row) {
-                return $row instanceof BillingApiFilter ? $row->api_weight_total : null;
+            'value' => function (ApiRaw $row) use ($integerFormat) {
+                return $row instanceof BillingApiFilter ? $integerFormat($row->api_weight_total) : null;
             }
-        ],
+        ] + $moneyColumnOptions,
         [
             'attribute' => 'cost_total',
             'label' => 'Суммарная стоимость',
-            'value' => function (ApiRaw $row) {
-                return $row instanceof BillingApiFilter ? round((float)$row->cost_total, 3) : null;
+            'value' => function (ApiRaw $row) use ($moneyFormat) {
+                return $row instanceof BillingApiFilter ? $moneyFormat($row->cost_total) : null;
             }
-        ],
+        ] + $moneyColumnOptions,
     ];
 } else {
-    $columns = [
+    $columns = [];
+
+    if (!$filterModel->accountId) {
+        $columns[] = [
+            'attribute' => 'account_id',
+            'label' => 'ЛС',
+        ];
+    }
+
+    $columns = array_merge($columns, [
         [
             'attribute' => 'connect_time',
             'class' => DateRangeDoubleColumn::class,
@@ -208,15 +260,15 @@ if ($filterModel->isGroupByMethod()) {
         [
             'attribute' => 'rate',
             'class' => IntegerRangeColumn::class,
-        ],
+        ] + $moneyColumnOptions,
         [
             'attribute' => 'cost',
             'class' => IntegerRangeColumn::class,
-            'value' => function (ApiRaw $row) {
-                return -$row->cost;
+            'value' => function (ApiRaw $row) use ($moneyFormat) {
+                return $moneyFormat(-$row->cost);
             }
-        ]
-    ];
+        ] + $moneyColumnOptions
+    ]);
 }
 
 echo GridView::widget([
