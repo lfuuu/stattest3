@@ -107,6 +107,12 @@ $form = ActiveForm::begin(['method' => 'get', 'action' => $baseUrl]);
         ]) ?>
     </div>
     <div class="col-sm-3">
+        Часовой пояс
+        <?= Html::activeDropDownList($filterModel, 'timezone', $filterModel->getTimezoneList(), [
+            'class' => 'form-control input-sm',
+        ]) ?>
+    </div>
+    <div class="col-sm-3">
         <?= Html::submitButton('Сформировать отчёт', ['class' => 'btn btn-primary btn-sm', 'style' => 'margin-top: 20px']) ?>
     </div>
 </div>
@@ -121,6 +127,9 @@ $methodColumn = [
         return $row->method ? $row->method->name : null;
     }
 ];
+
+$timeLabel = sprintf('Время вызова, %s', $filterModel->getQueryTimezone());
+$periodLabel = sprintf('Период, %s', $filterModel->getQueryTimezone());
 
 $periodRangeColumn = function (string $label) use ($filterModel) {
     return [
@@ -153,14 +162,14 @@ $columns = [];
 
 if ($filterModel->isGroupByMethod()) {
     $columns = [
-        $periodRangeColumn('Период, UTC'),
+        $periodRangeColumn($periodLabel),
         $methodColumn,
         $weightTotalColumn,
         $costTotalColumn,
     ];
 } elseif ($filterModel->isGroupByAccount()) {
     $columns = [
-        $periodRangeColumn('Время вызова, UTC'),
+        $periodRangeColumn($timeLabel),
         [
             'attribute' => 'account_id',
             'label' => 'ЛС',
@@ -170,9 +179,9 @@ if ($filterModel->isGroupByMethod()) {
     ];
 } elseif ($filterModel->isGroupedByDate()) {
     $periodLabels = [
-        BillingApiFilter::GROUP_BY_DAY => 'День, UTC',
-        BillingApiFilter::GROUP_BY_MONTH => 'Месяц, UTC',
-        BillingApiFilter::GROUP_BY_YEAR => 'Год, UTC',
+        BillingApiFilter::GROUP_BY_DAY => sprintf('День, %s', $filterModel->getQueryTimezone()),
+        BillingApiFilter::GROUP_BY_MONTH => sprintf('Месяц, %s', $filterModel->getQueryTimezone()),
+        BillingApiFilter::GROUP_BY_YEAR => sprintf('Год, %s', $filterModel->getQueryTimezone()),
     ];
 
     $columns = [
@@ -209,10 +218,16 @@ if ($filterModel->isGroupByMethod()) {
         ];
     }
 
-    $columns = array_merge($columns, [
+        $columns = array_merge($columns, [
         [
             'attribute' => 'connect_time',
+            'label' => $timeLabel,
             'class' => DateRangeDoubleColumn::class,
+            'value' => function (ApiRaw $row) use ($filterModel) {
+                $time = new DateTimeImmutable($row->connect_time, new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
+                return $time->setTimezone(new DateTimeZone($filterModel->getQueryTimezone()))
+                    ->format(DateTimeZoneHelper::DATETIME_FORMAT);
+            }
         ],
         $methodColumn,
         [

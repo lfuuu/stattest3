@@ -4,6 +4,8 @@ namespace app\models\filter;
 
 use app\classes\grid\ActiveDataProvider;
 use app\helpers\DateTimeZoneHelper;
+use app\models\ClientAccount;
+use app\models\Region;
 use app\models\billing\api\ApiRaw;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -12,7 +14,7 @@ use yii\db\Expression;
 
 class BillingApiFilter extends ApiRaw
 {
-    public const GROUP_BY_CALL = '';
+    public const GROUP_BY_CALL = 'call';
     public const GROUP_BY_DAY = 'day';
     public const GROUP_BY_MONTH = 'month';
     public const GROUP_BY_YEAR = 'year';
@@ -30,8 +32,9 @@ class BillingApiFilter extends ApiRaw
 
     public $accountId = null;
     public $isLoad = false;
-    public $group_by = '';
+    public $group_by = self::GROUP_BY_CALL;
     public $group_by_method = 0;
+    public $timezone = '';
     public $api_weight_total = null;
     public $cost_total = null;
     public $period_group = null;
@@ -57,15 +60,21 @@ class BillingApiFilter extends ApiRaw
 
         return array_merge(parent::rules(), [
             [array_merge($dateFieldList, $rangeFieldList), 'required'],
-            [array_merge($dateFieldList, $rangeFieldList, ['api_method_id', 'group_by', 'group_by_method']), 'string'],
+            [array_merge($dateFieldList, $rangeFieldList, ['api_method_id', 'group_by', 'group_by_method', 'timezone']), 'string'],
             [$dateFieldList, 'date', 'format' => 'php:Y-m-d'],
             ['group_by', 'in', 'range' => array_keys(self::GROUP_BY_LIST)],
+            ['timezone', 'in', 'range' => array_keys(Region::getTimezoneList())],
         ]);
     }
 
     public static function getGroupByList(): array
     {
         return self::GROUP_BY_LIST;
+    }
+
+    public function getTimezoneList(): array
+    {
+        return Region::getTimezoneList();
     }
 
     /**
@@ -81,7 +90,13 @@ class BillingApiFilter extends ApiRaw
         parent::load($requestData);
 
         $filterData = $requestData[$this->formName()] ?? [];
-        if (empty($this->group_by) && !empty($filterData['group_by_method'])) {
+        if (empty($filterData['group_by'])) {
+            $this->group_by = self::GROUP_BY_CALL;
+        }
+        if (empty($filterData['timezone'])) {
+            $this->timezone = $this->getDefaultTimezone();
+        }
+        if ($this->group_by === self::GROUP_BY_CALL && !empty($filterData['group_by_method'])) {
             $this->group_by = self::GROUP_BY_API_METHOD;
         }
         if (empty($filterData['connect_time_from']) && empty($filterData['connect_time_to'])) {
@@ -91,6 +106,23 @@ class BillingApiFilter extends ApiRaw
         }
 
         return $this;
+    }
+
+    public function getDefaultTimezone(): string
+    {
+        if ($this->accountId) {
+            $account = ClientAccount::findOne($this->accountId);
+            if ($account && $account->timezone_name) {
+                return $account->timezone_name;
+            }
+        }
+
+        return DateTimeZoneHelper::TIMEZONE_UTC;
+    }
+
+    public function getQueryTimezone(): string
+    {
+        return $this->timezone ?: $this->getDefaultTimezone();
     }
 
     public function isGroupByMethod(): bool
@@ -116,6 +148,7 @@ class BillingApiFilter extends ApiRaw
     private function makeQuery(bool $withGrouping = true)
     {
         $query = self::find();
+        $timezone = $this->getQueryTimezone();
 
         if ($this->isGroupByMethod()) {
             $query->with('method');
@@ -125,7 +158,16 @@ class BillingApiFilter extends ApiRaw
             $query->andWhere('false');
         } else {
             $this->isLoad = true;
-            $query->andWhere(['between', 'connect_time', $this->connect_time_from . ' 00:00:00', $this->connect_time_to . ' 23:59:59.999999']);
+            $connectTimeFrom = (new DateTimeImmutable($this->connect_time_from, new DateTimeZone($timezone)))
+                ->setTime(0, 0, 0)
+                ->setTimezone(new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
+            $connectTimeTo = (new DateTimeImmutable($this->connect_time_to, new DateTimeZone($timezone)))
+                ->setTime(0, 0, 0)
+                ->modify('+1 day')
+                ->setTimezone(new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
+
+            $query->andWhere(['>=', 'connect_time', $connectTimeFrom->format(DateTimeZoneHelper::DATETIME_FORMAT)]);
+            $query->andWhere(['<', 'connect_time', $connectTimeTo->format(DateTimeZoneHelper::DATETIME_FORMAT)]);
         }
 
         if ($this->accountId) {
@@ -154,7 +196,9 @@ class BillingApiFilter extends ApiRaw
                     ])
                     ->groupBy(['account_id']);
             } elseif ($this->isGroupedByDate()) {
-                $groupExpression = new Expression("date_trunc('{$this->group_by}', connect_time)");
+                $groupExpression = new Expression(
+                    "date_trunc('{$this->group_by}', ((connect_time AT TIME ZONE 'UTC') AT TIME ZONE '{$timezone}'))"
+                );
                 $query
                     ->select([
                         'period_group' => $groupExpression,
