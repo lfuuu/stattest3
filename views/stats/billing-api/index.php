@@ -17,6 +17,7 @@ use app\models\billing\api\ApiRaw;
 use app\models\filter\BillingApiFilter;
 use DateTimeImmutable;
 use DateTimeZone;
+use Yii;
 use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use yii\widgets\Breadcrumbs;
@@ -89,14 +90,20 @@ $form = ActiveForm::begin(['method' => 'get', 'action' => $baseUrl]);
 ?>
 
 <div class="row" style="margin-bottom: 15px;">
-    <div class="col-sm-4">
-        <label style="font-weight: normal; margin-top: 7px;">
-            <?= Html::activeCheckbox($filterModel, 'group_by_method', ['label' => false, 'value' => 1, 'uncheck' => 0]) ?>
-            Группировка по API-методам
-        </label>
+    <div class="col-sm-3">
+        Выводить по
+        <?= Html::activeDropDownList($filterModel, 'group_by', [
+            '' => 'вызовам',
+            'day' => 'дням',
+            'month' => 'месяцам',
+            'year' => 'годам',
+            'api_method' => 'API-методам',
+        ], [
+            'class' => 'form-control input-sm',
+        ]) ?>
     </div>
     <div class="col-sm-3">
-        <?= Html::submitButton('Сформировать отчёт', ['class' => 'btn btn-primary btn-sm']) ?>
+        <?= Html::submitButton('Сформировать отчёт', ['class' => 'btn btn-primary btn-sm', 'style' => 'margin-top: 20px']) ?>
     </div>
 </div>
 
@@ -132,6 +139,51 @@ if ($filterModel->isGroupByMethod()) {
             'label' => 'Суммарная стоимость',
             'value' => function (ApiRaw $row) {
                 return round((float)$row->cost_total, 3);
+            }
+        ],
+    ];
+} elseif ($filterModel->isGroupedByDate()) {
+    $periodLabel = [
+        'day' => 'День, UTC',
+        'month' => 'Месяц, UTC',
+        'year' => 'Год, UTC',
+    ][$filterModel->group_by] ?? 'Период, UTC';
+
+    $columns = [
+        [
+            'attribute' => 'connect_time',
+            'label' => $periodLabel,
+            'class' => DateRangeDoubleColumn::class,
+            'value' => function (ApiRaw $row) use ($filterModel) {
+                if (!$row instanceof BillingApiFilter || !$row->period_group) {
+                    return null;
+                }
+
+                $period = new DateTimeImmutable($row->period_group, new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
+
+                if ($filterModel->group_by === 'year') {
+                    return $period->format('Y');
+                }
+
+                if ($filterModel->group_by === 'month') {
+                    return $period->format('Y-m');
+                }
+
+                return $period->format(DateTimeZoneHelper::DATE_FORMAT);
+            }
+        ],
+        [
+            'attribute' => 'api_weight_total',
+            'label' => 'Суммарный вес вызова',
+            'value' => function (ApiRaw $row) {
+                return $row instanceof BillingApiFilter ? $row->api_weight_total : null;
+            }
+        ],
+        [
+            'attribute' => 'cost_total',
+            'label' => 'Суммарная стоимость',
+            'value' => function (ApiRaw $row) {
+                return $row instanceof BillingApiFilter ? round((float)$row->cost_total, 3) : null;
             }
         ],
     ];

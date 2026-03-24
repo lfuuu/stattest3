@@ -14,9 +14,11 @@ class BillingApiFilter extends ApiRaw
 {
     public $accountId = null;
     public $isLoad = false;
+    public $group_by = '';
     public $group_by_method = 0;
     public $api_weight_total = null;
     public $cost_total = null;
+    public $period_group = null;
 
     public
         $connect_time_from = '',
@@ -37,7 +39,8 @@ class BillingApiFilter extends ApiRaw
         $fieldList = ['connect_time_from', 'connect_time_to', 'api_weight_from', 'api_weight_to', 'rate_from', 'rate_to', 'cost_from', 'cost_to'];
         return array_merge(parent::rules(), [
             [$fieldList, 'required'],
-            [array_merge($fieldList, ['api_method_id', 'group_by_method']), 'string'],
+            [array_merge($fieldList, ['api_method_id', 'group_by', 'group_by_method']), 'string'],
+            ['group_by', 'in', 'range' => ['', 'day', 'month', 'year', 'api_method']],
         ]);
     }
 
@@ -54,6 +57,9 @@ class BillingApiFilter extends ApiRaw
         parent::load($requestData);
 
         $filterData = $requestData[$this->formName()] ?? [];
+        if (empty($this->group_by) && !empty($filterData['group_by_method'])) {
+            $this->group_by = 'api_method';
+        }
         if (empty($filterData['connect_time_from']) && empty($filterData['connect_time_to'])) {
             $currentMonth = new DateTimeImmutable('now', new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
             $this->connect_time_from = $currentMonth->modify('first day of this month')->format(DateTimeZoneHelper::DATE_FORMAT);
@@ -65,12 +71,26 @@ class BillingApiFilter extends ApiRaw
 
     public function isGroupByMethod(): bool
     {
-        return (bool)$this->group_by_method;
+        return $this->group_by === 'api_method';
+    }
+
+    public function isGroupedByDate(): bool
+    {
+        return in_array($this->group_by, ['day', 'month', 'year'], true);
+    }
+
+    public function isGrouped(): bool
+    {
+        return $this->isGroupByMethod() || $this->isGroupedByDate();
     }
 
     private function makeQuery(bool $withGrouping = true)
     {
-        $query = self::find()->with('method');
+        $query = self::find();
+
+        if ($this->isGroupByMethod()) {
+            $query->with('method');
+        }
 
         if (!($this->connect_time_from && $this->connect_time_to)) {
             $query->andWhere('false');
@@ -87,14 +107,25 @@ class BillingApiFilter extends ApiRaw
         $this->api_weight_from && $query->andWhere(['>=', 'api_weight', $this->api_weight_from]);
         $this->api_weight_to && $query->andWhere(['<=', 'api_weight', $this->api_weight_to]);
 
-        if ($withGrouping && $this->isGroupByMethod()) {
-            $query
-                ->select([
-                    'api_method_id',
-                    'api_weight_total' => new Expression('sum(api_weight)'),
-                    'cost_total' => new Expression('-sum(cost)'),
-                ])
-                ->groupBy(['api_method_id']);
+        if ($withGrouping && $this->isGrouped()) {
+            if ($this->isGroupByMethod()) {
+                $query
+                    ->select([
+                        'api_method_id',
+                        'api_weight_total' => new Expression('sum(api_weight)'),
+                        'cost_total' => new Expression('-sum(cost)'),
+                    ])
+                    ->groupBy(['api_method_id']);
+            } elseif ($this->isGroupedByDate()) {
+                $groupExpression = new Expression("date_trunc('{$this->group_by}', connect_time)");
+                $query
+                    ->select([
+                        'period_group' => $groupExpression,
+                        'api_weight_total' => new Expression('sum(api_weight)'),
+                        'cost_total' => new Expression('-sum(cost)'),
+                    ])
+                    ->groupBy([$groupExpression]);
+            }
         }
 
         return $query;
@@ -124,6 +155,29 @@ class BillingApiFilter extends ApiRaw
                     ],
                 ],
             ]
+            : ($this->isGroupedByDate()
+                ? [
+                    'defaultOrder' => [
+                        'connect_time' => SORT_ASC,
+                    ],
+                    'attributes' => [
+                        'connect_time' => [
+                            'asc' => ['period_group' => SORT_ASC],
+                            'desc' => ['period_group' => SORT_DESC],
+                            'default' => SORT_ASC,
+                        ],
+                        'api_weight_total' => [
+                            'asc' => ['api_weight_total' => SORT_ASC],
+                            'desc' => ['api_weight_total' => SORT_DESC],
+                            'default' => SORT_DESC,
+                        ],
+                        'cost_total' => [
+                            'asc' => ['cost_total' => SORT_ASC],
+                            'desc' => ['cost_total' => SORT_DESC],
+                            'default' => SORT_DESC,
+                        ],
+                    ],
+                ]
             : [
                 'defaultOrder' => [
                     'id' => SORT_ASC,
@@ -144,7 +198,7 @@ class BillingApiFilter extends ApiRaw
                         'default' => SORT_DESC,
                     ],
                 ],
-            ];
+            ]);
 
         $dataProvider = new ActiveDataProvider([
             'query' => $this->makeQuery(),
