@@ -166,7 +166,6 @@ class Bill {
 
         /** @var ClientAccount $clientAccount */
         $clientAccount = ClientAccount::findOne($this->client_id);
-        $clientType = $clientAccount->contract->financial_type;
         $clientAccount->loadVersionOnDate($this->bill['bill_date']);
 
         if ($type == 'zadatok') {
@@ -298,12 +297,10 @@ class Bill {
 
     public function EditLine($sort, $title, $amount, $price, $type, $tax_rate = null, $accountEntryId = null, $dateFrom = null, $dateTo = null)
     {
-
         $this->changed = 1;
 
         /** @var ClientAccount $clientAccount */
         $clientAccount = ClientAccount::findOne($this->client_id);
-        $clientType = $clientAccount->contract->financial_type;
         $clientAccount->loadVersionOnDate($this->bill['bill_date']);
 
         /** @var BillLine $line */
@@ -333,7 +330,7 @@ class Bill {
         $line->calculateSum($this->bill['price_include_vat']);
         $line->save();
 
-        if ($line->uu_account_entry_id === $accountEntryId) {
+        if ($line->uu_account_entry_id && $accountEntryId && $line->uu_account_entry_id == $accountEntryId) {
             $entry = $line->accountEntry;
 
             if (!$entry || $entry->vat_rate == $line->tax_rate) {
