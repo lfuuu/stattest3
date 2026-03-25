@@ -323,4 +323,23 @@ class BillingApiFilter extends ApiRaw
 
         return $query->scalar();
     }
+
+    public function getMethodAccountDetails(int $apiMethodId): array
+    {
+        return $this->makeQuery(false)
+            ->andWhere(['api_method_id' => $apiMethodId])
+            ->select([
+                'account_id',
+                'api_weight_total' => new Expression('sum(api_weight)'),
+                'cost_total' => new Expression('-sum(cost)'),
+            ])
+            ->groupBy(['account_id'])
+            ->orderBy([
+                'cost_total' => SORT_DESC,
+                'api_weight_total' => SORT_DESC,
+                'account_id' => SORT_ASC,
+            ])
+            ->asArray()
+            ->all();
+    }
 }
