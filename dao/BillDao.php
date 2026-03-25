@@ -1406,6 +1406,7 @@ SQL;
 
         foreach ($billLines as $line) {
             if (is_array($line)) {
+                unset($line['outprice']);
                 $line = new BillLine($line);
             }
 
