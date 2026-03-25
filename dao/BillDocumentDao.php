@@ -4,6 +4,7 @@ namespace app\dao;
 
 use app\classes\Singleton;
 use app\helpers\DateTimeZoneHelper;
+use app\models\Bill;
 use app\models\BillDocument;
 use app\models\ClientAccount;
 use app\models\Country;
@@ -27,7 +28,7 @@ class BillDocumentDao extends Singleton
      */
     public function getByBillNo($billNo, $onlyReal = true)
     {
-        $docs = BillDocument::findOne($billNo);
+        $docs = null;//BillDocument::findOne($billNo);
         $docsArr = $onlyReal
             ? []
             : ($docs ? $docs->toArray() : $this->updateByBillNo($billNo, null, true));
@@ -129,10 +130,16 @@ class BillDocumentDao extends Singleton
                 $doctypes['ia' . $i] = (int)$v;
             }
 
-            for ($i = 1; $i <= 2; $i++) {
-                $v = $this->_isSF($accountId, BillDocument::TYPE_UPD2, $this->_getDocumentDateByLines($bill_invoice_akts[$i], $billTs));
-                $doctypes['upd2_' . $i] = (int)$v;
+            $isUPD2 = $this->_isSF($accountId, BillDocument::TYPE_UPD2, $billTs);
+            $doctypes['upd2_1'] = 0;
+            $doctypes['upd2_2'] = 0;
+            if ($isUPD2) {
+                $billModel = Bill::findOne(['bill_no' => $bill->GetNo()]);
+                for ($i = 1; $i <= 2; $i++) {
+                    $doctypes['upd2_' . $i] = (int)(bool)Bill::dao()->getLinesByTypeId($billModel,  $i);
+                }
             }
+
         }
 
         $docs = BillDocument::findOne($billNo);

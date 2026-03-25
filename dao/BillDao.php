@@ -24,6 +24,7 @@ use app\models\ClientDocument;
 use app\models\Currency;
 use app\models\EventQueue;
 use app\models\Invoice;
+use app\models\InvoiceLine;
 use app\models\LogBill;
 use app\models\OperationType;
 use app\models\Organization;
@@ -34,9 +35,6 @@ use app\models\UsageTrunk;
 use app\modules\uu\models\AccountEntry;
 use app\modules\uu\models\Bill as uuBill;
 use Yii;
-use yii\caching\ChainedDependency;
-use yii\caching\DbDependency;
-use yii\caching\TagDependency;
 use yii\db\Expression;
 use yii\db\Query;
 
@@ -1106,6 +1104,8 @@ SQL;
      */
     public static function getLinesByTypeId($bill, $typeId, $isInsert = false)
     {
+        return self::getLinesByTypeId_v2($bill, $typeId, $isInsert);
+
         $clientAccount = $bill->clientAccount;
 
         $lines = [];
@@ -1262,6 +1262,202 @@ SQL;
             ->andWhere(['not', ['uu_bill_id' => null]])
             ->andWhere(['bill_date' => $prevMonthFirstDay->format(DateTimeZoneHelper::DATE_FORMAT)])
             ->one();
+    }
+
+    /**
+     * Следующий автоматический счёт (по bill_date = 1-е число следующего месяца)
+     * @param Bill $bill
+     * @return Bill|null
+     */
+    private static function getNextAutoBill(Bill $bill)
+    {
+        $nextMonthFirstDay = (new \DateTimeImmutable($bill->bill_date))
+            ->modify('first day of this month')
+            ->modify('+1 month');
+
+        return Bill::find()
+            ->where(['client_id' => $bill->client_id])
+            ->andWhere(['not', ['uu_bill_id' => null]])
+            ->andWhere(['bill_date' => $nextMonthFirstDay->format(DateTimeZoneHelper::DATE_FORMAT)])
+            ->one();
+    }
+
+    /**
+     * line_id проводок, уже включённых в с/ф связанных счетов
+     * @param Bill[] $bills
+     * @return array [line_pk => true]
+     */
+    private static function getAlreadyInvoicedLineIds(array $bills): array
+    {
+        $billNos = [];
+        foreach ($bills as $b) {
+            if ($b && $b->bill_no) {
+                $billNos[] = $b->bill_no;
+            }
+        }
+        if (!$billNos) {
+            return [];
+        }
+
+        $lineIds = InvoiceLine::find()
+            ->alias('il')
+            ->innerJoin(['i' => Invoice::tableName()], 'i.id = il.invoice_id')
+            ->where(['i.bill_no' => $billNos])
+            ->andWhere(['i.is_reversal' => 0])
+            ->andWhere(['not', ['il.line_id' => null]])
+            ->select('il.line_id')
+            ->column();
+
+        return array_flip($lineIds);
+    }
+
+    /**
+     * v2: строки счёта для с/ф по типу
+     *
+     * @param Bill $bill
+     * @param int $typeId
+     * @param bool $isInsert
+     * @param \DateTimeImmutable|null $now для тестируемости (дефолт — текущее время)
+     * @return array
+     */
+    public static function getLinesByTypeId_v2(
+        Bill $bill,
+        int $typeId,
+        bool $isInsert = false,
+        ?\DateTimeImmutable $now = null
+    ): array {
+        $clientAccount = $bill->clientAccount;
+        $billLines = $bill->lines;
+
+        // --- Быстрые возвраты ---
+        if ($typeId == Invoice::TYPE_PREPAID) {
+            return $billLines;
+        }
+
+        if ($typeId == Invoice::TYPE_GOOD) {
+            return array_values(array_filter(
+                $billLines,
+                fn($l) => $l->type == BillLine::LINE_TYPE_GOOD
+            ));
+        }
+
+        // --- Определение схемы ---
+        $isManual = !self::isAutoBill($bill);
+        if ($isManual) {
+            $scheme = ClientAccount::PAYMENT_TYPE_PREPAID;
+        } elseif ($clientAccount->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2) {
+            $scheme = ClientAccount::PAYMENT_TYPE_PREPAID_2;
+        } else {
+            $scheme = ClientAccount::PAYMENT_TYPE_PREPAID;
+        }
+
+        // --- Сбор проводок для PREPAID_2: объединяем с проводками следующего счёта ---
+        $nextBill = self::getNextAutoBill($bill);
+        if ($scheme == ClientAccount::PAYMENT_TYPE_PREPAID_2) {
+            if ($nextBill) {
+                $seenEntryIds = [];
+                foreach ($billLines as $line) {
+                    if ($line->uu_account_entry_id) {
+                        $seenEntryIds[$line->uu_account_entry_id] = true;
+                    }
+                }
+                foreach ($nextBill->lines as $nextLine) {
+                    if ($nextLine->uu_account_entry_id
+                        && isset($seenEntryIds[$nextLine->uu_account_entry_id])) {
+                        continue;
+                    }
+                    $billLines[] = $nextLine;
+                }
+            }
+        }
+
+        // --- compactLines для простых счетов ---
+        if ($clientAccount->type_of_bill == ClientAccount::TYPE_OF_BILL_SIMPLE) {
+            $billLines = BillLine::compactLines(
+                $billLines,
+                $clientAccount->contragent->lang_code,
+                $bill->price_include_vat
+            );
+        }
+
+        // --- BillCorrection ---
+        if (!$isInsert) {
+            $billCorrection = BillCorrection::findOne([
+                'bill_no' => $bill->bill_no,
+                'type_id' => $typeId,
+            ]);
+            if ($billCorrection) {
+                $billLines = $billCorrection->getLines()->asArray()->all();
+            }
+        }
+
+        // --- Дедупликация по invoice_line.line_id ---
+        $prevBill = self::getPreviousAutoBill($bill);
+        $invoicedLineIds = self::getAlreadyInvoicedLineIds(
+            array_filter([$bill, $prevBill, $nextBill])
+        );
+
+        // --- Фильтрация ---
+        $billDate = (new \DateTimeImmutable($bill->bill_date))->modify('first day of this month');
+        $nextMonthFirst = $billDate->modify('+1 month');
+        $now = $now ?? new \DateTimeImmutable();
+
+        $lines = [];
+
+        foreach ($billLines as $line) {
+            if (is_array($line)) {
+                $line = new BillLine($line);
+            }
+
+            if ($line->type != BillLine::LINE_TYPE_SERVICE) {
+                continue;
+            }
+
+            if ($line->pk && isset($invoicedLineIds[$line->pk])) {
+                continue;
+            }
+
+            $dateFrom = $line->date_from;
+            if ($dateFrom == BillLine::DATE_DEFAULT) {
+                $dateFrom = $bill->bill_date;
+            }
+            $dateFromNorm = (new \DateTimeImmutable($dateFrom))->modify('first day of this month');
+
+            $isAllow = false;
+
+            if ($scheme == ClientAccount::PAYMENT_TYPE_PREPAID) {
+                if ($typeId == Invoice::TYPE_1) {
+                    $isAllow = ($dateFromNorm >= $billDate);
+                } elseif ($typeId == Invoice::TYPE_2) {
+                    $isAllow = ($dateFromNorm < $billDate);
+                }
+            } elseif ($scheme == ClientAccount::PAYMENT_TYPE_PREPAID_2) {
+                // нет авто-счёта за прошлый период — ресурсные строки считаем текущим периодом (тип=1)
+                $noPrevBill = !$prevBill;
+                if ($typeId == Invoice::TYPE_1) {
+                    $isAllow = ($dateFrom == $bill->bill_date) || ($noPrevBill && $dateFromNorm < $billDate);
+                } elseif ($typeId == Invoice::TYPE_2) {
+                    // строки с date_from == bill_date уже в TYPE_1
+                    if ($dateFrom != $bill->bill_date && !$nextBill) {
+                        $deadlineDate = $nextMonthFirst->modify('+3 days');
+                        if ($now > $deadlineDate) {
+                            $isAllow = ($dateFromNorm >= $billDate && $dateFromNorm < $nextMonthFirst);
+                        }
+                    }
+                }
+            }
+
+            if ($isAllow) {
+                $lines[] = $line;
+            }
+        }
+
+        // debug: bill_no в item
+//        foreach ($lines as $line) {
+//            $line->item = '[' . $line->bill_no . '] ' . $line->item;
+//        }
+
+        return $lines;
     }
 
     /**

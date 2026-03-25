@@ -942,7 +942,7 @@ class Invoice extends ActiveRecord
             $data = [
                 'tpl1' => 3,
                 'account_id' => $this->bill->client_id,
-                'document_number' => $this->number,
+                'document_number' => $this->id > 0 ? $this->number : $this->bill_no,
                 'invoice_id' => $this->id,
                 'template_type_id' => PaymentTemplateType::TYPE_ID_UPD,
                 'country_code' => $this->bill->clientAccount->getUuCountryId() ?: Country::RUSSIA,
