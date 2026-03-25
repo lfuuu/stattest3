@@ -86,16 +86,19 @@ class BillingApiFilter extends ApiRaw
         $this->accountId = $clientId;
 
         $requestData = Yii::$app->request->get();
+        $filterData = $requestData[$this->formName()] ?? [];
+
+        if (empty($filterData['group_by'])) {
+            $this->group_by = $this->accountId ? self::GROUP_BY_DAY : self::GROUP_BY_ACCOUNT;
+            $requestData[$this->formName()]['group_by'] = $this->group_by;
+        }
+
+        if (empty($filterData['timezone'])) {
+            $requestData[$this->formName()]['timezone'] = $this->getDefaultTimezone();
+        }
 
         parent::load($requestData);
 
-        $filterData = $requestData[$this->formName()] ?? [];
-        if (empty($filterData['group_by'])) {
-            $this->group_by = self::GROUP_BY_CALL;
-        }
-        if (empty($filterData['timezone'])) {
-            $this->timezone = $this->getDefaultTimezone();
-        }
         if ($this->group_by === self::GROUP_BY_CALL && !empty($filterData['group_by_method'])) {
             $this->group_by = self::GROUP_BY_API_METHOD;
         }
