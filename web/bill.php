@@ -269,7 +269,11 @@ if (
 
     } else if ($isInvoice || $isUpd) {
         if (isset($R['invoice_id'])) {
-            $invoice = Invoice::findOne(['id' => $R['invoice_id']]);
+            if ($R['invoice_id'] < 0) {
+                $invoice = Invoice::dao()->createVirtualDraft($R['document_number'], abs($R['invoice_id']));
+            } else {
+                $invoice = Invoice::findOne(['id' => $R['invoice_id']]);
+            }
         } else {
             $invoice = Invoice::find()
                 ->where(['number' => $R['document_number']])
