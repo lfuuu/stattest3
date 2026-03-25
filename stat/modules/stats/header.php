@@ -73,6 +73,7 @@ class m_stats_head extends IModuleHead{
             //array('Вознаграждения партнеров', function(){ return '/stats/partner-rewards'; }),
             array('Вознаграждения партнеров', function(){ return '/stats/partner-rewards?isExtends=1'; }),
             array('Вознаграждения партнеров v2', function(){ return '/stats/partner-rewards-new'; }),
+            array('МАВ', function(){ return '/stats/mav'; }),
             array('Настройка агента', 'agent_settings'),
             array('Региональные представители', 'report_sale_channel'),
             array('Статистика: звонки-IP', 'ip'),
