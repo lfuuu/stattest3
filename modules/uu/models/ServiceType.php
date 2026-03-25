@@ -84,7 +84,7 @@ class ServiceType extends ActiveRecord
     const NNP_SERVICE_TYPE_SMS_A2P = 2; // СМС-A2P
     const NNP_SERVICE_TYPE_DATA    = 3; // Дата (трафик)
     const NNP_SERVICE_TYPE_SMS_P2P = 4; // СМС-P2P
-    const NNP_SERVICE_TYPE_MAV     = 5; // МАВ
+    const NNP_SERVICE_TYPE_MAV     = 41; // МАВ
 
     // Маппинг uu_service_type.id => billing_uu.pricelist.service_type_id
     public static $nnpServiceTypeMap = [
