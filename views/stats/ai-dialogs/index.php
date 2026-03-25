@@ -66,8 +66,8 @@ $previousMonthUrl = $buildPeriodUrl(
     $previousMonth->format('Y-m-t')
 );
 $currentMonthUrl = $buildPeriodUrl(
-    $currentPeriodMonth->format('Y-m-01'),
-    $currentPeriodMonth->format('Y-m-t')
+    $utcNow->format('Y-m-01'),
+    $utcNow->format('Y-m-t')
 );
 $currentDayUrl = $buildPeriodUrl($today, $today);
 
