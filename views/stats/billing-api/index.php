@@ -241,6 +241,8 @@ JS
         [
             'class' => 'kartik\grid\ExpandRowColumn',
             'width' => '50px',
+            'header' => '',
+            'filter' => false,
             'value' => function () {
                 return GridView::ROW_COLLAPSED;
             },
@@ -300,7 +302,9 @@ JS
                     Html::endTag('tbody') .
                 Html::endTag('table');
             },
-            'headerOptions' => ['class' => 'hidden kartik-sheet-style'],
+            'contentOptions' => ['style' => 'text-align: center; vertical-align: middle; width: 50px;'],
+            'headerOptions' => ['style' => 'width: 50px;'],
+            'filterOptions' => ['style' => 'width: 50px;'],
         ],
         $periodRangeColumn($periodLabel),
         $methodColumn,
