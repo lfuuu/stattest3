@@ -161,7 +161,147 @@ $costTotalColumn = [
 $columns = [];
 
 if ($filterModel->isGroupByMethod()) {
+    $this->registerJs(<<<JS
+if (!window.billingApiMethodAccountSortBound) {
+    window.billingApiMethodAccountSortBound = true;
+document.addEventListener('click', function (event) {
+    var trigger = event.target.closest('.js-billing-api-method-account-sort');
+    if (!trigger) {
+        return;
+    }
+
+    event.preventDefault();
+
+    var table = trigger.closest('.js-billing-api-method-account-table');
+    if (!table) {
+        return;
+    }
+
+    var tbody = table.querySelector('tbody');
+    if (!tbody) {
+        return;
+    }
+
+    var sortField = trigger.getAttribute('data-sort-field');
+    var currentField = table.getAttribute('data-sort-field');
+    var currentDirection = table.getAttribute('data-sort-direction') || 'desc';
+    var nextDirection = 'desc';
+
+    if (currentField === sortField && currentDirection === 'desc') {
+        nextDirection = 'asc';
+    }
+
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    rows.sort(function (leftRow, rightRow) {
+        var leftValue = parseFloat(leftRow.getAttribute('data-' + sortField)) || 0;
+        var rightValue = parseFloat(rightRow.getAttribute('data-' + sortField)) || 0;
+
+        if (leftValue === rightValue) {
+            var leftAccountId = parseInt(leftRow.getAttribute('data-account-id'), 10) || 0;
+            var rightAccountId = parseInt(rightRow.getAttribute('data-account-id'), 10) || 0;
+            return leftAccountId - rightAccountId;
+        }
+
+        if (nextDirection === 'asc') {
+            return leftValue - rightValue;
+        }
+
+        return rightValue - leftValue;
+    });
+
+    rows.forEach(function (row) {
+        tbody.appendChild(row);
+    });
+
+    table.setAttribute('data-sort-field', sortField);
+    table.setAttribute('data-sort-direction', nextDirection);
+
+    Array.prototype.forEach.call(
+        table.querySelectorAll('.js-billing-api-method-account-sort'),
+        function (link) {
+            var indicator = link.querySelector('.js-billing-api-method-account-sort-indicator');
+            if (!indicator) {
+                return;
+            }
+
+            if (link === trigger) {
+                indicator.textContent = nextDirection === 'desc' ? ' v' : ' ^';
+                return;
+            }
+
+            indicator.textContent = '';
+        }
+    );
+});
+}
+JS
+    );
+
     $columns = [
+        [
+            'class' => 'kartik\grid\ExpandRowColumn',
+            'width' => '50px',
+            'value' => function () {
+                return GridView::ROW_COLLAPSED;
+            },
+            'detail' => function (ApiRaw $row) use ($filterModel, $integerFormat, $moneyFormat) {
+                $details = $filterModel->getMethodAccountDetails((int)$row->api_method_id);
+
+                if (!$details) {
+                    return Html::tag('div', 'Нет данных', ['class' => 'text-muted', 'style' => 'padding: 10px;']);
+                }
+
+                $tableRows = '';
+                foreach ($details as $detail) {
+                    $tableRows .= Html::beginTag('tr', [
+                        'data-account-id' => (int)$detail['account_id'],
+                        'data-api_weight_total' => (float)$detail['api_weight_total'],
+                        'data-cost_total' => (float)$detail['cost_total'],
+                    ]) .
+                        Html::tag('td', $detail['account_id']) .
+                        Html::tag('td', $integerFormat($detail['api_weight_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
+                        Html::tag('td', $moneyFormat($detail['cost_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
+                        Html::endTag('tr');
+                }
+
+                return Html::beginTag('table', [
+                    'class' => 'table table-hover table-bordered table-striped js-billing-api-method-account-table',
+                    'style' => 'margin: 10px 0;',
+                    'data-sort-field' => 'cost_total',
+                    'data-sort-direction' => 'desc',
+                ]) .
+                    Html::beginTag('thead') .
+                        Html::beginTag('tr') .
+                            Html::tag('th', 'ЛС') .
+                            Html::tag('th', Html::a(
+                                'Суммарный вес вызова' .
+                                Html::tag('span', '', ['class' => 'js-billing-api-method-account-sort-indicator']),
+                                '#',
+                                [
+                                    'class' => 'js-billing-api-method-account-sort',
+                                    'data-sort-field' => 'api_weight_total',
+                                    'style' => 'color: inherit; text-decoration: none;',
+                                ]
+                            ), ['style' => 'text-align: center;']) .
+                            Html::tag('th', Html::a(
+                                'Суммарная стоимость' .
+                                Html::tag('span', ' v', ['class' => 'js-billing-api-method-account-sort-indicator']),
+                                '#',
+                                [
+                                    'class' => 'js-billing-api-method-account-sort',
+                                    'data-sort-field' => 'cost_total',
+                                    'style' => 'color: inherit; text-decoration: none;',
+                                ]
+                            ), ['style' => 'text-align: center;']) .
+                        Html::endTag('tr') .
+                    Html::endTag('thead') .
+                    Html::beginTag('tbody') .
+                        $tableRows .
+                    Html::endTag('tbody') .
+                Html::endTag('table');
+            },
+            'headerOptions' => ['class' => 'hidden kartik-sheet-style'],
+        ],
         $periodRangeColumn($periodLabel),
         $methodColumn,
         $weightTotalColumn,
