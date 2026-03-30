@@ -20,7 +20,7 @@ use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use yii\widgets\Breadcrumbs;
 
-echo Html::formLabel($this->title = 'Статистика: МАВ');
+echo Html::formLabel($this->title = 'Статистика: МАВ и Маркировка');
 
 echo Breadcrumbs::widget([
     'links' => [
@@ -107,6 +107,12 @@ $form = ActiveForm::begin(['method' => 'get', 'action' => $baseUrl]);
         ]) ?>
     </div>
     <div class="col-sm-3">
+        Тип
+        <?= Html::activeDropDownList($filterModel, 'record_type', MavFilter::getRecordTypeList(), [
+            'class' => 'form-control input-sm',
+        ]) ?>
+    </div>
+    <div class="col-sm-3">
         Часовой пояс
         <?= Html::activeDropDownList($filterModel, 'timezone', $filterModel->getTimezoneList(), [
             'class' => 'form-control input-sm',
@@ -157,11 +163,21 @@ $costTotalColumn = [
     }
 ] + $numericColumnOptions;
 
+$recordTypeColumn = [
+    'attribute' => 'record_type',
+    'label' => 'Тип',
+    'filter' => false,
+    'value' => function (MavRaw $row) {
+        return $row instanceof MavFilter ? $row->getRecordTypeLabel() : null;
+    }
+];
+
 $columns = [];
 
 if ($filterModel->isGroupByAccount()) {
     $columns = [
         $periodRangeColumn($timeLabel),
+        $recordTypeColumn,
         [
             'attribute' => 'account_id',
             'label' => 'ЛС',
@@ -200,6 +216,7 @@ if ($filterModel->isGroupByAccount()) {
                 return $period->format(DateTimeZoneHelper::DATE_FORMAT);
             }
         ],
+        $recordTypeColumn,
         $callsCountColumn,
         $billedTimeTotalColumn,
         $costTotalColumn,
@@ -213,6 +230,7 @@ if ($filterModel->isGroupByAccount()) {
     }
 
     $columns = array_merge($columns, [
+        $recordTypeColumn,
         [
             'attribute' => 'connect_time',
             'label' => $timeLabel,
