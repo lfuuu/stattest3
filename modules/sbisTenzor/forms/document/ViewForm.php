@@ -129,7 +129,6 @@ class ViewForm extends \app\classes\Form
         }
 
         return
-<<<<<<< modules/sbisTenzor/forms/document/ViewForm.php
             $document->state == SBISDocumentStatus::CREATED
             || $document->state == SBISDocumentStatus::CREATED_AUTO
             || $document->state == SBISDocumentStatus::CANCELLED
