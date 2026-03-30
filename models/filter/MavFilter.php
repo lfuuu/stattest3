@@ -14,6 +14,10 @@ use yii\db\Expression;
 
 class MavFilter extends MavRaw
 {
+    public const RECORD_TYPE_ALL = 'all';
+    public const RECORD_TYPE_MAV = 'mav';
+    public const RECORD_TYPE_LABEL = 'label';
+
     public const GROUP_BY_CALL = 'call';
     public const GROUP_BY_DAY = 'day';
     public const GROUP_BY_MONTH = 'month';
@@ -28,10 +32,17 @@ class MavFilter extends MavRaw
         self::GROUP_BY_ACCOUNT => 'ЛС',
     ];
 
+    public const RECORD_TYPE_LIST = [
+        self::RECORD_TYPE_ALL => 'МАВ и Маркировка',
+        self::RECORD_TYPE_MAV => 'МАВ',
+        self::RECORD_TYPE_LABEL => 'Маркировка',
+    ];
+
     public $accountId = null;
     public $isLoad = false;
     public $group_by = self::GROUP_BY_CALL;
     public $timezone = '';
+    public $record_type = self::RECORD_TYPE_ALL;
     public $calls_count = null;
     public $billed_time_total = null;
     public $cost_total = null;
@@ -55,13 +66,14 @@ class MavFilter extends MavRaw
     {
         $dateFieldList = ['connect_time_from', 'connect_time_to'];
         $rangeFieldList = ['billed_time_from', 'billed_time_to', 'rate_from', 'rate_to', 'cost_from', 'cost_to'];
-        $otherFieldList = ['group_by', 'timezone', 'src_number', 'dst_number'];
+        $otherFieldList = ['group_by', 'timezone', 'src_number', 'dst_number', 'record_type'];
 
         return array_merge(parent::rules(), [
             [array_merge($dateFieldList, $rangeFieldList), 'required'],
             [array_merge($dateFieldList, $rangeFieldList, $otherFieldList), 'string'],
             [$dateFieldList, 'date', 'format' => 'php:Y-m-d'],
             ['group_by', 'in', 'range' => array_keys(self::GROUP_BY_LIST)],
+            ['record_type', 'in', 'range' => array_keys(self::RECORD_TYPE_LIST)],
             ['timezone', 'in', 'range' => array_keys(Region::getTimezoneList())],
         ]);
     }
@@ -74,6 +86,28 @@ class MavFilter extends MavRaw
     public function getTimezoneList(): array
     {
         return Region::getTimezoneList();
+    }
+
+    public static function getRecordTypeList(): array
+    {
+        return self::RECORD_TYPE_LIST;
+    }
+
+    public function getRecordTypeLabel(): string
+    {
+        if ($this->is_mav && $this->is_label) {
+            return self::RECORD_TYPE_LIST[self::RECORD_TYPE_ALL];
+        }
+
+        if ($this->is_mav) {
+            return self::RECORD_TYPE_LIST[self::RECORD_TYPE_MAV];
+        }
+
+        if ($this->is_label) {
+            return self::RECORD_TYPE_LIST[self::RECORD_TYPE_LABEL];
+        }
+
+        return '';
     }
 
     public function load($clientId)
@@ -162,6 +196,24 @@ class MavFilter extends MavRaw
             $query->andWhere(['account_id' => $this->accountId]);
         }
 
+        if ($this->record_type === self::RECORD_TYPE_MAV) {
+            $query->andWhere([
+                'is_mav' => true,
+                'is_label' => false,
+            ]);
+        } elseif ($this->record_type === self::RECORD_TYPE_LABEL) {
+            $query->andWhere([
+                'is_mav' => false,
+                'is_label' => true,
+            ]);
+        } else {
+            $query->andWhere([
+                'or',
+                ['is_mav' => true],
+                ['is_label' => true],
+            ]);
+        }
+
         if ($this->billed_time_from !== '') {
             $query->andWhere(['>=', 'billed_time', $this->billed_time_from]);
         }
@@ -192,6 +244,8 @@ class MavFilter extends MavRaw
                 $query
                     ->select([
                         'account_id',
+                        'is_mav' => new Expression('bool_or(is_mav)'),
+                        'is_label' => new Expression('bool_or(is_label)'),
                         'calls_count' => new Expression('count(*)'),
                         'billed_time_total' => new Expression('sum(billed_time)'),
                         'cost_total' => new Expression('sum(cost)'),
@@ -204,6 +258,8 @@ class MavFilter extends MavRaw
                 $query
                     ->select([
                         'period_group' => $groupExpression,
+                        'is_mav' => new Expression('bool_or(is_mav)'),
+                        'is_label' => new Expression('bool_or(is_label)'),
                         'calls_count' => new Expression('count(*)'),
                         'billed_time_total' => new Expression('sum(billed_time)'),
                         'cost_total' => new Expression('sum(cost)'),
