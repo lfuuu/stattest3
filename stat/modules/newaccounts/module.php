@@ -99,6 +99,34 @@ class m_newaccounts extends IModule
         }
     }
 
+    function newaccounts_payment_saldo_date($fixclient)
+    {
+        global $design, $fixclient_data;
+        $date = get_param_protected('payment_saldo_date');
+
+        try {
+            $minDate = '2000-01-01';
+            $today = date('Y-m-d');
+            $parsed = date_create($date);
+            if (!$parsed || $date !== $parsed->format('Y-m-d') || $date < $minDate || $date > $today) {
+                throw new \InvalidArgumentException("Некорректная дата. Допустимый диапазон: $minDate — $today");
+            }
+
+            (new \app\forms\client\ClientAccountOptionsForm())
+                ->setClientAccountId($fixclient_data['id'])
+                ->setOption(ClientAccountOptions::OPTION_PAYMENT_SALDO_DATE)
+                ->setValue($date)
+                ->save();
+
+            \app\dao\ClientAccountDao::me()->updateInvoicePayments($fixclient_data['id']);
+        } catch (\Exception $e) {
+            \Yii::$app->session->addFlash('error', $e->getMessage());
+        }
+
+        header("Location: " . $design->LINK_START . "module=newaccounts&action=bill_list");
+        exit();
+    }
+
     function newaccounts_bill_balance($fixclient)
     {
         global $design, $db, $user, $fixclient_data;
@@ -456,6 +484,9 @@ class m_newaccounts extends IModule
                     'ts' => ''
                 ];
         }
+
+        $paymentSaldoDate = $clientAccount->getOptionValue(ClientAccountOptions::OPTION_PAYMENT_SALDO_DATE);
+        $design->assign('payment_saldo_date', $paymentSaldoDate ?: '');
 
         $get_income_goods_on_bill_list = get_param_integer('get_income_goods_on_bill_list', false);
         $design->assign('get_income_goods_on_bill_list', $get_income_goods_on_bill_list);
@@ -1140,7 +1171,7 @@ class m_newaccounts extends IModule
                 ->asArray()
                 ->column();
         }
-        [$bill_akts, $bill_invoices, $bill_upd, $bill_upd2] = $this->get_bill_docs($bill, $L);
+        [$bill_akts, $bill_invoices, $bill_upd, $bill_upd2] = $this->get_bill_docs($bill, false);
 
         if ($invoices) {
             foreach (Invoice::$types as $invoiceType) {
@@ -1275,18 +1306,16 @@ class m_newaccounts extends IModule
         return $clientAccount->contract->partner_contract_id;
     }
 
-    function get_bill_docs(\Bill &$bill, $L = null)
+    function get_bill_docs(\Bill &$bill, $onlyReal = true)
     {
-        return self::get_bill_docs_static($bill->GetNo(), $L);
+        return self::get_bill_docs_static($bill->GetNo(), $onlyReal);
     }
 
-    static function get_bill_docs_static($billNo, $L = null)
+    static function get_bill_docs_static($billNo, $onlyReal = true)
     {
         $bill_akts = $bill_invoices = $bill_upd = $bill_upd2 = [];
 
-        if (($doctypes = BillDocument::dao()->getByBillNo($billNo)) == false) {
-            $doctypes = BillDocument::dao()->updateByBillNo($billNo, $L, true);
-        }
+        $doctypes = BillDocument::dao()->getByBillNo($billNo, $onlyReal);
 
         if ($doctypes && count($doctypes) > 0) {
             for ($i = 1; $i <= 3; $i++) {
@@ -1484,6 +1513,8 @@ class m_newaccounts extends IModule
             $uuLines = array_map(function(\app\models\BillLineUu $line){return $line->getAttributes();}, $uuLines);
         }
 
+        $periods = \app\dao\BillDao::me()->getBillLinePeriods($bill->Get('bill_date'), $bill->GetLines());
+        $design->assign('periods', $periods);
         $design->assign('bill_lines', $lines);
         $design->assign('bill_lines_uu', $uuLines);
         $design->AddMain('newaccounts/bill_edit.tpl');
@@ -1696,6 +1727,7 @@ class m_newaccounts extends IModule
         $type = get_param_raw("type");
         $tax_rate = get_param_raw("tax_rate");
         $del = get_param_raw("del", []);
+        $period = get_param_raw("period", []);
 
         if (!$item || !$amount || !$price || !$type) { // Сохранение только "шапки" счета     
             $bill->Save();
@@ -1719,20 +1751,31 @@ class m_newaccounts extends IModule
 //                        continue;
 //                    }
 
+                    $dateFrom = null;
+                    $dateTo = null;
+                    if (!empty($period[$k])) {
+                        $periodParts = explode('|', $period[$k]);
+                        if (count($periodParts) == 2) {
+                            $dateFrom = $periodParts[0];
+                            $dateTo = $periodParts[1];
+                        }
+                    }
+
                     if ((!isset($item[$k]) || (isset($item[$k]) && !$item[$k]) || (isset($del[$k]) && $del[$k])) && isset($arr_v['item'])) {
                         $bill->RemoveLine($k);
                     } elseif (isset($item[$k]) && $item[$k] && isset($arr_v['item'])) {
                         if (
-                            $item[$k] != $arr_v['item'] 
-                            || $amount[$k] != $arr_v['amount'] 
-                            || $price[$k] != $arr_v['price'] 
+                            $item[$k] != $arr_v['item']
+                            || $amount[$k] != $arr_v['amount']
+                            || $price[$k] != $arr_v['price']
                             || $type[$k] != $arr_v['type']
                             || $tax_rate[$k] != $arr_v['tax_rate']
+                            || ($dateFrom !== null && ($dateFrom != $arr_v['date_from'] || $dateTo != $arr_v['date_to']))
                             ) {
-                            $bill->EditLine($k, $item[$k], $amount[$k], $price[$k], $type[$k], $tax_rate[$k], $arr_v['uu_account_entry_id']);
+                            $bill->EditLine($k, $item[$k], $amount[$k], $price[$k], $type[$k], $tax_rate[$k], $arr_v['uu_account_entry_id'], $dateFrom, $dateTo);
                         }
                     } elseif (isset($item[$k]) && $item[$k]) {
-                        $bill->AddLine($item[$k], $amount[$k], $price[$k], $type[$k], '', '', '', '', 0, $tax_rate[$k]);
+                        $bill->AddLine($item[$k], $amount[$k], $price[$k], $type[$k], '', '', $dateFrom ?: '', $dateTo ?: '', 0, $tax_rate[$k]);
                     }
                 }
             }
@@ -2064,7 +2107,7 @@ class m_newaccounts extends IModule
             $bills = [$bills];
         }
 
-        $bills = array_filter($bills, function($bill) {return strlen($bill) > 1;});
+        $bills = array_filter($bills, fn($bill) => $bill && strlen($bill) > 1);
 
         $link = [];
         $document_link = [];

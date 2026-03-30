@@ -12,6 +12,7 @@ use app\helpers\DateTimeZoneHelper;
 use app\models\Bill;
 use app\models\Business;
 use app\models\ClientAccount;
+use app\models\ClientAccountOptions;
 use app\models\ClientContract;
 use app\models\ClientContragent;
 use app\models\GoodsIncomeOrder;
@@ -683,8 +684,10 @@ class ClientAccountDao extends Singleton
 //        \Yii::$app->db->createCommand("update newbills set is_payed=0, payment_date = null where client_id={$clientAccountId} and sum < 0")->execute();
             UpdateBalanceHelper::paymentOrders_save($clientAccountId, $paymentOrders);
 
-            $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
-            UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks);
+            // Линковка с/ф-платежи вынесена в updateInvoicePayments()
+            // $invoicePaymentLinks = UpdateBalanceHelper::invoicePaymentLinks_make($invoiceCleared);
+            // UpdateBalanceHelper::invoicePaymentLinks_save($clientAccount->id, $invoicePaymentLinks);
+            $this->updateInvoicePayments($clientAccount);
 
 
             $bills = array_merge($billsPlus, $billsMinus);
@@ -747,25 +750,31 @@ class ClientAccountDao extends Singleton
         Assert::isObject($clientAccount);
 
         $saldo = $this->_getSaldo($clientAccount);
-        $paysAll = $this->_enumPayments($clientAccount, $saldo['ts'], true);
-        $invoiceAll = $this->_getInvoices($clientAccount->id, $saldo['ts'], $withDraft = true);
-        $invoiceIds = array_keys($invoiceAll);
+        $paymentSaldoDate = $clientAccount->getOptionValue(ClientAccountOptions::OPTION_PAYMENT_SALDO_DATE);
 
-        $sum = -$saldo['saldo'];
-        if ($sum > 0) {
-            array_unshift($paysAll, [
-                'id' => '0',
-                'client_id' => $clientAccount->id,
-                'payment_no' => 0,
-                'bill_no' => 'saldo',
-                'bill_vis_no' => 'saldo',
-                'payment_date' => $saldo['ts'],
-                'oper_date' => $saldo['ts'],
-                'comment' => '',
-                'add_date' => $saldo['ts'],
-                'add_user' => 0,
-                'sum' => $sum,
-            ]);
+        if ($paymentSaldoDate) {
+            $paysAll = $this->_enumPayments($clientAccount, $paymentSaldoDate, true);
+            $invoiceAll = $this->_getInvoices($clientAccount->id, $paymentSaldoDate, $withDraft = true);
+        } else {
+            $paysAll = $this->_enumPayments($clientAccount, $saldo['ts'], true);
+            $invoiceAll = $this->_getInvoices($clientAccount->id, $saldo['ts'], $withDraft = true);
+
+            $sum = -$saldo['saldo'];
+            if ($sum > 0) {
+                array_unshift($paysAll, [
+                    'id' => '0',
+                    'client_id' => $clientAccount->id,
+                    'payment_no' => 0,
+                    'bill_no' => 'saldo',
+                    'bill_vis_no' => 'saldo',
+                    'payment_date' => $saldo['ts'],
+                    'oper_date' => $saldo['ts'],
+                    'comment' => '',
+                    'add_date' => $saldo['ts'],
+                    'add_user' => 0,
+                    'sum' => $sum,
+                ]);
+            }
         }
 
         $paysIncome = array_filter($paysAll, fn($p) => !isset($p['payment_type']) || $p['payment_type'] != Payment::PAYMENT_TYPE_OUTCOME);

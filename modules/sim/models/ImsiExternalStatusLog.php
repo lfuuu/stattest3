@@ -18,6 +18,11 @@ use yii\db\Expression;
  */
 class ImsiExternalStatusLog extends ActiveRecord
 {
+    const REF_STATUS = ['_ref' => true];
+
+    /** @var array|null Resolved-статус для ref-записей, заполняется извне */
+    public $resolvedRefStatus;
+
     /**
      * @return string
      */
@@ -36,10 +41,25 @@ class ImsiExternalStatusLog extends ActiveRecord
         return Yii::$app->dbPgNnp;
     }
 
+    public function isRef(): bool
+    {
+        return $this->status['_ref'] ?? false;
+    }
+
     public static function makeLog($imsi, $status): int
     {
         if (!is_string($status)) {
             $status = Utils::toJson($status);
+        }
+
+        $lastStatus = self::getDb()->createCommand(
+            'SELECT status FROM ' . self::tableName()
+            . ' WHERE imsi = :imsi AND status != :ref ORDER BY id DESC LIMIT 1',
+            [':imsi' => $imsi, ':ref' => Utils::toJson(self::REF_STATUS)]
+        )->queryScalar();
+
+        if ($lastStatus !== false && json_encode(json_decode($lastStatus, true)) === json_encode(json_decode($status, true))) {
+            $status = Utils::toJson(self::REF_STATUS);
         }
 
         return self::getDb()
@@ -55,11 +75,11 @@ class ImsiExternalStatusLog extends ActiveRecord
 
     public function getStatusStringHtml()
     {
-        return StatusContentRecognition::me()->getAsString($this, true);
+        return StatusContentRecognition::me()->getAsString($this, true, $this->resolvedRefStatus);
     }
 
     public function __toString()
     {
-        return StatusContentRecognition::me()->getAsString($this, false);
+        return StatusContentRecognition::me()->getAsString($this, false, $this->resolvedRefStatus);
     }
 }

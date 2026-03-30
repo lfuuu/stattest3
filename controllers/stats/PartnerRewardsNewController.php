@@ -41,7 +41,7 @@ class PartnerRewardsNewController extends BaseController
     }
 
     /**
-     * Формальный документный экспорт для менеджерского сценария.
+     * Экспорт отчета для менеджерского сценария.
      *
      * @param string $format
      * @param bool $isExtends

@@ -7,6 +7,7 @@ use app\models\HistoryChanges;
 use app\models\User;
 use app\modules\uu\models\AccountTariff;
 use app\modules\uu\models\AccountTariffLog;
+use app\modules\uu\models\ServiceType;
 use app\modules\uu\models\Tariff;
 use app\modules\uu\models\TariffPeriod;
 use app\widgets\ConsoleProgress;
@@ -141,6 +142,13 @@ SQL;
                 Yii::$app->dbHistory->createCommand()
                     ->insert($historyChangesTableName, $queryData)
                     ->execute();
+
+                // закрыть пакеты, т.к. raw SQL не вызывает EVENT_AFTER_INSERT
+                if (isset(ServiceType::$serviceToPackage[$accountTariff->service_type_id])) {
+                    AccountTariff::closeAllPackages([
+                        'account_tariff_log_id' => $accountTariffLogId,
+                    ]);
+                }
 
                 $isWithTransaction && $transaction->commit();
             } catch (\Exception $e) {

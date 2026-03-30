@@ -68,7 +68,7 @@ class Upd2023Form5_03 extends Invoice2025Form5_03
         foreach ($this->invoice->getMatchedPayments() as $payment) {
             $elPayment = $dom->createElement('СвПРД');
             $elPayment->setAttribute('НомерПРД', $payment->getEffectivePaymentNo());
-            $elPayment->setAttribute('ДатаПРД', (new \DateTime($payment->payment_date))->format('d.m.Y'));
+            $elPayment->setAttribute('ДатаПРД', (new \DateTime($payment->getEffectivePaymentDate()))->format(DateTimeZoneHelper::DATE_FORMAT_EUROPE_DOTTED));
             $elPayment->setAttribute('СуммаПРД', $this->formatNumber($payment->sum));
             $elInvoiceInfo->appendChild($elPayment);
         }

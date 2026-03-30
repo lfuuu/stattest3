@@ -473,6 +473,18 @@ class Payment extends ActiveRecord
         return $this->payment_no;
     }
 
+    public function getEffectivePaymentDate()
+    {
+        if ($this->type == 'api') {
+            $infoJson = json_decode($this->apiInfo->info_json, true);
+            if (isset($infoJson['id']) && isset($infoJson['date']) && isset($infoJson['payerName'])) {
+                return $infoJson['date'] ?? $this->payment_date;
+            }
+        }
+
+        return $this->payment_date;
+    }
+
     public function isPaymentNoValid(): bool
     {
         return (bool)preg_match('/^\d{1,6}$/', $this->getEffectivePaymentNo());

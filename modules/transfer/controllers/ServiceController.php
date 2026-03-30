@@ -137,10 +137,9 @@ class ServiceController extends BaseController
      * @param int $clientAccountId
      * @param string $serviceTypeKey
      * @param int $serviceValue
-     * @param int $didGroupId
      * @throws ExitException
      */
-    public function actionGetUniversalTariffs($clientAccountId, $serviceTypeKey, $serviceValue = null, $didGroupId = null)
+    public function actionGetUniversalTariffs($clientAccountId, $serviceTypeKey, $serviceValue = null)
     {
         Yii::$app->response->format = Response::FORMAT_HTML;
 
@@ -153,20 +152,24 @@ class ServiceController extends BaseController
             $module = Config::getModule('transfer');
 
             $serviceTypeProcessor = $module->getServiceProcessor($clientAccount->account_version)->getHandler($serviceTypeKey);
-            $cityId = $statusId = null;
+            $cityId = $statusId = $ndcType = null;
 
             if ($serviceTypeProcessor->getServiceTypeId() === ServiceType::ID_VOIP) {
                 Assert::isNotEmpty($serviceValue);
 
                 if (!Number::isMcnLine($serviceValue)) {
-                    Assert::isNotEmpty($didGroupId);
 
                     $number = \app\models\Number::findOne(['number' => $serviceValue]);
 
                     Assert::isObject($number, 'Number "' . $serviceValue . '" not found');
 
                     $cityId = $number->getCityByNumber()->id;
+                    $ndcType = $number->ndc_type_id;
                 }
+            }elseif ($serviceTypeProcessor->getServiceTypeId() == ServiceType::ID_VPBX) {
+                // pass
+            } else {
+                return ['0' => 'не найден'];
             }
 
             $returnArray = TariffPeriod::getList(
@@ -180,7 +183,8 @@ class ServiceController extends BaseController
                 $isWithNullAndNotNull = false,
                 $statusId,
                 $clientAccount->is_voip_with_tax,
-                $clientAccount->contract->organization_id
+                $clientAccount->contract->organization_id,
+                $ndcType
             );
 
             ReturnFormatted::me()->returnFormattedValues($returnArray, ReturnFormatted::FORMAT_OPTIONS);

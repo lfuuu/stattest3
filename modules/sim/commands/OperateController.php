@@ -6,11 +6,13 @@ use app\helpers\DateTimeZoneHelper;
 use app\models\Country;
 use app\models\EventQueue;
 use app\modules\nnp\models\NdcType;
+use app\classes\Utils;
 use app\modules\sim\models\Imsi;
-use app\modules\sim\models\RegionSettings;
+use app\modules\sim\models\ImsiExternalStatusLog;
 use app\modules\uu\models\AccountTariff;
 use app\modules\uu\models\ServiceType;
 use yii\console\Controller;
+use yii\db\Expression;
 
 class OperateController extends Controller
 {
@@ -20,56 +22,31 @@ class OperateController extends Controller
     public function actionCheckMobNumbers($accountId = false)
     {
         $accountTariffQuery = AccountTariff::find()
+            ->alias('at')
             ->where([
-                'service_type_id' => ServiceType::ID_VOIP,
-                'n.ndc_type_id' => NdcType::ID_MOBILE,
-                'n.imsi' => null,
+                'at.service_type_id' => ServiceType::ID_VOIP,
+                'vn.ndc_type_id' => NdcType::ID_MOBILE,
                 'c.country_id' => Country::RUSSIA,
             ])
-            ->andWhere([
-                'not', [
-                    'tariff_period_id' => null,
-                ]
-            ])
-            ->joinWith('number n', true, 'INNER JOIN')
-            ->joinWith('number.city c', true, 'INNER JOIN')
-            ->with('number');
+            ->andWhere(['not', ['at.tariff_period_id' => null]])
+            ->andWhere(new Expression("JSON_EXTRACT(at.calltracking_params, '$.imsi') IS NULL"))
+            ->innerJoinWith(['number vn'])
+            ->innerJoinWith(['number.city c']);
 
         if ($accountId) {
-            $accountTariffQuery->andWhere(['client_account_id' => $accountId]);
+            $accountTariffQuery->andWhere(['at.client_account_id' => $accountId]);
         }
 
-
-        static $cache = [];
         /** @var AccountTariff $accountTariff */
         foreach ($accountTariffQuery->each() as $accountTariff) {
-
             echo PHP_EOL . $accountTariff->id . ': ' . $accountTariff->voip_number;
-            $region = $accountTariff->number->region;
-
-            if (!isset($cache[$region])) {
-                $regionSettings = RegionSettings::findOne(['region_id' => $region]);
-                $sipWarehouseId = $regionSettings ? $regionSettings->sip_warehouse_status_id : false;
-                $cache[$region] = $sipWarehouseId;
-            }
-
-            echo ' region: ' . $region;
-            $sipWarehouseId = $cache[$region];
-
-            if (!$sipWarehouseId) {
-                echo PHP_EOL . 'in region: ' . $region . ' SIP warehouse not found';
-                continue;
-            }
-
-            echo ' sip warehouse: ' . $sipWarehouseId;
 
             EventQueue::go(EventQueue::SYNC_TELE2_GET_IMSI, [
                 'account_tariff_id' => $accountTariff->id,
                 'voip_number' => $accountTariff->voip_number,
-                'voip_numbers_warehouse_status' => $sipWarehouseId,
             ]);
 
-            echo "+";
+            echo '+';
         }
     }
 
@@ -106,5 +83,57 @@ class OperateController extends Controller
             }
         } while (true);
         echo PHP_EOL . 'exit';
+    }
+
+    /**
+     * Замена дублирующихся записей в sim_imsi_external_status_log на ref-маркер
+     */
+    public function actionCleanExternalStatusLog()
+    {
+        $db = ImsiExternalStatusLog::getDb();
+        $table = ImsiExternalStatusLog::tableName();
+        $refJson = Utils::toJson(ImsiExternalStatusLog::REF_STATUS);
+
+        $imsies = $db->createCommand("SELECT DISTINCT imsi FROM {$table} ORDER BY imsi")->queryColumn();
+        echo 'IMSI count: ' . count($imsies) . PHP_EOL;
+
+        $totalConverted = 0;
+
+        foreach ($imsies as $imsi) {
+            $rows = $db->createCommand(
+                "SELECT id, status FROM {$table} WHERE imsi = :imsi ORDER BY id ASC",
+                [':imsi' => $imsi]
+            )->queryAll();
+
+            $lastFullStatus = null;
+            $convertedIds = [];
+
+            foreach ($rows as $row) {
+                $statusNorm = json_encode(json_decode($row['status'], true));
+
+                if ($statusNorm === json_encode(ImsiExternalStatusLog::REF_STATUS)) {
+                    continue;
+                }
+
+                if ($lastFullStatus !== null && $statusNorm === $lastFullStatus) {
+                    $convertedIds[] = $row['id'];
+                } else {
+                    $lastFullStatus = $statusNorm;
+                }
+            }
+
+            if ($convertedIds) {
+                $db->createCommand()->update(
+                    $table,
+                    ['status' => new Expression("'{$refJson}'::jsonb")],
+                    ['id' => $convertedIds]
+                )->execute();
+                $totalConverted += count($convertedIds);
+            }
+
+            echo $imsi . ': converted ' . count($convertedIds) . PHP_EOL;
+        }
+
+        echo PHP_EOL . 'Total converted: ' . $totalConverted . PHP_EOL;
     }
 }

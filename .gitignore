@@ -12,3 +12,4 @@ web/check.php
 xdebug/
 /package.box
 /stat.iml
+config/db_stage.php

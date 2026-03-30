@@ -13,9 +13,11 @@ use yii\db\Expression;
  */
 class Pricelist extends ActiveRecord
 {
+    const ID_SERVICE_TYPE_VOICE   = 1;
     const ID_SERVICE_TYPE_SMS_A2P = 2;
+    const ID_SERVICE_TYPE_DATA    = 3;
     const ID_SERVICE_TYPE_SMS_P2P = 4;
-    const ID_SERVICE_TYPE_DATA = 3;
+    const ID_SERVICE_TYPE_MAV     = 5;
 
     const ID_SERVICE_GROUP_SMS = [self::ID_SERVICE_TYPE_SMS_A2P, self::ID_SERVICE_TYPE_SMS_P2P];
 

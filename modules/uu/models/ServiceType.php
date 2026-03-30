@@ -74,8 +74,24 @@ class ServiceType extends ActiveRecord
     const ID_CONTACT_CENTER_AI = 38;
 
     const ID_ESIM = 39;
-    
+
     const ID_AI_AGENT = 40;
+
+    const ID_VOIP_PACKAGE_MAV = 41; // Телефония. МАВ (Массовые и/или автоматические вызовы)
+
+    // Типы услуг в прайслистах ннп (billing_uu.pricelist.service_type_id)
+    const NNP_SERVICE_TYPE_VOICE   = 1; // Голос
+    const NNP_SERVICE_TYPE_SMS_A2P = 2; // СМС-A2P
+    const NNP_SERVICE_TYPE_DATA    = 3; // Дата (трафик)
+    const NNP_SERVICE_TYPE_SMS_P2P = 4; // СМС-P2P
+    const NNP_SERVICE_TYPE_MAV     = 41; // МАВ
+
+    // Маппинг uu_service_type.id => billing_uu.pricelist.service_type_id
+    public static $nnpServiceTypeMap = [
+        self::ID_VOIP_PACKAGE_CALLS => self::NNP_SERVICE_TYPE_VOICE,
+        self::ID_VOIP_PACKAGE_SMS   => self::NNP_SERVICE_TYPE_SMS_P2P,
+        self::ID_VOIP_PACKAGE_MAV   => self::NNP_SERVICE_TYPE_MAV,
+    ];
 
     const CLOSE_AFTER_DAYS = 60;
 
@@ -88,6 +104,7 @@ class ServiceType extends ActiveRecord
         self::ID_TRUNK_PACKAGE_TERM => self::ID_TRUNK,
         self::ID_BILLING_API_MAIN_PACKAGE => self::ID_BILLING_API,
         self::ID_A2P_PACKAGE => self::ID_A2P,
+        self::ID_VOIP_PACKAGE_MAV => self::ID_VOIP,
     ];
 
     public static $serviceToPackage = [
@@ -228,6 +245,17 @@ class ServiceType extends ActiveRecord
             default:
                 return 'warning';
         }
+    }
+
+    /**
+     * Вернуть billing_uu.pricelist.service_type_id по uu_service_type.id
+     *
+     * @param int $serviceTypeId
+     * @return int|null
+     */
+    public static function getNnpServiceTypeId($serviceTypeId)
+    {
+        return self::$nnpServiceTypeMap[$serviceTypeId] ?? null;
     }
 
     /**

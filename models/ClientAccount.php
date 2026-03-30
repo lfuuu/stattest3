@@ -611,7 +611,7 @@ class ClientAccount extends HistoryActiveRecord
      */
     public function getBranchCode()
     {
-        return $this->contract->contragent->branch_code ? : null;
+        return $this->contract->contragent->branch_code ?: null;
     }
 
     /**
@@ -1129,11 +1129,11 @@ SQL;
      */
     public function getTaxRate()
     {
-        if ($this->getHistoryVersionRequestedDate()) {
-            return ClientContract::dao()->getEffectiveVATRate($this->contract, $this->getHistoryVersionRequestedDate());
-        } else {
-            return $this->effective_vat_rate;
-        }
+//        if ($this->getHistoryVersionRequestedDate()) {
+        return ClientContract::dao()->getEffectiveVATRate($this->contract, $this->getHistoryVersionRequestedDate());
+//        } else {
+//            return $this->effective_vat_rate;
+//        }
     }
 
     /**
@@ -1784,7 +1784,7 @@ SQL;
             return $organization->country_id;
         }
 
-        return $this->clientContractModel->clientContragent ->country_id;
+        return $this->clientContractModel->clientContragent->country_id;
     }
 
     /**

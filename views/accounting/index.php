@@ -26,7 +26,7 @@ use yii\widgets\Breadcrumbs;
         ['label' => $account->getAccountTypeAndId(), 'url' => '/accounting/?account_id=' . $account->id],
         ['label' => 'Тип договора: ' . ClientContract::$financialTypes[$account->clientContractModel->financial_type], 'url' => '/accounting/?account_id=' . $account->id],
         ['label' => 'Обновить баланс', 'url' => ['/', 'module' => 'newaccounts', 'action' => 'bill_balance', 'returning' => 'accounting'], 'class' => 'btn btn-success btn-xs'],
-        ['label' => 'Обновить баланс (новая версия)', 'url' => ['/', 'module' => 'newaccounts', 'action' => 'bill_balance', 'returning' => 'accounting'], 'class' => 'btn btn-info btn-xs'],
+        ['label' => 'Обновить баланс (новая версия)', 'url' => ['/', 'module' => 'newaccounts', 'action' => 'bill_balance_minus', 'returning' => 'accounting'], 'class' => 'btn btn-info btn-xs'],
     ],
 ]) ?>
 <style>

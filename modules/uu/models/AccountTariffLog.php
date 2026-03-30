@@ -850,6 +850,11 @@ class AccountTariffLog extends ActiveRecord
             return;
         }
 
+        // включается переносимая услуга
+        if ($this->accountTariff->isTransfer) {
+            return;
+        }
+
         $accountTariff = $this->accountTariff;
         if (!$accountTariff || $accountTariff->service_type_id != ServiceType::ID_VOIP) {
             return;

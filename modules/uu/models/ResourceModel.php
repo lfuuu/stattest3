@@ -112,8 +112,13 @@ class ResourceModel extends ActiveRecord
     const ID_A2P_SMS = 59;
 
     // Voice Robot
-    const ID_VR_CHANNEL_COUNT = 62;
-    const ID_VR_CAROUSEL = 63;
+    const ID_VR_TASKS = 62;
+    const ID_VR_SPEED_DIAL = 63;
+
+    /** @deprecated use ID_VR_TASKS */
+    const ID_VR_CHANNEL_COUNT = self::ID_VR_TASKS;
+    /** @deprecated use ID_VR_SPEED_DIAL */
+    const ID_VR_CAROUSEL = self::ID_VR_SPEED_DIAL;
 
     // contact center AI (old MULTICHAT)
     const ID_CC_OPERATOR_COUNT = 71;

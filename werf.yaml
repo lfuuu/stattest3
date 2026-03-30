@@ -98,12 +98,12 @@ ansible:
         export HTTPS_PROXY=http://p.kompaas.tech:3128
         export NO_PROXY="localhost, 127.0.0.0/8, 10.0.0.0/8, 85.94.32.0/24, 85.94.48.0/24, 85.94.49.0/24, 192.168.0.0/16, 172.16.0.0/12, .mcn.ru, .mcnloc.ru, .mcnspd.ru, .local"
 
-        echo "http://dl-3.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-3.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
-        echo "http://dl-4.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-4.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
-        echo "http://dl-5.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-5.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-3.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-3.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-4.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-4.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-5.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-5.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
         apk update && apk upgrade
         apk add wget
         apk add unzip
@@ -282,12 +282,12 @@ ansible:
   beforeInstall:
     - name: "Php: 1. Utils"
       shell: |
-        echo "http://dl-3.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-3.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
-        echo "http://dl-4.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-4.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
-        echo "http://dl-5.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-5.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-3.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-3.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-4.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-4.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-5.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-5.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
         apk update && apk upgrade
         apk add wget
         apk add unzip
@@ -675,12 +675,12 @@ ansible:
   beforeInstall:
     - name: "Php-fpm: 1. Utils"
       shell: |
-        echo "http://dl-3.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-3.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
-        echo "http://dl-4.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-4.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
-        echo "http://dl-5.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
-        echo "http://dl-5.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-3.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-3.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-4.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-4.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
+        #echo "http://dl-5.alpinelinux.org/alpine/v3.14/main/" >> /etc/apk/repositories
+        #echo "http://dl-5.alpinelinux.org/alpine/v3.14/community/" >> /etc/apk/repositories
         apk update && apk upgrade
         apk add busybox-extras
         apk add net-tools mc vim util-linux less

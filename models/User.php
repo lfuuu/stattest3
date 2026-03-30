@@ -104,18 +104,34 @@ class User extends ActiveRecord implements \yii\web\IdentityInterface
     }
 
     /**
+     * Кеш findByUsername в рамках одного запроса
+     * @var array
+     */
+    private static $_findByUsernameCache = [];
+
+    /**
      * @param string $user
      * @return User
      */
     public static function findByUsername($user)
     {
-        $user = static::findOne(['user' => $user]);
-
-        if ($user && $user->enabled != 'yes') {
-            $user->name = "(--" . $user->name . "--)";
+        if ($user === null || $user === '') {
+            return null;
         }
 
-        return $user;
+        if (array_key_exists($user, static::$_findByUsernameCache)) {
+            return static::$_findByUsernameCache[$user];
+        }
+
+        $userModel = static::findOne(['user' => $user]);
+
+        if ($userModel && $userModel->enabled != 'yes') {
+            $userModel->name = "(--" . $userModel->name . "--)";
+        }
+
+        static::$_findByUsernameCache[$user] = $userModel;
+
+        return $userModel;
     }
 
     /**

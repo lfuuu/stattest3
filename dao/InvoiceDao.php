@@ -12,6 +12,7 @@ use app\models\BillDocument;
 use app\models\BillLine;
 use app\models\EventQueue;
 use app\models\Invoice;
+use app\models\InvoiceLine;
 
 /**
  * @method static InvoiceDao me($args = null)
@@ -173,9 +174,18 @@ class InvoiceDao extends Singleton
             throw new \InvalidArgumentException('Invoice not found');
         }
 
+        $this->stornoInvoice($invoice);
+    }
+
+    /**
+     * Создание сторнирующей с/ф для переданного инвойса.
+     *
+     * @param Invoice $invoice
+     */
+    public function stornoInvoice(Invoice $invoice)
+    {
         $revertInvoice = new Invoice();
         $revertInvoice->setAttributes($invoice->getAttributes(null, ['id', 'add_date', 'number', 'idx', 'reversal_date']), false);
-
         $revertInvoice->setReversal(true);
     }
 
@@ -226,6 +236,61 @@ class InvoiceDao extends Singleton
         $event->save();
     }
 
+    /**
+     * Создание виртального драфта (без сохранения в базу).
+     *
+     * @param string $bill_no
+     * @param int $typeId
+     * @return Invoice|null
+     */
+    public function createVirtualDraft($bill_no, $typeId)
+    {
+        $bill = Bill::findOne(['bill_no' => $bill_no]);
+        if (!$bill) {
+            return null;
+        }
+
+        $lines = $bill->getLinesByTypeId($typeId);
+        if (!$lines) {
+            return null;
+        }
+
+        $sumData = BillLine::getSumsLines($lines);
+
+        $invoice = new Invoice();
+        $invoice->id = -$typeId;
+        $invoice->number = '*' . $bill_no . '*';
+        $invoice->bill_no = $bill_no;
+        $invoice->type_id = $typeId;
+        $invoice->date = date('Y-m-d');
+        $invoice->is_reversal = 0;
+        $invoice->isSetDraft = true;
+        $invoice->sum = $sumData['sum'];
+        $invoice->sum_tax = $sumData['sum_tax'];
+        $invoice->sum_without_tax = $sumData['sum_without_tax'];
+        $invoice->original_sum = $sumData['sum'];
+        $invoice->original_sum_tax = $sumData['sum_tax'];
+
+        $invoiceLines = [];
+        foreach ($lines as $line) {
+            $invoiceLine = new InvoiceLine();
+            if ($line instanceof BillLine) {
+                $data = $line->getAttributes(null, ['pk']);
+            } else {
+                $data = $line;
+                unset($data['pk']);
+            }
+            $invoiceLine->setAttributes($data, false);
+            $invoiceLine->invoice_id = $invoice->id;
+            $invoiceLine->line_id = $line instanceof BillLine ? $line->pk : ($line['pk'] ?? null);
+            $invoiceLines[] = $invoiceLine;
+        }
+
+        $invoice->populateRelation('lines', $invoiceLines);
+
+        return $invoice;
+    }
+
     public function getDocumentUrlData($printDocId, $bill_no, $isStamp, $isPdf, $invoiceId = null)
     {
         if ($printDocId == 'upd2-1') {
@@ -260,7 +325,10 @@ class InvoiceDao extends Singleton
         }
 
         if (!$invoiceObject) {
-            return false;
+            $invoiceObject = $this->createVirtualDraft($bill_no, $invoiceTypeId);
+            if (!$invoiceObject) {
+                return false;
+            }
         }
 
         $printObject = $invoiceObject->getDocumentLinkData(BillDocument::TYPE_UPD2, $isStamp, $isPdf);

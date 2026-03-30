@@ -22,6 +22,8 @@ use Yii;
  * @property string expire_dt
  * @property int lines_amount
  * @property string device_address
+ * @property int $iccid
+ * @property int $imsi
  *
  * @property-read ClientAccount clientAccount
  * @property-read AccountTariff accountTariff
@@ -47,6 +49,8 @@ class StateServiceVoip extends ActiveRecord
             'expire_dt' => 'время "По"',
             'lines_amount' => 'Кол-во линий',
             'device_address' => 'Адрес установки оборудования',
+            'iccid' => 'ICCID',
+            'imsi' => 'IMSI',
         ];
     }
 
@@ -56,7 +60,7 @@ class StateServiceVoip extends ActiveRecord
     public function rules()
     {
         return [
-            [['usage_id', 'client_id', 'e164', 'region', 'lines_amount'], 'integer'],
+            [['usage_id', 'client_id', 'e164', 'region', 'lines_amount', 'imsi', 'iccid'], 'integer'],
             [['actual_from', 'actual_to', 'activation_dt', 'expire_dt', 'device_address'], 'string'],
             ['device_address', FormFieldValidator::class],
         ];

@@ -41,6 +41,7 @@ $form = ActiveForm::begin();
                         <?= Html::checkbox('Invoice[is_hide_payment_number]', $invoice->is_hide_payment_number, [
                             'id' => 'invoice-hide-payment-number',
                             'value' => 1,
+                            'uncheck' => 0,
                             'label' => 'Не показывать п/п',
                         ]) ?>
                     </div>

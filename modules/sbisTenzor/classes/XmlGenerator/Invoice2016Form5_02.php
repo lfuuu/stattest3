@@ -218,12 +218,12 @@ class Invoice2016Form5_02 extends XmlGenerator
         $dom = $elInfoBuyerId->ownerDocument;
 
         $elInfoBuyerIdData = $dom->createElement('СвЮЛУч');
-        $elInfoBuyerIdData->setAttribute('ИННЮЛ', $this->client->contragent->inn);
+        $elInfoBuyerIdData->setAttribute('ИННЮЛ', $this->buyer->tax_registration_id);
         if ($this->kndCode == Invoice2019Form5_01::KND_CODE) {
             //$elInfoBuyerIdData->setAttribute('ДефИННЮЛ', '-');
         }
-        $elInfoBuyerIdData->setAttribute('КПП', $this->client->contragent->kpp);
-        $elInfoBuyerIdData->setAttribute('НаимОрг', $this->prepareText($this->client->contragent->name_full));
+        $elInfoBuyerIdData->setAttribute('КПП', $this->buyer->tax_registration_reason);
+        $elInfoBuyerIdData->setAttribute('НаимОрг', $this->prepareText($this->buyer->name));
         $elInfoBuyerId->appendChild($elInfoBuyerIdData);
     }
 

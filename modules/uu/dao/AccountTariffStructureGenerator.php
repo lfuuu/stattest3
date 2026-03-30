@@ -8,7 +8,9 @@ use app\controllers\api\internal\IdNameRecordTrait;
 use app\exceptions\ModelValidationException;
 use app\helpers\DateTimeZoneHelper;
 use app\models\document\PaymentTemplate;
+use app\models\Number;
 use app\models\UsageTrunk;
+use app\modules\nnp\models\NumberRange;
 use app\modules\nnp\models\PackageApi;
 use app\modules\nnp\models\PackageMinute;
 use app\modules\nnp\models\PackagePricelist;
@@ -110,19 +112,6 @@ class AccountTariffStructureGenerator extends Singleton
             $isDefaultTariff = $lastLog->tariffPeriod->tariff->is_default;
         }
 
-        $voipNumberNnp = null;
-        $isSipAccountsEnabled = null;
-        if ($accountTariff->service_type_id == ServiceType::ID_VOIP) {
-            $nnpNumber = $accountTariff->voip_number;
-            if (!empty($nnpNumber)) {
-                $voipNumberNnp = \app\models\Number::getNnpInfo($nnpNumber);
-            }
-
-            $lines = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_LINE);
-            $hasTrunkService = UsageTrunk::dao()->hasService($accountTariff->client_account_id);
-            $isSipAccountsEnabled = (($lines == 0 || $hasTrunkService || AccountTariff::hasTrunk($accountTariff->client_account_id)) ? 0 : 1);
-        }
-
         $record = [
             'id' => $accountTariff->id,
             'service_type' => $this->_getIdNameRecord($accountTariff->serviceType),
@@ -143,14 +132,23 @@ class AccountTariffStructureGenerator extends Singleton
             'is_mobile_outbound_active' => $isMobileOutboundActive,
             'log' => $this->_getAccountTariffLogLightRecord($accountTariff->accountTariffLogs, $minutesStatistic, $internetStatistic, $priceMinutesStatistic, $smsStatistic),
             'resources' => $this->_getAccountTariffResourceLightRecord($accountTariff),
+            'resources_hidden' => $this->_getAccountTariffResourceLightRecord($accountTariff, true),
             'default_actual_from' => $accountTariff->getDefaultActualFrom(),
             'packages' => [],
             'account_tariff_light_ids' => !$isDefaultTariff ? $this->_getAccountTariffLights($accountTariff->id) : [],
         ];
 
+        if ($accountTariff->service_type_id == ServiceType::ID_ONE_TIME && $accountTariff->comment) {
+            $record['comment'] = $accountTariff->comment;
+        }
+
         if ($accountTariff->service_type_id == ServiceType::ID_VOIP) {
-            $record['voip_number_nnp'] = $voipNumberNnp;
-            $record['is_sip_accounts_enabled'] = $isSipAccountsEnabled;
+            $lines = $accountTariff->getResourceValue(ResourceModel::ID_VOIP_LINE);
+            $hasTrunkService = UsageTrunk::dao()->hasService($accountTariff->client_account_id);
+            $record['voip_number_info'] =  array_intersect_key(array_merge(Number::getNnpInfo($accountTariff->voip_number), NumberRange::getNumberInfo($accountTariff->number)), array_flip([
+                'country_code', 'country_name', 'country_prefix', 'is_mob', 'ndc', 'ndc_type_id', 'nnp_city_id', 'city_name', 'nnp_operator_id', 'operator_name', 'nnp_region_id', 'region_name', 'number_length'
+            ]));
+            $record['is_sip_accounts_enabled'] = (($lines == 0 || $hasTrunkService || AccountTariff::hasTrunk($accountTariff->client_account_id)) ? 0 : 1);
         }
 
         if ($accountTariff->service_type_id == ServiceType::ID_ESIM) {
@@ -473,7 +471,7 @@ class AccountTariffStructureGenerator extends Singleton
      * @param AccountTariff $accountTariff
      * @return array
      */
-    private function _getAccountTariffResourceLightRecord($accountTariff)
+    private function _getAccountTariffResourceLightRecord($accountTariff, $onlyHidden = false)
     {
         $accountTariffResourceRecords = [];
 
@@ -484,7 +482,15 @@ class AccountTariffStructureGenerator extends Singleton
         foreach ($accountTariff->serviceType->resources as $resource) {
             $tariffResource = $tariffResourcesIndexedByResourceId[$resource->id] ?? null;
 
-            if (!$tariffResource || !$tariffResource->is_show_resource) {
+            if (!$tariffResource) {
+                continue;
+            }
+
+            if ($onlyHidden && $tariffResource->is_show_resource) {
+                continue;
+            }
+
+            if (!$onlyHidden && !$tariffResource->is_show_resource) {
                 continue;
             }
 

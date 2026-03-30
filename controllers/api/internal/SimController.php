@@ -603,4 +603,56 @@ class SimController extends ApiInternalController
 
         \Yii::$app->end();
     }
+
+    /**
+     * @SWG\Definition(definition = "esimStockRecord", type = "object",
+     *   @SWG\Property(property = "status_id", type = "integer", description = "ID статуса-склада"),
+     *   @SWG\Property(property = "status_name", type = "string", description = "Название статуса-склада"),
+     *   @SWG\Property(property = "total", type = "integer", description = "Всего карт на складе"),
+     *   @SWG\Property(property = "free", type = "integer", description = "Свободных карт (без ЛС)")
+     * ),
+     *
+     * @SWG\Get(tags = {"SIM-card"}, path = "/internal/sim/get-esim-stock", summary = "Остатки eSIM по складам", operationId = "GetEsimStock",
+     *
+     *   @SWG\Response(response = 200, description = "Остатки eSIM по складам",
+     *     @SWG\Schema(type = "array", @SWG\Items(ref = "#/definitions/esimStockRecord"))
+     *   ),
+     *   @SWG\Response(response = "default", description = "Ошибки",
+     *     @SWG\Schema(ref = "#/definitions/error_result")
+     *   )
+     * )
+     *
+     * @return array
+     */
+    public function actionGetEsimStock()
+    {
+        $cardTable = Card::tableName();
+        $statusTable = CardStatus::tableName();
+
+        $rows = Card::find()
+            ->select([
+                'status_id' => $statusTable . '.id',
+                'status_name' => $statusTable . '.name',
+                'total' => new Expression('COUNT(*)'),
+                'free' => new Expression('COUNT(*) FILTER (WHERE ' . $cardTable . '.client_account_id IS NULL)'),
+            ])
+            ->innerJoin($statusTable, $statusTable . '.id = ' . $cardTable . '.status_id')
+            ->andWhere(new Expression('LOWER(' . $statusTable . '.name) LIKE :prefix', [':prefix' => 'esim%']))
+            ->groupBy([$statusTable . '.id', $statusTable . '.name'])
+            ->orderBy([$statusTable . '.id' => SORT_ASC])
+            ->asArray()
+            ->all();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[] = [
+                'status_id' => (int)$row['status_id'],
+                'status_name' => (string)$row['status_name'],
+                'total' => (int)$row['total'],
+                'free' => (int)$row['free'],
+            ];
+        }
+
+        return $result;
+    }
 }

@@ -229,9 +229,9 @@ class Act2016Form5_02 extends XmlGenerator
         $elInfoContentBuyerId->appendChild($elInfoContentBuyerIdType);
 
         $elInfoContentBuyerIdTypeData = $dom->createElement('СвЮЛ');
-        $elInfoContentBuyerIdTypeData->setAttribute('ИННЮЛ', $this->client->contragent->inn);
-        $elInfoContentBuyerIdTypeData->setAttribute('КПП', $this->client->contragent->kpp);
-        $elInfoContentBuyerIdTypeData->setAttribute('НаимОрг', $this->prepareText($this->client->contragent->name_full));
+        $elInfoContentBuyerIdTypeData->setAttribute('ИННЮЛ', $this->buyer->tax_registration_id);
+        $elInfoContentBuyerIdTypeData->setAttribute('КПП', $this->buyer->tax_registration_reason);
+        $elInfoContentBuyerIdTypeData->setAttribute('НаимОрг', $this->prepareText($this->buyer->name));
         $elInfoContentBuyerIdType->appendChild($elInfoContentBuyerIdTypeData);
     }
 

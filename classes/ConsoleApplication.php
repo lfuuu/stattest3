@@ -1,6 +1,7 @@
 <?php
 namespace app\classes;
 
+use app\classes\traits\ApplicationCountryTrait;
 use app\models\User;
 use welltime\graylog\GelfMessage;
 use Yii;
@@ -11,6 +12,7 @@ use Yii;
 
 class ConsoleApplication extends \yii\console\Application
 {
+    use ApplicationCountryTrait;
     public $enableCoreCommands = false;
 
     public function init()
@@ -61,18 +63,4 @@ class ConsoleApplication extends \yii\console\Application
     }
 
 
-    private function _getProductCountry()
-    {
-        return ($_SERVER['COUNTRY'] ?? 'RU');
-    }
-
-    public function isEu()
-    {
-        return $this->_getProductCountry() == 'EU';
-    }
-
-    public function isRus()
-    {
-        return $this->_getProductCountry() == 'RU';
-    }
 }

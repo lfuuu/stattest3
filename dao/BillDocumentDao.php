@@ -4,9 +4,11 @@ namespace app\dao;
 
 use app\classes\Singleton;
 use app\helpers\DateTimeZoneHelper;
+use app\models\Bill;
 use app\models\BillDocument;
 use app\models\ClientAccount;
 use app\models\Country;
+use app\models\Invoice;
 use app\models\Organization;
 use app\modules\uu\models_light\InvoiceLight;
 
@@ -21,21 +23,21 @@ class BillDocumentDao extends Singleton
      * Получение доступных документов по номеру счета
      *
      * @param string $billNo
+     * @param bool $onlyReal только реально существующие invoice
      * @return array|bool
      */
-    public function getByBillNo($billNo)
+    public function getByBillNo($billNo, $onlyReal = true)
     {
-        $docs = BillDocument::findOne($billNo);
+        $docs = null;//BillDocument::findOne($billNo);
+        $docsArr = $onlyReal
+            ? []
+            : ($docs ? $docs->toArray() : $this->updateByBillNo($billNo, null, true));
 
-        if (!$docs) {
-            $docsArr =  $this->updateByBillNo($billNo, null, true);
-        } else {
-            $docsArr = $docs->toArray();
-        }
+        $docsArr = array_merge($docsArr, Invoice::getRealDocFlags($billNo));
 
-        $docsArr['upd2-1'] = $docsArr['i1'];
-        $docsArr['upd2-2'] = $docsArr['i2'];
-        $docsArr['upd2-3'] = $docsArr['i3'];
+        $docsArr['upd2-1'] = $docsArr['i1'] ?? 0;
+        $docsArr['upd2-2'] = $docsArr['i2'] ?? 0;
+        $docsArr['upd2-3'] = $docsArr['i3'] ?? 0;
 
         return $docsArr;
     }
@@ -128,10 +130,16 @@ class BillDocumentDao extends Singleton
                 $doctypes['ia' . $i] = (int)$v;
             }
 
-            for ($i = 1; $i <= 2; $i++) {
-                $v = $this->_isSF($accountId, BillDocument::TYPE_UPD2, $this->_getDocumentDateByLines($bill_invoice_akts[$i], $billTs));
-                $doctypes['upd2_' . $i] = (int)$v;
+            $isUPD2 = $this->_isSF($accountId, BillDocument::TYPE_UPD2, $billTs);
+            $doctypes['upd2_1'] = 0;
+            $doctypes['upd2_2'] = 0;
+            if ($isUPD2) {
+                $billModel = Bill::findOne(['bill_no' => $bill->GetNo()]);
+                for ($i = 1; $i <= 2; $i++) {
+                    $doctypes['upd2_' . $i] = (int)(bool)Bill::dao()->getLinesByTypeId($billModel,  $i);
+                }
             }
+
         }
 
         $docs = BillDocument::findOne($billNo);
@@ -177,6 +185,16 @@ class BillDocumentDao extends Singleton
     public function _isSF($accountId, $type, $documentDate = null, $objId = null)
     {
         static $cache = [];
+        static $countryCache = [];
+
+        // для не-российских ЛС только счет-фактура (invoice), дата не важна
+        if (!isset($countryCache[$accountId])) {
+            $countryCache[$accountId] = ClientAccount::findOne(['id' => $accountId])->getUuCountryId();
+        }
+
+        if ($countryCache[$accountId] != Country::RUSSIA) {
+            return $type == BillDocument::TYPE_INVOICE;
+        }
 
         if (!$documentDate) {
             return null;

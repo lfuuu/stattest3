@@ -36,7 +36,7 @@ class InvoiceBuyerLight extends Component implements InvoiceLightInterface
         $this->tax_registration_id = $contragent->inn;
         $this->euro_tax_registration_id = $contragent->inn_euro;
         $this->tax_registration_reason = $contragent->kpp ?: $contragent->tax_registration_reason;
-        $this->consignee = ($clientAccount->is_with_consignee && $clientAccount->consignee) ? $clientAccount->consignee : '------';
+        $this->consignee = ($clientAccount->is_with_consignee && $clientAccount->consignee) ? $clientAccount->consignee : '';
         $this->currency = $clientAccount->currencyModel->name;
         $this->currency_symbol = $clientAccount->currencyModel->symbol;
         $this->registration_address = $contragent->person ? $contragent->person->registration_address : '';
