@@ -129,7 +129,9 @@ class ViewForm extends \app\classes\Form
         }
 
         return
-            $document->state == SBISDocumentStatus::CANCELLED
+            $document->state == SBISDocumentStatus::CREATED
+            || $document->state == SBISDocumentStatus::CREATED_AUTO
+            || $document->state == SBISDocumentStatus::CANCELLED
             || $document->state == SBISDocumentStatus::NEGOTIATED
             || $document->state == SBISDocumentStatus::ERROR
             || $document->state == SBISDocumentStatus::SENT
