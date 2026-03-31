@@ -634,7 +634,9 @@ class AccountEditForm extends Form
 
         if (is_array($this->options)) {
 
-            $this->options[ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK] = (string)(int)$this->{ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK};
+            if (\Yii::$app->user->can('newaccounts_payments.delete')) {
+                $this->options[ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK] = (string)(int)$this->{ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK};
+            }
 
             $this->_saveOptions();
 
