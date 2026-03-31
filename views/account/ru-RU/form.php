@@ -159,7 +159,8 @@ $creditEditOptions = \Yii::$app->user->can('clients.new') ? [] : $disabled;
             &nbsp;
         </div>
         <div class="col-sm-3">
-            <?= $f->field($model, ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK)->checkbox() ?>
+            <?= $f->field($model, ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK)
+                ->checkbox(\Yii::$app->user->can('newaccounts_payments.delete') ? [] : ['disabled' => true]) ?>
         </div>
     </div>
 
