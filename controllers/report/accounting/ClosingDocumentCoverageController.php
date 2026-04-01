@@ -3,7 +3,7 @@
 namespace app\controllers\report\accounting;
 
 use app\classes\BaseController;
-use app\models\filter\ClosingDocumentCoverageFilter;
+use app\models\filter\accounting\ClosingDocumentCoverageFilter;
 
 class ClosingDocumentCoverageController extends BaseController
 {

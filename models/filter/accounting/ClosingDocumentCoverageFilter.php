@@ -1,6 +1,6 @@
 <?php
 
-namespace app\models\filter;
+namespace app\models\filter\accounting;
 
 use app\helpers\DateTimeZoneHelper;
 use app\models\Bill;

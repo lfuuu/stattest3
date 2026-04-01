@@ -3,7 +3,7 @@
  * Бухгалтерия: Контроль закрывающих документов
  *
  * @var \app\classes\BaseView $this
- * @var \app\models\filter\ClosingDocumentCoverageFilter $filterModel
+ * @var \app\models\filter\accounting\ClosingDocumentCoverageFilter $filterModel
  * @var array|null $summary
  * @var \yii\data\SqlDataProvider|null $dataProvider
  */
@@ -67,7 +67,7 @@ $form = ActiveForm::begin([
         <?= Html::activeDropDownList(
             $filterModel,
             'type_of_bill',
-            \app\models\filter\ClosingDocumentCoverageFilter::getTypeOfBillList(),
+            \app\models\filter\accounting\ClosingDocumentCoverageFilter::getTypeOfBillList(),
             ['class' => 'form-control input-sm']
         ) ?>
     </div>
