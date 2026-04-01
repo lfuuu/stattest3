@@ -13,7 +13,7 @@ class ClosingDocumentCoverageController extends BaseController
         $behaviors['access']['rules'] = [
             [
                 'allow' => true,
-                'actions' => ['index'],
+                'actions' => ['index', 'detail'],
                 'roles' => ['clients.read'],
             ],
         ];
@@ -29,6 +29,34 @@ class ClosingDocumentCoverageController extends BaseController
             'filterModel' => $filterModel,
             'summary' => $filterModel->validate() ? $filterModel->getSummary() : null,
             'dataProvider' => $filterModel->validate() ? $filterModel->getDataProvider() : null,
+        ]);
+    }
+
+    public function actionDetail()
+    {
+        $request = \Yii::$app->request;
+        $expandRowKey = $request->post('expandRowKey');
+        $month = $request->post('month');
+        $type_of_bill = $request->post('type_of_bill', '');
+
+        if (!$expandRowKey || !$month) {
+            return 'Не удалось загрузить строки счета';
+        }
+
+        $filterModel = new ClosingDocumentCoverageFilter();
+        $filterModel->load([
+            $filterModel->formName() => [
+                'month' => $month,
+                'type_of_bill' => $type_of_bill,
+            ],
+        ]);
+
+        if (!$filterModel->validate()) {
+            return 'Некорректные параметры';
+        }
+
+        return $this->renderPartial('detail', [
+            'dataProvider' => $filterModel->getBillDetails((string)$expandRowKey),
         ]);
     }
 }

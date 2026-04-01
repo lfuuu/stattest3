@@ -116,38 +116,13 @@ $form = ActiveForm::begin([
                 'value' => function () {
                     return GridView::ROW_COLLAPSED;
                 },
-                'detail' => function ($row) use ($filterModel) {
-                    return GridView::widget([
-                        'dataProvider' => $filterModel->getBillDetails((string)$row['bill_no']),
-                        'columns' => [
-                            [
-                                'attribute' => 'line_pk',
-                                'label' => 'Строка счета',
-                            ],
-                            [
-                                'attribute' => 'item',
-                                'label' => 'Наименование',
-                            ],
-                            [
-                                'attribute' => 'sum',
-                                'label' => 'Сумма',
-                                'contentOptions' => ['style' => 'text-align: right; white-space: nowrap;'],
-                                'value' => function ($detailRow) {
-                                    return number_format((float)$detailRow['sum'], 2, '.', ' ');
-                                }
-                            ],
-                            [
-                                'attribute' => 'date_from',
-                                'label' => 'Период от',
-                            ],
-                            [
-                                'attribute' => 'date_to',
-                                'label' => 'Период до',
-                            ],
-                        ],
-                        'isFilterButton' => false,
-                    ]);
-                },
+                'detailUrl' => Url::toRoute(['report/accounting/closing-document-coverage/detail']),
+                'detailRowCssClass' => GridView::TYPE_DEFAULT,
+                'detailOptions' => ['class' => 'kv-state-enable'],
+                'extraData' => [
+                    'month' => $filterModel->month,
+                    'type_of_bill' => $filterModel->type_of_bill,
+                ],
                 'contentOptions' => ['style' => 'text-align: center; vertical-align: middle; width: 50px;'],
                 'headerOptions' => ['style' => 'width: 50px;'],
                 'filterOptions' => ['style' => 'width: 50px;'],
