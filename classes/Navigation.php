@@ -64,6 +64,7 @@ class Navigation
         );
 
         $accountBlock->addItem('Печать закрывающих документов', '/report/closing-statements-print/', 'clients.edit');
+        $accountBlock->addItem('Контроль закрывающих документов', ['/report/accounting/closing-document-coverage'], ['clients.read']);
 
         $this->addBlock($accountBlock);
 
