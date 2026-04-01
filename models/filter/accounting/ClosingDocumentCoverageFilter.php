@@ -12,6 +12,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Yii;
 use yii\base\Model;
+use yii\data\ArrayDataProvider;
 use yii\data\SqlDataProvider;
 use yii\db\Expression;
 use yii\db\Query;
@@ -87,20 +88,23 @@ class ClosingDocumentCoverageFilter extends Model
     {
         $query = $this->buildMissingQuery()
             ->select([
-                'line_pk' => 'nbl.pk',
                 'bill_no' => 'nbl.bill_no',
                 'bill_date' => 'nb.bill_date',
                 'client_id' => 'nb.client_id',
                 'organization_id' => 'nb.organization_id',
-                'item' => 'nbl.item',
-                'sum' => 'nbl.sum',
-                'date_from' => 'nbl.date_from',
-                'date_to' => 'nbl.date_to',
                 'type_of_bill' => 'client.type_of_bill',
+                'missing_line_count' => new Expression('COUNT(*)'),
+                'missing_sum' => new Expression('SUM(nbl.sum)'),
+            ])
+            ->groupBy([
+                'nbl.bill_no',
+                'nb.bill_date',
+                'nb.client_id',
+                'nb.organization_id',
+                'client.type_of_bill',
             ])
             ->orderBy([
                 'nb.bill_no' => SORT_ASC,
-                'nbl.pk' => SORT_ASC,
             ]);
 
         $totalCount = (int)(clone $query)
@@ -114,6 +118,29 @@ class ClosingDocumentCoverageFilter extends Model
             'pagination' => [
                 'pageSize' => 100,
             ],
+            'sort' => false,
+        ]);
+    }
+
+    public function getBillDetails(string $billNo): ArrayDataProvider
+    {
+        $rows = $this->buildMissingQuery()
+            ->select([
+                'line_pk' => 'nbl.pk',
+                'item' => 'nbl.item',
+                'sum' => 'nbl.sum',
+                'date_from' => 'nbl.date_from',
+                'date_to' => 'nbl.date_to',
+            ])
+            ->andWhere(['nbl.bill_no' => $billNo])
+            ->orderBy([
+                'nbl.pk' => SORT_ASC,
+            ])
+            ->all();
+
+        return new ArrayDataProvider([
+            'allModels' => $rows,
+            'pagination' => false,
             'sort' => false,
         ]);
     }
