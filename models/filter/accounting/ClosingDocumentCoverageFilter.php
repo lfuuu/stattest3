@@ -126,7 +126,7 @@ class ClosingDocumentCoverageFilter extends Model
             ->innerJoin(['client' => ClientAccount::tableName()], 'client.id = nb.client_id')
             ->leftJoin(
                 ['cao' => ClientAccountOptions::tableName()],
-                "cao.client_account_id = nb.client_id AND cao.option = 'upload_to_sales_book'"
+                "cao.client_account_id = nb.client_id AND cao.option = '" . ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK . "'"
             )
             ->where(['>=', 'nb.bill_date', $this->getDateFrom()])
             ->andWhere(['<', 'nb.bill_date', $this->buildDateToExclusive()])
