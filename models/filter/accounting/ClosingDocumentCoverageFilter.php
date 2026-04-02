@@ -115,6 +115,7 @@ class ClosingDocumentCoverageFilter extends Model
         return new SqlDataProvider([
             'sql' => $query->createCommand()->rawSql,
             'totalCount' => $totalCount,
+            'key' => 'bill_no',
             'pagination' => [
                 'pageSize' => 100,
             ],
