@@ -194,11 +194,13 @@ class Invoice2025Form5_03 extends Invoice2016Form5_02
             $elInfoBuyerIdType->setAttribute('ИННФЛ', $this->client->contragent->person->inn);
         }
 
-        $elInfoBuyerIdTypeData = $dom->createElement('ФИО');
         $initials = $this->getInitials($this->client->contragent->name_full);
-        $elInfoBuyerIdTypeData->setAttribute('Имя', ($this->client->contragent->person->first_name ?: $initials[1]));
-        $elInfoBuyerIdTypeData->setAttribute('Отчество', ($this->client->contragent->person->middle_name ?: $initials[2]));
-        $elInfoBuyerIdTypeData->setAttribute('Фамилия', ($this->client->contragent->person->last_name ?: $initials[0]));
+        $elInfoBuyerIdTypeData = $this->createFioElement(
+            $dom,
+            ($this->client->contragent->person->last_name ?: $initials[0]),
+            ($this->client->contragent->person->first_name ?: $initials[1]),
+            ($this->client->contragent->person->middle_name ?: $initials[2])
+        );
         $elInfoBuyerIdType->appendChild($elInfoBuyerIdTypeData);
 
         $elInfoBuyerId->appendChild($elInfoBuyerIdType);
@@ -237,11 +239,8 @@ class Invoice2025Form5_03 extends Invoice2016Form5_02
         $elSigner->setAttribute('СпосПодтПолном', 1); // 1 - в соответствии с данными, содержащимися в электронной подписи
         $elSigner->setAttribute('Должн', $this->organizationFrom->director->post_nominative);
 
-        $elInitials = $dom->createElement('ФИО');
         $initials = $this->getInitials($this->organizationFrom->director->name_nominative);
-        $elInitials->setAttribute('Имя', $initials[1]);
-        $elInitials->setAttribute('Отчество', $initials[2]);
-        $elInitials->setAttribute('Фамилия', $initials[0]);
+        $elInitials = $this->createFioElement($dom, $initials[0], $initials[1], $initials[2]);
         $elSigner->appendChild($elInitials);
 
         return $elSigner;

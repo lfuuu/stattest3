@@ -243,11 +243,8 @@ class Invoice2016Form5_02 extends XmlGenerator
         }
         $elInfoBuyerId->appendChild($elInfoBuyerIdType);
 
-        $elInfoBuyerIdTypeData = $dom->createElement('ФИО');
         $initials = $this->getInitials($this->client->contragent->name_full);
-        $elInfoBuyerIdTypeData->setAttribute('Имя', $initials[1]);
-        $elInfoBuyerIdTypeData->setAttribute('Отчество', $initials[2]);
-        $elInfoBuyerIdTypeData->setAttribute('Фамилия', $initials[0]);
+        $elInfoBuyerIdTypeData = $this->createFioElement($dom, $initials[0], $initials[1], $initials[2]);
         $elInfoBuyerIdType->appendChild($elInfoBuyerIdTypeData);
     }
 

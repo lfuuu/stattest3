@@ -32,11 +32,13 @@ class Invoice2019Form5_01 extends Invoice2016Form5_02
         }
         $elInfoBuyerId->appendChild($elInfoBuyerIdType);
 
-        $elInfoBuyerIdTypeData = $dom->createElement('ФИО');
         $initials = $this->getInitials($this->client->contragent->name_full);
-        $elInfoBuyerIdTypeData->setAttribute('Имя', ($this->client->contragent->person->first_name ? : $initials[1]));
-        $elInfoBuyerIdTypeData->setAttribute('Отчество', ($this->client->contragent->person->middle_name ? : $initials[2]));
-        $elInfoBuyerIdTypeData->setAttribute('Фамилия', ($this->client->contragent->person->last_name ? : $initials[0]));
+        $elInfoBuyerIdTypeData = $this->createFioElement(
+            $dom,
+            ($this->client->contragent->person->last_name ? : $initials[0]),
+            ($this->client->contragent->person->first_name ? : $initials[1]),
+            ($this->client->contragent->person->middle_name ? : $initials[2])
+        );
         $elInfoBuyerIdType->appendChild($elInfoBuyerIdTypeData);
     }
 

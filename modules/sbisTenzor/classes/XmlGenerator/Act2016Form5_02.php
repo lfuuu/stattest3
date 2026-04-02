@@ -251,11 +251,8 @@ class Act2016Form5_02 extends XmlGenerator
         $elInfoContentBuyerIdType->setAttribute('ИННФЛ', $this->client->contragent->inn);
         $elInfoContentBuyerId->appendChild($elInfoContentBuyerIdType);
 
-        $elInfoContentBuyerIdTypeData = $dom->createElement('ФИО');
         $initials = $this->getInitials($this->client->contragent->name_full);
-        $elInfoContentBuyerIdTypeData->setAttribute('Имя', $initials[1]);
-        $elInfoContentBuyerIdTypeData->setAttribute('Отчество', $initials[2]);
-        $elInfoContentBuyerIdTypeData->setAttribute('Фамилия', $initials[0]);
+        $elInfoContentBuyerIdTypeData = $this->createFioElement($dom, $initials[0], $initials[1], $initials[2]);
         $elInfoContentBuyerIdType->appendChild($elInfoContentBuyerIdTypeData);
     }
 
@@ -277,11 +274,13 @@ class Act2016Form5_02 extends XmlGenerator
         }
         $elInfoContentBuyerId->appendChild($elInfoContentBuyerIdType);
 
-        $elInfoContentBuyerIdTypeData = $dom->createElement('ФИО');
         $initials = $this->getInitials($this->client->contragent->name_full);
-        $elInfoContentBuyerIdTypeData->setAttribute('Имя', ($this->client->contragent->person->first_name ? : $initials[1]));
-        $elInfoContentBuyerIdTypeData->setAttribute('Отчество', ($this->client->contragent->person->middle_name ? : $initials[2]));
-        $elInfoContentBuyerIdTypeData->setAttribute('Фамилия', ($this->client->contragent->person->last_name ? : $initials[0]));
+        $elInfoContentBuyerIdTypeData = $this->createFioElement(
+            $dom,
+            ($this->client->contragent->person->last_name ? : $initials[0]),
+            ($this->client->contragent->person->first_name ? : $initials[1]),
+            ($this->client->contragent->person->middle_name ? : $initials[2])
+        );
         $elInfoContentBuyerIdType->appendChild($elInfoContentBuyerIdTypeData);
     }
 }
