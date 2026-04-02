@@ -6,6 +6,7 @@ use app\exceptions\ModelValidationException;
 use app\modules\transfer\components\services\PreProcessor;
 use app\modules\transfer\components\services\Processor;
 use app\modules\uu\models\AccountTariff;
+use app\modules\uu\models\AccountTariffLog;
 use app\modules\uu\models\ServiceType;
 use yii\base\InvalidCallException;
 use yii\base\InvalidParamException;
@@ -28,8 +29,7 @@ class VoipServiceTransfer extends BasicServiceTransfer
      */
     public function finalizeClose(PreProcessor $preProcessor)
     {
-        // Ничего не делать в случае переноса "Универсальная услуга" => "Универсальная услуга"
-        // Для универсальных услуг метод переопределяет родительский, ОБЯЗАТЕЛЬНО ДОЛЖЕН НИЧЕГО НЕ ДЕЛАТЬ
+        $this->_closePackages($preProcessor);
     }
 
     /**
@@ -45,12 +45,49 @@ class VoipServiceTransfer extends BasicServiceTransfer
     {
         parent::finalizeOpen($preProcessor);
 
-        // Try to process packages
         // Пакеты в данной реализации не переносятся.
-//        $this->_packagesProcess($preProcessor);
+        // Дефолтные и бандл-пакеты создаются автоматически при подключении тарифа на новом ЛС.
+//        $this->_transferPackages($preProcessor);
     }
 
     /**
+     * Закрыть пакеты на старом ЛС при переносе услуги.
+     * ReferentialPackageControl отключен в BasicServiceTransfer::closeService(),
+     * поэтому закрытие пакетов вызывается явно.
+     *
+     * @param PreProcessor $preProcessor
+     */
+    private function _closePackages(PreProcessor $preProcessor)
+    {
+        $service = $preProcessor->sourceServiceHandler->getService();
+
+        if (!isset(ServiceType::$serviceToPackage[$service->service_type_id])) {
+            return;
+        }
+
+        /** @var AccountTariffLog|null $closureLog */
+        $closureLog = AccountTariffLog::find()
+            ->where([
+                'account_tariff_id' => $service->id,
+                'tariff_period_id' => null,
+            ])
+            ->orderBy(['id' => SORT_DESC])
+            ->one();
+
+        if (!$closureLog) {
+            return;
+        }
+
+        AccountTariff::closeAllPackages([
+            'account_tariff_log_id' => $closureLog->id,
+        ]);
+    }
+
+    /**
+     * Перенос пакетов на новый ЛС (не используется).
+     * Дефолтные и бандл-пакеты создаются автоматически при применении нового тарифа.
+     * Ручные пакеты не переносятся.
+     *
      * @param PreProcessor $preProcessor
      * @throws ModelValidationException
      * @throws \yii\db\Exception
@@ -59,7 +96,7 @@ class VoipServiceTransfer extends BasicServiceTransfer
      * @throws InvalidCallException
      * @throws \Exception
      */
-    private function _packagesProcess(PreProcessor $preProcessor)
+    private function _transferPackages(PreProcessor $preProcessor)
     {
         $packages = AccountTariff::find()
             ->where(['prev_account_tariff_id' => /*$preProcessor->targetServiceHandler->getService()->id*/$this->getService()->prev_usage_id])
