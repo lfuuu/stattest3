@@ -394,14 +394,32 @@ abstract class XmlGenerator// extends SBISExchangeForm
         $elSignerType->setAttribute('НаимОрг', $this->prepareText($this->organizationFrom->full_name));
         $elSigner->appendChild($elSignerType);
 
-        $elInitials = $dom->createElement('ФИО');
         $initials = $this->getInitials($this->organizationFrom->director->name_nominative);
-        $elInitials->setAttribute('Имя', $initials[1]);
-        $elInitials->setAttribute('Отчество', $initials[2]);
-        $elInitials->setAttribute('Фамилия', $initials[0]);
+        $elInitials = $this->createFioElement($dom, $initials[0], $initials[1], $initials[2]);
         $elSignerType->appendChild($elInitials);
 
         return $elSigner;
+    }
+
+    /**
+     * Создает узел ФИО с опциональным отчеством.
+     *
+     * @param \DOMDocument $dom
+     * @param string $lastName
+     * @param string $firstName
+     * @param string $middleName
+     * @return \DOMElement
+     */
+    protected function createFioElement(\DOMDocument $dom, $lastName, $firstName, $middleName = '')
+    {
+        $elInitials = $dom->createElement('ФИО');
+        $elInitials->setAttribute('Имя', $firstName);
+        $elInitials->setAttribute('Фамилия', $lastName);
+        if ($middleName !== '') {
+            $elInitials->setAttribute('Отчество', $middleName);
+        }
+
+        return $elInitials;
     }
 
     /**
