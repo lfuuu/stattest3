@@ -311,7 +311,13 @@ trait AccountTariffPackageTrait
         $accountTariff::getDb()->transaction(function($db) use ($accountTariff, $accountTariffLog) {
             /** @var AccountTariff[] $nextAccountTariffs */
             $nextAccountTariffs = $accountTariff->nextAccountTariffs;
+            Yii::info('closeAllPackages at_id=' . $accountTariff->id
+                . ' atl_id=' . $accountTariffLog->id
+                . ' packages=' . implode(',', array_keys($nextAccountTariffs)), 'uu');
             foreach ($nextAccountTariffs as $nextAccountTariff) {
+                Yii::info('closeAccountTariff package_id=' . $nextAccountTariff->id
+                    . ' tp=' . $nextAccountTariff->tariff_period_id
+                    . ' actual_from=' . $accountTariffLog->actual_from_utc, 'uu');
                 $nextAccountTariff->closeAccountTariff($accountTariffLog->actual_from_utc);
             }
         });
@@ -364,11 +370,17 @@ trait AccountTariffPackageTrait
     {
         if (!$this->tariff_period_id) {
             // уже закрыт
+            Yii::info('closeAccountTariff SKIP (already closed) id=' . $this->id, 'uu');
             return;
         }
 
         $nextAccountTariffLogs = $this->accountTariffLogs;
         $nextAccountTariffLog = reset($nextAccountTariffLogs);  // последняя смена тарифа (в начале desc-списка)
+        Yii::info('closeAccountTariff id=' . $this->id
+            . ' tp=' . $this->tariff_period_id
+            . ' lastLog=' . ($nextAccountTariffLog ? $nextAccountTariffLog->id : 'null')
+            . ' lastLogActual=' . ($nextAccountTariffLog ? $nextAccountTariffLog->actual_from_utc : 'null')
+            . ' closeDate=' . $actual_from_utc, 'uu');
         if ($nextAccountTariffLog->actual_from_utc > $actual_from_utc) {
             // что-то есть в будущем - отменить и закрыть
             if (!$nextAccountTariffLog->delete()) {
