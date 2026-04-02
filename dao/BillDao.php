@@ -1299,14 +1299,39 @@ SQL;
             return [];
         }
 
-        $lineIds = InvoiceLine::find()
+        // Группируем invoice по (bill_no, number).
+        // Если последний invoice в группе — сторно, строки этой группы "освобождены".
+        $allInvoices = Invoice::find()
+            ->where(['bill_no' => $billNos])
+            ->andWhere(['not', ['number' => null]])
+            ->orderBy(['id' => SORT_DESC])
+            ->all();
+
+        $seen = [];
+        $reversedInvoiceIds = [];
+        foreach ($allInvoices as $inv) {
+            $key = $inv->bill_no . '_' . $inv->number;
+            if (!isset($seen[$key])) {
+                $seen[$key] = $inv->is_reversal ? true : false;
+            }
+            if ($seen[$key]) {
+                $reversedInvoiceIds[] = $inv->id;
+            }
+        }
+
+        $query = InvoiceLine::find()
             ->alias('il')
-            ->innerJoin(['i' => Invoice::tableName()], 'i.id = il.invoice_id')
+            ->innerJoinWith(['invoice i'], false)
             ->where(['i.bill_no' => $billNos])
             ->andWhere(['i.is_reversal' => 0])
             ->andWhere(['not', ['il.line_id' => null]])
-            ->select('il.line_id')
-            ->column();
+            ->select('il.line_id');
+
+        if ($reversedInvoiceIds) {
+            $query->andWhere(['not', ['il.invoice_id' => $reversedInvoiceIds]]);
+        }
+
+        $lineIds = $query->column();
 
         return array_flip($lineIds);
     }
@@ -1469,7 +1494,12 @@ SQL;
      */
     public static function generateInvoices(Bill $bill, $is4Invoice = false, $isAsInsert = false, $isForceUpdate = false)
     {
+        $debugTag = "generateInvoices [{$bill->bill_no}]";
+
+        \Yii::warning("$debugTag: [Bill {$bill->bill_no}, is4Invoice = {$is4Invoice}, isAsInsert = {$isAsInsert}, isForceUpdate = {$isForceUpdate}]", __METHOD__);
+
         if (!$bill->isEditable() && !$isForceUpdate) {
+            \Yii::warning("$debugTag: skip - not editable", __METHOD__);
             return;
         }
 
@@ -1477,8 +1507,7 @@ SQL;
             $bill->bill_date < Invoice::DATE_ACCOUNTING
             || !$bill->operationType->is_convertible
         ) {
-            // 1 авг 2018 новый формат с/ф
-            // или не конвертируемый
+            \Yii::warning("$debugTag: skip - bill_date < DATE_ACCOUNTING or not convertible (op_type={$bill->operation_type})", __METHOD__);
             return;
         }
 
@@ -1489,15 +1518,13 @@ SQL;
             ($clientAccount->currency != Currency::RUB && $bill->bill_date < Invoice::DATE_NO_RUSSIAN_ACCOUNTING)
             || !$clientAccount->getOptionValue(ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK)
         ) {
-
-            // выключаем ошибочно включеные
-//            foreach ($bill->invoices as $invoice) {
-//                $invoice->setReversal();
-//            }
-
+            \Yii::warning("$debugTag: skip - currency={$clientAccount->currency}, upload_to_sales_book=" . (int)$clientAccount->getOptionValue(ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK), __METHOD__);
             return;
         }
 
+        \Yii::warning("$debugTag: go!! ".__LINE__, __METHOD__);
+
+        \Yii::info("$debugTag: start, is4Invoice=$is4Invoice, isAsInsert=$isAsInsert, isForceUpdate=$isForceUpdate, prepaid=" . $bill->clientAccountModel->is_postpaid, __METHOD__);
 
         try {
             $types = Invoice::$types;
@@ -1521,41 +1548,75 @@ SQL;
                 }
             }
 
+            \Yii::info("$debugTag: types=" . implode(',', $types), __METHOD__);
+
             foreach ($types as $typeId) {
                 $invoiceDate = Invoice::getDate($bill, $typeId);
 
                 // если нет даты документа, то и с/ф регистрировать не надо
                 if (!$invoiceDate) {
+                    \Yii::info("$debugTag: type=$typeId skip - no invoiceDate", __METHOD__);
                     continue;
                 }
 
-                /** @var Invoice $invoice */
-                $invoice = Invoice::find()
-                    ->where(['bill_no' => $bill->bill_no, 'type_id' => $typeId])
-                    ->orderBy(['id' => SORT_DESC])
-                    ->one();
+                $isPrepaid2 = $bill->clientAccountModel->is_postpaid == ClientAccount::PAYMENT_TYPE_PREPAID_2;
 
-                // Если последний документ - зарегистрирован, то ничего делать не надо
+                if ($isPrepaid2) {
+                    // Prepaid 2.0: ищем сф, содержащую все линии счёта данного типа
+                    $lines = $bill->getLinesByTypeId($typeId);
+
+                    if ($lines) {
+                        $lineIds = array_map(fn($l) => $l->pk, $lines);
+
+                        /** @var Invoice $invoice */
+                        $invoice = Invoice::find()
+                            ->alias('i')
+                            ->innerJoin(['il' => InvoiceLine::tableName()], 'il.invoice_id = i.id')
+                            ->where(['il.line_id' => $lineIds])
+                            ->andWhere(['i.is_reversal' => 0])
+                            ->groupBy('i.id')
+                            ->having('COUNT(DISTINCT il.line_id) = :cnt', [':cnt' => count($lineIds)])
+                            ->orderBy(['i.id' => SORT_DESC])
+                            ->one();
+                    } else {
+                        $invoice = null;
+                    }
+                } else {
+                    /** @var Invoice $invoice */
+                    $invoice = Invoice::find()
+                        ->where(['bill_no' => $bill->bill_no, 'type_id' => $typeId])
+                        ->orderBy(['id' => SORT_DESC])
+                        ->one();
+                }
+
+                // Если документ зарегистрирован — пропускаем
                 if ($invoice && $invoice->number && !$isForceUpdate) {
+                    \Yii::info("$debugTag: type=$typeId skip - already registered (invoice.id={$invoice->id}, number={$invoice->number})", __METHOD__);
                     continue;
                 }
 
-                if ($isForceUpdate && $invoice->lines) {
+                if ($isForceUpdate && $invoice && $invoice->lines) {
                     array_walk($invoice->lines, fn($line) => $line->delete());
                     $invoice->populateRelation('lines', []);
                 }
 
-                $lines = $invoice && $invoice->lines ?
-                    $invoice->lines :
-                    $bill->getLinesByTypeId($typeId);
+                if (!$isPrepaid2) {
+                    $lines = $invoice && $invoice->lines ?
+                        $invoice->lines :
+                        $bill->getLinesByTypeId($typeId);
+                }
 
                 if (!$lines) {
+                    \Yii::info("$debugTag: type=$typeId skip - no lines", __METHOD__);
                     $invoice && $invoice->delete();
                     continue;
                 }
 
+                \Yii::info("$debugTag: type=$typeId lines=" . count($lines), __METHOD__);
+
                 if ($typeId == Invoice::TYPE_PREPAID) {
                     $lines = BillLine::refactLinesWithFourOrderFacture($bill, $lines);
+                    \Yii::info("$debugTag: type=$typeId after refact lines=" . count($lines), __METHOD__);
                 }
 
                 $sumData = BillLine::getSumsLines($lines);
@@ -1564,6 +1625,7 @@ SQL;
 
                 // не вносим отрицательные суммы, нулевые можно вносить
                 if ($sum < 0) {
+                    \Yii::info("$debugTag: type=$typeId skip - negative sum=$sum", __METHOD__);
                     $invoice && $invoice->delete();
                     continue;
                 }
@@ -1597,8 +1659,11 @@ SQL;
 
 
                 if (!$invoice->save()) {
+                    \Yii::error("$debugTag: type=$typeId save failed: " . json_encode($invoice->errors), __METHOD__);
                     throw new ModelValidationException($invoice);
                 }
+
+                \Yii::info("$debugTag: type=$typeId saved invoice.id={$invoice->id}, sum={$invoice->sum}, lines=" . count($lines), __METHOD__);
 
                 if ($isForceUpdate && $invoice->number) {
                     if ($invoice->is_act) {
