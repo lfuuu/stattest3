@@ -35,7 +35,22 @@ class AccountingController extends BaseController
     }
 
     /**
-     * @param int $id
+     * Фильтр списка по умолчанию на основе financial_type договора
+     */
+    private function getDefaultListFilter(ClientAccount $account): string
+    {
+        switch ($account->clientContractModel->financial_type ?? '') {
+            case ClientContract::FINANCIAL_TYPE_CONSUMABLES:
+                return 'outcome';
+            case ClientContract::FINANCIAL_TYPE_YIELD_CONSUMABLE:
+                return 'full';
+            default:
+                return 'income';
+        }
+    }
+
+    /**
+     * @param int $client_id
      * @return string
      * @throws \yii\base\InvalidParamException
      * @throws Exception
@@ -80,12 +95,8 @@ class AccountingController extends BaseController
             }
         }
 
-        if (!isset($_SESSION["prevClientAccountId"])) {
-            $_SESSION["prevClientAccountId"] = $account->id;
-        }
-
-        if ($_SESSION["prevClientAccountId"] != $account->id) {
-            $_SESSION["listFilter"] = $account->contract->financial_type == ClientContract::FINANCIAL_TYPE_YIELD_CONSUMABLE ? 'full' : 'income';
+        if (!isset($_SESSION["prevClientAccountId"]) || $_SESSION["prevClientAccountId"] != $account->id) {
+            $_SESSION["listFilter"] = $this->getDefaultListFilter($account);
             $_SESSION["prevClientAccountId"] = $account->id;
         }
 
