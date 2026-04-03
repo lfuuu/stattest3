@@ -9,28 +9,40 @@
 	<DIV align=center ><INPUT id=submit class=button type=submit value="Изменить"></DIV>
 				<div style="width:300px">Отправить с ящика: {html_options options=$emails selected=$template.from_email name='from_email'}</div>
 </TD><TD valign=top>
-<a href='#' onclick='form.body.value+="\n%CLIENT%";return false;'>логин клиента</a><br><br>
-<a href='#' onclick='form.body.value+="\n%CLIENT_NAME%";return false;'>полное название компании</a><br><br>
-<a href='#' onclick='form.body.value+="\n%ABILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>счета клиента за месяц</a><br><br>
-<a href='#' onclick='form.body.value+="\n%UBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>Полностью неоплаченные(красные)</a><br><br>
-<a href='#' onclick='form.body.value+="\n%PBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>Оплаченные не полностью(желтые)</a><br><br>
-<a href='#' onclick='form.body.value+="\n%NBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>Не полностью оплаченные(красные и желтые)</a><br><br>
-<a href='#' onclick='form.body.value+="\n%INVOICE"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>Закрывающие документы (с/ф, акт, УПД)</a><br><br>
-<a href='#' onclick='form.body.value+="\n%ORDER_TELEKOM%";return false;'>Приказ (Телеком)</a><br><br>
-<a href='#' onclick='form.body.value+="\n%NOTICE_TELEKOM%";return false;'>Уведомление (Телеком)</a><br><br>
-<a href='#' onclick='form.body.value+="\n%DIRECTOR_TELEKOM%";return false;'>Новый директор Надточеева</a><br><br>
-<a href='#' onclick='form.body.value+="\n%DOGOVOR_TELEKOM%";return false;'>Договор</a><br><br>
-<a href='#' onclick='form.body.value+="\n%NOTICE_MCM_TELEKOM%";return false;'>Уведомление о передаче прав (МСН Телеком => МСН Телеком Ретайл)</a><br><br>
-<a href='#' onclick='form.body.value+="\n%SOGL_MCM_TELEKOM%";return false;'>Соглашение о передаче прав (МСН Телеком => МСМ Телеком)</a><br>
-<a href='#' onclick='form.body.value+="\n%SOGL_MCN_TELEKOM%";return false;'>Соглашение о передаче прав (МСН Телеком => МСН Телеком Ритейл)</a><br>
-<a href='#' onclick='form.body.value+="\n%SOGL_MCNSERVICE%";return false;'>Соглашение о передаче прав (МСН Телеком Ритейл => МСН Телеком Сервис)</a><br>
-<a href='#' onclick='form.body.value+="\n%SOGL_MCNTELEKOMTOSERVICE%";return false;'>Соглашение о передаче прав (МСН Телеком => МСН Телеком Сервис)</a><br>
-<a href='#' onclick='form.body.value+="\n%SOGL_MCNSERVICETOABONSERV%";return false;'>Соглашение о передаче прав (МСН Телеком Сервис => АбонСервис)</a><br>
-<a href='#' onclick='form.body.value+="\n%SOGL_ABONSERVTOMCNTELEKOM%";return false;'>Соглашение о передаче прав (АбонСервис => МСН Телеком)</a><br>
-<a href='#' onclick='form.body.value+="\n%APDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>счета клиента за месяц в PDF</a><br><br>
-<a href='#' onclick='form.body.value+="\n%UPDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>Полностью неоплаченные(красные) в PDF</a><br><br>
-<a href='#' onclick='form.body.value+="\n%PPDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>Оплаченные не полностью(желтые) в PDF</a><br><br>
-<a href='#' onclick='form.body.value+="\n%NPDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>Не полностью оплаченные(красные и желтые) в PDF</a><br><br>
+<div style="max-height:250px;overflow-y:auto;border:1px solid #ddd;padding:5px;">
+<a href='#' onclick='form.body.value+="\n%CLIENT%";return false;'>логин клиента</a><br>
+<a href='#' onclick='form.body.value+="\n%CLIENT_NAME%";return false;'>полное название компании</a><br>
+<b>Счета:</b>
+<div style="margin-left:15px;">
+<a href='#' onclick='form.body.value+="\n%ABILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>за месяц</a><br>
+<a href='#' onclick='form.body.value+="\n%UBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>полностью неоплаченные (красные)</a><br>
+<a href='#' onclick='form.body.value+="\n%PBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>оплаченные не полностью (желтые)</a><br>
+<a href='#' onclick='form.body.value+="\n%NBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>не полностью оплаченные (красные и желтые)</a><br>
+<a href='#' onclick='form.body.value+="\n%APDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>за месяц в PDF</a><br>
+<a href='#' onclick='form.body.value+="\n%UPDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>полностью неоплаченные (красные) в PDF</a><br>
+<a href='#' onclick='form.body.value+="\n%PPDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>оплаченные не полностью (желтые) в PDF</a><br>
+<a href='#' onclick='form.body.value+="\n%NPDFBILL"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>не полностью оплаченные (красные и желтые) в PDF</a><br>
+</div>
+<b>Закрывающие документы (с/ф, УПД):</b>
+<div style="margin-left:15px;">
+<a href='#' onclick='form.body.value+="\n%INVOICE"+prompt("Год-месяц","{$smarty.now|date_format:"%Y-%m"}")+"%";return false;'>по счету</a><br>
+<a href='#' onclick='form.body.value+="\n%INVOICE_BY_DATE"+prompt("Год-месяц","{"first day of last month"|strtotime|date_format:"%Y-%m"}")+"%";return false;'>по дате</a><br>
+</div>
+<a href='#' onclick='form.body.value+="\n%ORDER_TELEKOM%";return false;'>Приказ (Телеком)</a><br>
+<a href='#' onclick='form.body.value+="\n%NOTICE_TELEKOM%";return false;'>Уведомление (Телеком)</a><br>
+<a href='#' onclick='form.body.value+="\n%DIRECTOR_TELEKOM%";return false;'>Новый директор Надточеева</a><br>
+<a href='#' onclick='form.body.value+="\n%DOGOVOR_TELEKOM%";return false;'>Договор</a><br>
+<a href='#' onclick='form.body.value+="\n%NOTICE_MCM_TELEKOM%";return false;'>Уведомление о передаче прав (МСН Телеком => МСН Телеком Ретайл)</a><br>
+<b>Соглашения о передаче прав:</b>
+<div style="margin-left:15px;">
+<a href='#' onclick='form.body.value+="\n%SOGL_MCM_TELEKOM%";return false;'>МСН Телеком => МСМ Телеком</a><br>
+<a href='#' onclick='form.body.value+="\n%SOGL_MCN_TELEKOM%";return false;'>МСН Телеком => МСН Телеком Ритейл</a><br>
+<a href='#' onclick='form.body.value+="\n%SOGL_MCNSERVICE%";return false;'>МСН Телеком Ритейл => МСН Телеком Сервис</a><br>
+<a href='#' onclick='form.body.value+="\n%SOGL_MCNTELEKOMTOSERVICE%";return false;'>МСН Телеком => МСН Телеком Сервис</a><br>
+<a href='#' onclick='form.body.value+="\n%SOGL_MCNSERVICETOABONSERV%";return false;'>МСН Телеком Сервис => АбонСервис</a><br>
+<a href='#' onclick='form.body.value+="\n%SOGL_ABONSERVTOMCNTELEKOM%";return false;'>АбонСервис => МСН Телеком</a><br>
+</div>
+</div>
 
 			</TD></TR></FORM></TABLE>
 
@@ -67,7 +79,7 @@
 	</tr></form>
 	</table>
 </div>
-<br><br>
+<br>
 <a href='{$LINK_START}module=mail&action=client&id={$template.job_id}'>Добавить клиентов</a>
 
 <TABLE class=price cellSpacing=4 cellPadding=2 border=0>
@@ -94,7 +106,7 @@
 		</table>
 	{/if}</TD>
 	<TD>{$r.letter_state}</TD>
-	<TD>{$r.send_date|date_full}</TD>
+	<TD>{if $r.send_date && $r.send_date > '2000-01-01'}{$r.send_date|date_full}{/if}</TD>
 	<TD style='font-size:80%'>{$r.send_message}</TD>
 </TR>
 {/foreach}
