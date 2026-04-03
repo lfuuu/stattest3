@@ -2,128 +2,143 @@
 
 use app\classes\BillContract;
 
-class MailJob {
-	public $data = array();
-	public $client = array();
-	public $encoding = 'utf-8';
-	public $emails = array();
-	public $files = [];
+class MailJob
+{
+    public $data = array();
+    public $client = array();
+    public $encoding = 'utf-8';
+    public $emails = array();
+    public $files = [];
 
-	public $lang = 'ru-RU';
-	public $countryId = \app\models\Country::RUSSIA;
+    public $lang = 'ru-RU';
+    public $countryId = \app\models\Country::RUSSIA;
 
     private $_isInvoice = null;
     public $errorMsg = '';
 
-	private static $prepared = 0;
+    private static $prepared = 0;
 
-	public function __construct($id = null) {
-		global $db;
-		if($id!==null)
-			$this->data = $db->GetRow('select * from mail_job where job_id='.$id);
-	}
-	public static function GetObjectP() {
-		return self::GetObject(
-			get_param_raw('o'),
-			get_param_raw('k')
-		);
-	}
-	public static function GetObject($object_id,$key){
-		global $db;
-		if (!$object_id || !$key) {
-		    return null;
+    public function __construct($id = null)
+    {
+        global $db;
+        if ($id !== null)
+            $this->data = $db->GetRow('select * from mail_job where job_id=' . $id);
+    }
+
+    public static function GetObjectP()
+    {
+        return self::GetObject(
+            get_param_raw('o'),
+            get_param_raw('k')
+        );
+    }
+
+    public static function GetObject($object_id, $key)
+    {
+        global $db;
+        if (!$object_id || !$key) {
+            return null;
         }
-		$v = $db->GetRow('select * from mail_object where object_id='.$db->escape($object_id));
-		$key1 = self::get_object_key($v);
-		if($key1==$key)
-			return $v;
-		else
-			return null;
-	}
-	public function assign_client($client){
-		global $db;
-		$this->client = $db->GetRow('select * from clients where client="'.$client.'"');
-		$fullName = '';
-		if ($this->client && ($accountClient = \app\models\ClientAccount::findOne(['id' => $this->client['id']]))) {
-			$fullName = $accountClient->contragent->name_full;
-			$this->lang = $accountClient->organization->lang_code;
-			$this->countryId = $accountClient->organization->country_id;
-		}
-		$this->client['company_full'] = $fullName;
-		$this->emails = array();
-		$this->files = [];
+        $v = $db->GetRow('select * from mail_object where object_id=' . $db->escape($object_id));
+        $key1 = self::get_object_key($v);
+        if ($key1 == $key)
+            return $v;
+        else
+            return null;
+    }
 
-		if(!$this->client)
-			return;
-		$R = $db->AllRecords('
+    public function assign_client($client)
+    {
+        global $db;
+        $this->client = $db->GetRow('select * from clients where client="' . $client . '"');
+        $fullName = '';
+        if ($this->client && ($accountClient = \app\models\ClientAccount::findOne(['id' => $this->client['id']]))) {
+            $fullName = $accountClient->contragent->name_full;
+            $this->lang = $accountClient->organization->lang_code;
+            $this->countryId = $accountClient->organization->country_id;
+        }
+        $this->client['company_full'] = $fullName;
+        $this->emails = array();
+        $this->files = [];
+
+        if (!$this->client)
+            return;
+        $R = $db->AllRecords('
 			select
 				*
 			from
 				client_contacts
 			where
-				client_id='.$this->client['id'].'
+				client_id=' . $this->client['id'] . '
 			AND
 				is_official=1
 			AND
 				type="email"
 		');
-		foreach($R as $r){
-			$r=str_replace(
-				array(',',' '),
-				array(';',';'),
-				$r['data']
-			);
-			$r = explode(';',$r);
-			foreach($r as $v)
-				if(trim($v)!=""){
-					$this->emails[] = trim($v);
-				}
-		}
-	}
-	public function assign_client_data($cdata){
-		global $db;
-		$this->client = $cdata;
-	}
-	private static function get_object_key($v){
-		$k = md5(
-			md5(
-				md5($v['job_id']).$v['client_id']
-			).$v['object_id']
-		);
-		return substr($k,0,8);
-	}
-	public function get_object_link($object_type,$object_param, $source = 2, $isPDF = false){
-		global $db;
+        foreach ($R as $r) {
+            $r = str_replace(
+                array(',', ' '),
+                array(';', ';'),
+                $r['data']
+            );
+            $r = explode(';', $r);
+            foreach ($r as $v)
+                if (trim($v) != "") {
+                    $this->emails[] = trim($v);
+                }
+        }
+    }
+
+    public function assign_client_data($cdata)
+    {
+        global $db;
+        $this->client = $cdata;
+    }
+
+    private static function get_object_key($v)
+    {
+        $k = md5(
+            md5(
+                md5($v['job_id']) . $v['client_id']
+            ) . $v['object_id']
+        );
+        return substr($k, 0, 8);
+    }
+
+    public function get_object_link($object_type, $object_param, $source = 2, $isPDF = false)
+    {
+        global $db;
 
         if ($object_type == 'act') {
             $object_type = 'akt'; // :facepalm:
         }
 
-		$v = array();
-		$v['job_id'] = $this->data['job_id'];
-		$v['client_id'] = $this->client['id'];
-		$v['object_type'] = $object_type;
-		$v['object_param'] = $object_param;
+        $v = array();
+        $v['job_id'] = $this->data['job_id'];
+        $v['client_id'] = $this->client['id'];
+        $v['object_type'] = $object_type;
+        $v['object_param'] = $object_param;
         $v["source"] = $source;
         $v['is_pdf'] = (int)$isPDF;
 
-		$ins = false;
-		while(!($r = $db->QuerySelectRow('mail_object',$v))){
-			if($ins)
-				throw new Exception("Can't create object ".print_r($v,true));
-			$ins = true;
-			$v['object_id'] = $db->QueryInsert('mail_object',$v);
-		}
+        $ins = false;
+        while (!($r = $db->QuerySelectRow('mail_object', $v))) {
+            if ($ins)
+                throw new Exception("Can't create object " . print_r($v, true));
+            $ins = true;
+            $v['object_id'] = $db->QueryInsert('mail_object', $v);
+        }
 
         return /* Yii::$app->params['LK_PATH'] . 'docs' */ 'https://base.' . (\Yii::$app->isEu() ? 'kompaas.tech' : 'mcn.ru') . '/api/public/api/v1/billing/docs?scope=mail&number=' . $r['object_id'] . '&key=' . self::get_object_key($r);
-	}
+    }
 
     public function _get_assignments($match)
     {
         global $db;
 
         switch ($match[1]) {
-            case 'ORDER': {
+            case 'ORDER':
+            {
                 return
                     'Приказ о назначении: ' .
                     $this->get_object_link(
@@ -131,7 +146,8 @@ class MailJob {
                         $db->GetValue("SELECT bill_no FROM newbills WHERE client_id = '" . $this->client['id'] . "' ORDER BY bill_date DESC LIMIT 1")
                     );
             }
-            case 'NOTICE': {
+            case 'NOTICE':
+            {
                 return
                     'Уведомление о назначении: ' .
                     $this->get_object_link(
@@ -139,7 +155,8 @@ class MailJob {
                         $db->GetValue("SELECT bill_no FROM newbills WHERE client_id = '" . $this->client['id'] . "' ORDER BY bill_date DESC LIMIT 1")
                     );
             }
-            case 'DIRECTOR': {
+            case 'DIRECTOR':
+            {
                 return
                     'Информационное письмо о смене генерального директора: ' .
                     $this->get_object_link(
@@ -147,37 +164,43 @@ class MailJob {
                         $db->GetValue("SELECT bill_no FROM newbills WHERE client_id = '" . $this->client['id'] . "' ORDER BY bill_date DESC LIMIT 1")
                     );
             }
-            case 'DOGOVOR': {
+            case 'DOGOVOR':
+            {
                 return
                     BillContract::getString($this->client['id'], time());
             }
-            case 'NOTICE_MCM': {
+            case 'NOTICE_MCM':
+            {
                 return
                     'Уведомление о передаче прав и обязанностей по договору №' .
                     BillContract::getString($this->client['contract_id'], time()) . ': ' .
                     $this->get_object_link('notice_mcm_telekom', $this->client['id']);
             }
-            case 'SOGL_MCM': {
+            case 'SOGL_MCM':
+            {
                 return
                     'Соглашение о передаче прав и обязанностей по договору №' .
                     BillContract::getString($this->client['contract_id'], time()) . ': ' .
                     $this->get_object_link('sogl_mcm_telekom', $this->client['id']);
             }
-            case 'SOGL_MCN': {
+            case 'SOGL_MCN':
+            {
                 return
                     'Соглашение о передаче прав и обязанностей по договору №' .
                     BillContract::getString($this->client['contract_id'], time()) . ': ' .
                     $this->get_object_link('sogl_mcn_telekom', $this->client['id']);
             }
 
-            case 'SOGL_MCNSERVICE': {
+            case 'SOGL_MCNSERVICE':
+            {
                 return
                     'Соглашение о передаче прав и обязанностей по договору №' .
                     BillContract::getString($this->client['contract_id'], time()) . ': ' .
                     $this->get_object_link('sogl_mcn_service', $this->client['id'], 2, true);
             }
 
-            case 'SOGL_MCNTELEKOMTOSERVICE': {
+            case 'SOGL_MCNTELEKOMTOSERVICE':
+            {
                 return
                     'Соглашение о передаче прав и обязанностей по договору №' .
                     BillContract::getString($this->client['contract_id'], time()) . ': ' .
@@ -196,57 +219,56 @@ class MailJob {
         return '';
     }
 
-	public function _get_bills($match)
+    public function _get_bills($match)
     {
-		global $db;
+        global $db;
 
-        require_once(INCLUDE_PATH."bill.php");
-        require_once(MODULES_PATH."newaccounts/module.php");
+        require_once(INCLUDE_PATH . "bill.php");
+        require_once(MODULES_PATH . "newaccounts/module.php");
 
-		/*$W = array('AND');
-		if($match[1]=='U')
-			$W[] = 'is_payed!=1';
-		$W[] = 'bill_date LIKE "'.$match[2].'-%"';
-		$W[] = 'client_id = '.$this->client['id'];*/
+        /*$W = array('AND');
+        if($match[1]=='U')
+            $W[] = 'is_payed!=1';
+        $W[] = 'bill_date LIKE "'.$match[2].'-%"';
+        $W[] = 'client_id = '.$this->client['id'];*/
 
-		$T = '';
-		if($this->encoding=='utf-8'){
-			$s1 = ' от ';
-			$s2 = ' г.: ';
-		}else{
-			$s1 = ' НР ';
-			$s2 = ' Ц.: ';
-		}
+        $T = '';
+        if ($this->encoding == 'utf-8') {
+            $s1 = ' от ';
+            $s2 = ' г.: ';
+        } else {
+            $s1 = ' НР ';
+            $s2 = ' Ц.: ';
+        }
 
-		if($match[1]=='U')
-		{
-			$pay_flag = 'AND `is_payed`= 0';
-		} elseif($match[1]=='P') {
-			$pay_flag = 'AND `is_payed`= 2';
-		}elseif($match[1]=='N') {
-			$pay_flag = 'AND (`is_payed`= 2 OR `is_payed`= 0)';
-		} else {
+        if ($match[1] == 'U') {
+            $pay_flag = 'AND `is_payed`= 0';
+        } elseif ($match[1] == 'P') {
+            $pay_flag = 'AND `is_payed`= 2';
+        } elseif ($match[1] == 'N') {
+            $pay_flag = 'AND (`is_payed`= 2 OR `is_payed`= 0)';
+        } else {
             $pay_flag = '';
         }
 
         $isPDF = (bool)$match[2];
 
-		$query = "
+        $query = "
 			SELECT
 				*
 			FROM
 				`newbills`
 			WHERE
-				`client_id` = ".$this->client['id']."
+				`client_id` = " . $this->client['id'] . "
 			AND 
 				`sum` > 0 
 			AND 
 					`bill_date` BETWEEN '" . $match[3] . "-1' AND DATE_ADD(DATE_ADD('" . $match[3] . "-1', INTERVAL 1 MONTH), INTERVAL -1 DAY)
-			".$pay_flag;
+			" . $pay_flag;
 
-		$rows = $db->AllRecords($query,null,MYSQLI_ASSOC);
+        $rows = $db->AllRecords($query, null, MYSQLI_ASSOC);
 
-		foreach($rows as $r) {//while($r = $db->NextRecord()){
+        foreach ($rows as $r) {//while($r = $db->NextRecord()){
             if (strlen($T) > 0) {
                 $T .= "\n";
             }
@@ -256,7 +278,7 @@ class MailJob {
                 date('d.m.Y', strtotime($r['bill_date'])) . // дата счета
                 $s2 . // г.
                 $this->get_object_link('bill',
-                    $r['bill_no'],2, $isPDF); // вот тут косяк. Здешняя библиотека sql не готова к таким зигзагам. Если счетов больше чем 1 - будет выход из цикла.
+                    $r['bill_no'], 2, $isPDF); // вот тут косяк. Здешняя библиотека sql не готова к таким зигзагам. Если счетов больше чем 1 - будет выход из цикла.
 
             // $bill = new Bill($r["bill_no"]);
             // $modelBill = \app\models\Bill::findOne(['bill_no' => $r['bill_no']]);
@@ -283,10 +305,10 @@ class MailJob {
             $b_sf[4] && $T .="\nТоварная накладная ".$r['bill_no'].": ".$this->get_object_link('lading',$r['bill_no'], $isPDF);
             */
 
-            $T .="\n";
-		}
-		return $T;
-	}
+            $T .= "\n";
+        }
+        return $T;
+    }
 
     public function _get_invoices($mathes)
     {
@@ -295,7 +317,7 @@ class MailJob {
 
         $isPdf = (bool)$mathes[1];
 
-        $dateStart = (new DateTimeImmutable($mathes[3].'-01'));
+        $dateStart = (new DateTimeImmutable($mathes[3] . '-01'));
         $dateEnd = $dateStart->modify('+1 month')->modify('-1 day');
 
         $billQuery = \app\models\Bill::find()
@@ -362,7 +384,93 @@ class MailJob {
         $msg && $this->_isInvoice = true;
 
         return $msg;
-	}
+    }
+
+    public function _get_invoices_by_date($mathes)
+    {
+        $this->_isInvoice = false;
+        $this->errorMsg = '';
+
+        $dateStart = (new DateTimeImmutable($mathes[2] . '-01'));
+        $dateEnd = $dateStart->modify('+1 month')->modify('-1 day');
+        $dateFormat = \app\helpers\DateTimeZoneHelper::DATE_FORMAT;
+
+        // все invoice за период, сортировка по id для определения последнего по ключу
+        $allInvoices = \app\models\Invoice::find()
+            ->innerJoinWith('bill b')
+            ->where(['b.client_id' => $this->client['id']])
+            ->andWhere(['between', 'invoice.date', $dateStart->format($dateFormat), $dateEnd->format($dateFormat)])
+            ->orderBy(['invoice.id' => SORT_ASC])
+            ->all();
+
+        // группируем по bill_no + number, оставляем последний по id
+        $lastByKey = [];
+        foreach ($allInvoices as $invoice) {
+            $key = $invoice->bill_no . '_' . $invoice->number;
+            $lastByKey[$key] = $invoice;
+        }
+
+        $msg = '';
+        $this->files = [];
+        $count = 0;
+        $reversedMessages = [];
+
+        /** @var \app\models\Invoice $invoice */
+        foreach ($lastByKey as $key => $invoice) {
+            // последний документ по ключу — сторно, пропускаем
+            if ($invoice->is_reversal) {
+                $reversedMessages[] = 'Документ сторнирован: ' . $invoice->number;
+                continue;
+            }
+
+            $bill = $invoice->bill;
+            if (!$bill) {
+                continue;
+            }
+
+            $typeId = $invoice->type_id;
+
+            if ($this->countryId == \app\models\Country::RUSSIA) {
+                [$b_akt, $b_sf, $b_upd, $b_upd2] = m_newaccounts::get_bill_docs_static($bill->bill_no);
+            } else {
+                $b_akt = $b_sf = $b_upd = $b_upd2 = [null, false, false];
+                $b_sf[1] = true;
+                $b_sf[2] = true;
+            }
+
+            if (isset($_GET) && isset($_GET['action']) && $_GET['action'] == 'preview') {
+                $msg .= "******************\nБудут прикреплены следующие документы: ";
+                $b_sf[$typeId] && $msg .= $this->_getMsgline($invoice, 'invoice', $typeId, true);
+                $b_akt[$typeId] && $msg .= $this->_getMsgline($invoice, 'act', $typeId, true);
+                $b_upd[$typeId] && $msg .= $this->_getMsgline($invoice, 'upd', $typeId, true);
+                $b_upd2[$typeId] && $msg .= $this->_getMsgline($invoice, 'upd2', $typeId, true);
+                $msg .= "\n******************\n";
+            }
+
+            $b_sf[$typeId] && ++$count && $this->_get_file_by_invoice($invoice, 'invoice') && $this->_isInvoice = true;
+            $b_akt[$typeId] && ++$count && $this->_get_file_by_invoice($invoice, 'act') && $this->_isInvoice = true;
+            $b_upd2[$typeId] && ++$count && $this->_get_file_by_invoice($invoice, 'upd2') && $this->_isInvoice = true;
+        }
+
+        $errors = [];
+        if (!$this->_isInvoice && !$reversedMessages) {
+            $errors[] = 'Нет документов для отправки';
+        }
+        if ($this->_isInvoice && $count != count($this->files)) {
+            $errors[] = sprintf('Не все документы сформированы (%s/%s)', count($this->files), $count);
+            $this->_isInvoice = false;
+        }
+        if ($reversedMessages) {
+            $errors = array_merge($errors, $reversedMessages);
+        }
+        if ($errors) {
+            $this->errorMsg = implode("\n", $errors);
+        }
+
+        $msg && $this->_isInvoice = true;
+
+        return $msg;
+    }
 
     /**
      * @param \app\models\Invoice $invoice
@@ -375,7 +483,7 @@ class MailJob {
     {
         return "\n" . Yii::t('biller', $type, [], $this->lang) . " " . $invoice->number . ": " . $this->get_object_link($type, $invoice->bill_no, $typeId, $isPdf) .
             ($this->_get_file_by_invoice($invoice, $type) ? ' - OK' : ' - нет печатной версии документа');
-	}
+    }
 
 
     public function _get_file_by_invoice($invoice, $document)
@@ -392,63 +500,68 @@ class MailJob {
         }
         $this->files[] = ['name' => $info['basename'], 'type' => 'application/pdf', 'path' => $path];
         return true;
-	}
+    }
 
 
-	public function Template($str,$format = 'text')
+    public function Template($str, $format = 'text')
     {
         $this->_isInvoice = null;
 
-		$text = $this->data[$str];
-		if($this->encoding!='utf-8')
-			$text = convert_cyr_string($text,'k','w');
-		$text = str_replace(
-			array('%CLIENT%','%CLIENT_NAME%'),
-			array($this->client['client'],$this->client['company_full']),
-			$text
-		);
-		$text = preg_replace_callback('/%(A)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/',array($this,'_get_bills'),$text);
-		$text = preg_replace_callback('/%(U)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/',array($this,'_get_bills'),$text);
-		$text = preg_replace_callback('/%(P)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/',array($this,'_get_bills'),$text);
-		$text = preg_replace_callback('/%(N)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/',array($this,'_get_bills'),$text);
-		$text = preg_replace_callback('/%(PDF)?(INVOICE)(\d{4}-\d{2}(?:-\d+)?)%/',array($this,'_get_invoices'),$text);
-		$text = preg_replace_callback('/%(NOTICE)_TELEKOM%/',array($this,'_get_assignments'),$text);
-		$text = preg_replace_callback('/%(ORDER)_TELEKOM%/',array($this,'_get_assignments'),$text);
-		$text = preg_replace_callback('/%(DIRECTOR)_TELEKOM%/',array($this,'_get_assignments'),$text);
-		$text = preg_replace_callback('/%(DOGOVOR)_TELEKOM%/',array($this,'_get_assignments'),$text);
-		$text = preg_replace_callback('/%(SOGL_MCM)_TELEKOM%/',array($this,'_get_assignments'),$text);
-		$text = preg_replace_callback('/%(NOTICE_MCM)_TELEKOM%/',array($this,'_get_assignments'),$text);
-        $text = preg_replace_callback('/%(SOGL_MCM)_TELEKOM%/',array($this,'_get_assignments'),$text);
-        $text = preg_replace_callback('/%(SOGL_MCN)_TELEKOM%/',array($this,'_get_assignments'),$text);
-        $text = preg_replace_callback('/%(SOGL_MCNSERVICE)%/',array($this,'_get_assignments'),$text);
-        $text = preg_replace_callback('/%(SOGL_MCNTELEKOMTOSERVICE)%/',array($this,'_get_assignments'),$text);
-        $text = preg_replace_callback('/%(SOGL_MCNSERVICETOABONSERV)%/',array($this,'_get_assignments'),$text);
-        $text = preg_replace_callback('/%(SOGL_ABONSERVTOMCNTELEKOM)%/',array($this,'_get_assignments'),$text);
-		if($format=='html'){
-			$text = nl2br(htmlspecialchars_($text));
-		}
-		return $text;
-	}
-	private static function SendPrepare(){
-		include INCLUDE_PATH."class.phpmailer.php";
-		include INCLUDE_PATH."class.smtp.php";
-		self::$prepared = 1;
-	}
-	public function Send($emails = null){
-		global $db;
-		if(!self::$prepared)
-			self::SendPrepare();
+        $text = $this->data[$str];
+        if ($this->encoding != 'utf-8')
+            $text = convert_cyr_string($text, 'k', 'w');
+        $text = str_replace(
+            array('%CLIENT%', '%CLIENT_NAME%'),
+            array($this->client['client'], $this->client['company_full']),
+            $text
+        );
+        $text = preg_replace_callback('/%(A)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/', array($this, '_get_bills'), $text);
+        $text = preg_replace_callback('/%(U)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/', array($this, '_get_bills'), $text);
+        $text = preg_replace_callback('/%(P)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/', array($this, '_get_bills'), $text);
+        $text = preg_replace_callback('/%(N)(PDF)?BILL(\d{4}-\d{2}(?:-\d+)?)%/', array($this, '_get_bills'), $text);
+        $text = preg_replace_callback('/%(PDF)?(INVOICE)(\d{4}-\d{2}(?:-\d+)?)%/', array($this, '_get_invoices'), $text);
+        $text = preg_replace_callback('/%(INVOICE_BY_DATE)(\d{4}-\d{2}(?:-\d+)?)%/', array($this, '_get_invoices_by_date'), $text);
+        $text = preg_replace_callback('/%(NOTICE)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(ORDER)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(DIRECTOR)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(DOGOVOR)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(SOGL_MCM)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(NOTICE_MCM)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(SOGL_MCM)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(SOGL_MCN)_TELEKOM%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(SOGL_MCNSERVICE)%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(SOGL_MCNTELEKOMTOSERVICE)%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(SOGL_MCNSERVICETOABONSERV)%/', array($this, '_get_assignments'), $text);
+        $text = preg_replace_callback('/%(SOGL_ABONSERVTOMCNTELEKOM)%/', array($this, '_get_assignments'), $text);
+        if ($format == 'html') {
+            $text = nl2br(htmlspecialchars_($text));
+        }
+        return $text;
+    }
 
-		if($emails===null){
-			$emails = $this->emails;
-		}elseif(!is_array($emails))
-			$emails = array($emails);
+    private static function SendPrepare()
+    {
+        include INCLUDE_PATH . "class.phpmailer.php";
+        include INCLUDE_PATH . "class.smtp.php";
+        self::$prepared = 1;
+    }
 
-		$Mail = new PHPMailer();
-		$Mail->SetLanguage("ru","include/");
-		$Mail->CharSet = $this->encoding;
+    public function Send($emails = null)
+    {
+        global $db;
+        if (!self::$prepared)
+            self::SendPrepare();
 
-        if(preg_match("/\s*([^<]+)\s*<\s*([^>]+)\s*>\s*/", $this->data['from_email'], $match)) {
+        if ($emails === null) {
+            $emails = $this->emails;
+        } elseif (!is_array($emails))
+            $emails = array($emails);
+
+        $Mail = new PHPMailer();
+        $Mail->SetLanguage("ru", "include/");
+        $Mail->CharSet = $this->encoding;
+
+        if (preg_match("/\s*([^<]+)\s*<\s*([^>]+)\s*>\s*/", $this->data['from_email'], $match)) {
             $fromEmail = trim($match[2]);
             $fromName = trim($match[1]);
         } else {
@@ -458,19 +571,19 @@ class MailJob {
 
         $Mail->FromName = $fromName;
         $Mail->From = $fromEmail;
-		$Mail->Mailer='smtp';
-		$Mail->Host=SMTP_SERVER;
-		foreach($emails as $adr) {
+        $Mail->Mailer = 'smtp';
+        $Mail->Host = SMTP_SERVER;
+        foreach ($emails as $adr) {
             if ($adr) {
                 $Mail->AddAddress($adr);
             }
         }
-		$Mail->ContentType='text/plain';
+        $Mail->ContentType = 'text/plain';
 
-		$Mail->Subject = $this->Template('template_subject');
-		$Mail->Body = $this->Template('template_body');
+        $Mail->Subject = $this->Template('template_subject');
+        $Mail->Body = $this->Template('template_body');
 
-		// run before parsing template
+        // run before parsing template
         $Files = new mailFiles($this->data['job_id']);
         $files = array_merge($Files->getFiles(true), $this->files);
         if (!empty($files)) {
@@ -496,15 +609,15 @@ class MailJob {
         $r['send_date'] = ['NOW()'];
         $db->QueryUpdate('mail_letter', ['job_id', 'client'], $r);
         return $ret;
-	}
+    }
 
-	function get_cur_state()
-	{
-	    global $db;
-	    $res = $db->GetValue('select job_state from mail_job where job_id='.$this->data['job_id']);
+    function get_cur_state()
+    {
+        global $db;
+        $res = $db->GetValue('select job_state from mail_job where job_id=' . $this->data['job_id']);
 
-	    return $res;
-	}
+        return $res;
+    }
 
     /**
      * У счета нет документов для отправки
@@ -514,5 +627,5 @@ class MailJob {
     public function isRejectedByInvoice()
     {
         return $this->_isInvoice === false;
-	}
+    }
 }

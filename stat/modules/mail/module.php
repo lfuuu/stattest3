@@ -246,7 +246,7 @@ class m_mail{
 		$J[] = "INNER JOIN " . BusinessProcessStatus::tableName() . " BPS ON (BPS.id = CC.business_process_status_id)";
 
 		foreach($filter as $type=>$p)
-			if($p[0]!='NO')
+			if($p[0]!=='')
 				switch($type){
 					case 'manager':
 						$W[] = 'CC.manager="'.addslashes($p[0]).'"';
@@ -274,6 +274,20 @@ class m_mail{
 								break;
 						}
 						
+						break;
+					case 'pay_type':
+						$W[] = 'C.is_postpaid = ' . intval($p[0]);
+						break;
+					case 'closing_docs':
+						if (!empty($p[1])) {
+							$monthStart = $p[1] . '-01';
+							$monthEnd = date('Y-m-t', strtotime($monthStart));
+							$J[] = 'INNER JOIN newbills as BCD ON BCD.client_id=C.id';
+							$J[] = 'INNER JOIN invoice as INV ON INV.bill_no=BCD.bill_no';
+							$W[] = 'INV.date >= "' . addslashes($monthStart) . '"';
+							$W[] = 'INV.date <= "' . addslashes($monthEnd) . '"';
+							$W[] = 'INV.is_reversal = 0';
+						}
 						break;
 					case 's8800':
 						$J[] = 'LEFT JOIN usage_voip as UV8 ON UV8.client = C.client';
@@ -344,6 +358,7 @@ class m_mail{
 		$design->assign('f_manager', User::dao()->getListByDepartments('manager'));
         $design->assign('f_organization', \app\models\Organization::find()->actual()->all());
 		$design->assign('f_status', ClientAccount::$statuses);
+		$design->assign('f_payment_types', ClientAccount::$paymentTypes);
 		$f_regions = $db->AllRecords("select id, short_name, name from regions order by id desc", 'id');
 		$f_tarifs = array();
 		foreach ($f_regions as $v) {

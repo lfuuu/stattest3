@@ -16,6 +16,9 @@
 <input type="hidden" name="filter[bill][0]" value="{$mail_filter.bill.0}">
 <input type="hidden" name="date_from" value="{$date_from}">
 <input type="hidden" name="date_to" value="{$date_to}">
+<input type="hidden" name="filter[closing_docs][0]" value="{$mail_filter.closing_docs.0}">
+<input type="hidden" name="filter[closing_docs][1]" value="{$mail_filter.closing_docs.1}">
+<input type="hidden" name="filter[pay_type][0]" value="{$mail_filter.pay_type.0}">
 <input type="hidden" name="filter[s8800][0]" value="{$mail_filter.s8800.0}">
 <input type="hidden" name="filter[node][0]" value="{$mail_filter.node.0}">
 <input type="hidden" name="disable_filter" value="Y">
@@ -65,82 +68,133 @@ function check_all2(){ldelim}
 </script>
 {/if}
 
-<TABLE class=mform cellSpacing=4 cellPadding=2 width="100%" border=0>
-<FORM action="?" method=post id=form2 name=form2>
-<input type=hidden name=action value=client>
-<input type=hidden name=id value={$mail_id}>
-<input type=hidden name=module value=mail>
-<input type=hidden name=ack value=1>
-<tbody>
-<TR><TD>Организация</TD><TD>
-<select name='filter[organization][0]'><option value='NO'>(не фильтровать по этому полю)</option>
-    {foreach from=$f_organization item=r}
-        <option value={$r.organization_id} {if $mail_filter.organization.0 == $r.organization_id}selected="selected"{/if}>
-            {$r.name}
-        </option>
-    {/foreach}
-</select>
-</td></tr>
-<TR><TD>Статус клиента: </TD><TD>
-Все статусы бизнес-процессов с разрешенной отправкой счетов
-</td></tr>
-<TR><TD>Менеджер</TD><TD>
-<select name='filter[manager][0]'><option value='NO'>(не фильтровать по этому полю)</option>{foreach from=$f_manager item=r}<option value='{$r.user}'{if $r.user==$mail_filter.manager.0} selected="selected"{/if}>{$r.name} ({$r.user})</option>{/foreach}</select>
-</td></tr>
-<tr><td>Счета</TD><TD>
-<select name='filter[bill][0]'><option value='NO'>(не фильтровать по этому полю)</option>
-<option value='1' {if $mail_filter.bill.0 == 1}selected{/if}>любые</option>
-<option value='2' {if $mail_filter.bill.0 == 2}selected{/if}>полностью неоплаченные(красные)</option>
-<option value='3' {if $mail_filter.bill.0 == 3}selected{/if}>оплаченные не полностью(желтые)</option>
-<option value='4' {if $mail_filter.bill.0 == 4}selected{/if}>не полностью оплаченные(красные и желтые)</option>
-</select>
-</option></select>
-с <input type=text name='date_from' id="date_from" value='{$date_from}'>
-по <input type=text name='date_to' id="date_to" value='{$date_to}'>
-</td></tr>
-<tr><td>Услуга 8800:</TD><TD>
-<select name='filter[s8800][0]'><option value='NO'>(не фильтровать по этому полю)</option>
-<option value='with'{if $mail_filter.s8800.0 == 'with'} selected{/if}>с услугой</option>
-<option value='without'{if $mail_filter.s8800.0 == 'without'} selected{/if}>без услуги</option>
-</select>
-</option></select>
-</td></tr>
+<form action="?" method="post" id="form2" name="form2" class="form-horizontal">
+<input type="hidden" name="action" value="client">
+<input type="hidden" name="id" value="{$mail_id}">
+<input type="hidden" name="module" value="mail">
+<input type="hidden" name="ack" value="1">
 
-<TR><TD>Роутер:</TD><TD>
-<select name='filter[node][0]'><option value='NO'>(не фильтровать по этому полю)</option>{foreach from=$f_node item=r}<option value='{$r.node}'{if $r.node==$mail_filter.node.0} selected="selected"{/if}>{$r.node} ({$r.address})</option>{/foreach}</select>
-</td></tr>
+<div class="form-group">
+	<label class="col-sm-2 control-label">Организация</label>
+	<div class="col-sm-10">
+		<select class="select2-mail form-control" name='filter[organization][0]' data-placeholder="(не фильтровать по этому полю)">
+			<option value=''></option>
+			{foreach from=$f_organization item=r}
+				<option value="{$r.organization_id}" {if $mail_filter.organization.0 == $r.organization_id}selected="selected"{/if}>{$r.name}</option>
+			{/foreach}
+		</select>
+	</div>
+</div>
 
-<tr><td>Регионы:</TD><TD>
-<select name="filter[region_for][0]" onchange="show_all_regions(this.value);">
-	<option value="NO" {if !$mail_filter.region_for.0 || $mail_filter.region_for.0 == 'NO'} selected="selected"{/if}>не фильтровать по этому полю</option>
-	<option value="client" {if $mail_filter.region_for.0 == 'client'} selected="selected"{/if}>Регионы для клиентов</option>
-	<option id="for_tarifs" value="tarif" {if $mail_filter.region_for.0 == 'tarif'} selected="selected"{/if}>Регионы для номеров</option>
-</select>
-</td></tr>
+<div class="form-group">
+	<label class="col-sm-2 control-label">Статус клиента</label>
+	<div class="col-sm-10">
+		<p class="form-control-static">Все статусы бизнес-процессов с разрешенной отправкой счетов</p>
+	</div>
+</div>
 
-<tr id="tr_regions" {if $mail_filter.region_for.0 != 'tarif' && $mail_filter.region_for.0 != 'client'}style="display: none;"{/if}>
-	<td>&nbsp;</TD>
-	<TD id="all_regions">
+<div class="form-group">
+	<label class="col-sm-2 control-label">Менеджер</label>
+	<div class="col-sm-10">
+		<select class="select2-mail form-control" name='filter[manager][0]' data-placeholder="(не фильтровать по этому полю)">
+			<option value=''></option>
+			{foreach from=$f_manager item=r}<option value='{$r.user}'{if $r.user==$mail_filter.manager.0} selected="selected"{/if}>{$r.name} ({$r.user})</option>{/foreach}
+		</select>
+	</div>
+</div>
+
+<div class="form-group">
+	<label class="col-sm-2 control-label">Счета</label>
+	<div class="col-sm-10 form-inline">
+		<select class="select2-mail form-control" name='filter[bill][0]' data-placeholder="(не фильтровать по этому полю)">
+			<option value=''></option>
+			<option value='1' {if $mail_filter.bill.0 == 1}selected{/if}>любые</option>
+			<option value='2' {if $mail_filter.bill.0 == 2}selected{/if}>полностью неоплаченные(красные)</option>
+			<option value='3' {if $mail_filter.bill.0 == 3}selected{/if}>оплаченные не полностью(желтые)</option>
+			<option value='4' {if $mail_filter.bill.0 == 4}selected{/if}>не полностью оплаченные(красные и желтые)</option>
+		</select>
+		с <input type="text" class="form-control input-sm" style="width:120px" name="date_from" id="date_from" value="{$date_from}">
+		по <input type="text" class="form-control input-sm" style="width:120px" name="date_to" id="date_to" value="{$date_to}">
+	</div>
+</div>
+
+<div class="form-group">
+	<label class="col-sm-2 control-label">Закрывающие документы</label>
+	<div class="col-sm-10 form-inline">
+		<select class="select2-mail form-control" name='filter[closing_docs][0]' data-placeholder="(не фильтровать по этому полю)">
+			<option value=''></option>
+			<option value='1' {if $mail_filter.closing_docs.0 == 1}selected{/if}>есть закрывающие документы</option>
+		</select>
+		за месяц: <input type="month" class="form-control input-sm" style="width:180px" name="filter[closing_docs][1]" value="{$mail_filter.closing_docs.1}">
+	</div>
+</div>
+
+<div class="form-group">
+	<label class="col-sm-2 control-label">Тип оплаты</label>
+	<div class="col-sm-10">
+		<select class="select2-mail form-control" name='filter[pay_type][0]' data-placeholder="(не фильтровать по этому полю)">
+			<option value=''></option>
+			{foreach from=$f_payment_types key=k item=v}<option value='{$k}' {if $mail_filter.pay_type.0 !== '' && $mail_filter.pay_type.0 === (string)$k}selected{/if}>{$v}</option>{/foreach}
+		</select>
+	</div>
+</div>
+
+<div class="form-group">
+	<label class="col-sm-2 control-label">Услуга 8800</label>
+	<div class="col-sm-10">
+		<select class="select2-mail form-control" name='filter[s8800][0]' data-placeholder="(не фильтровать по этому полю)">
+			<option value=''></option>
+			<option value='with'{if $mail_filter.s8800.0 == 'with'} selected{/if}>с услугой</option>
+			<option value='without'{if $mail_filter.s8800.0 == 'without'} selected{/if}>без услуги</option>
+		</select>
+	</div>
+</div>
+
+<div class="form-group">
+	<label class="col-sm-2 control-label">Роутер</label>
+	<div class="col-sm-10">
+		<select class="select2-mail form-control" name='filter[node][0]' data-placeholder="(не фильтровать по этому полю)">
+			<option value=''></option>
+			{foreach from=$f_node item=r}<option value='{$r.node}'{if $r.node==$mail_filter.node.0} selected="selected"{/if}>{$r.node} ({$r.address})</option>{/foreach}
+		</select>
+	</div>
+</div>
+
+<div class="form-group">
+	<label class="col-sm-2 control-label">Регионы</label>
+	<div class="col-sm-10">
+		<select class="select2-mail form-control" name="filter[region_for][0]" data-placeholder="(не фильтровать по этому полю)" onchange="show_all_regions(this.value);">
+			<option value="" {if !$mail_filter.region_for.0 || $mail_filter.region_for.0 == ''} selected="selected"{/if}></option>
+			<option value="client" {if $mail_filter.region_for.0 == 'client'} selected="selected"{/if}>Регионы для клиентов</option>
+			<option id="for_tarifs" value="tarif" {if $mail_filter.region_for.0 == 'tarif'} selected="selected"{/if}>Регионы для номеров</option>
+		</select>
+	</div>
+</div>
+
+<div id="tr_regions" class="form-group" {if $mail_filter.region_for.0 != 'tarif' && $mail_filter.region_for.0 != 'client'}style="display: none;"{/if}>
+	<div class="col-sm-offset-2 col-sm-10" id="all_regions">
 		{foreach from=$f_regions item="reg"}
-			<div style="float: left; margin-right: 15px;" >
+			<div style="float: left; margin-right: 15px;">
 			{foreach from=$reg item="r"}
 				{capture name="region_`$r.id`"}
 					<div>{$r.name}</div>
 				{/capture}
-				<div>
-					<input onchange="show_regions_tarifs('{$r.id}');" id="region_{$r.id}" type="checkbox" name='filter[regions][]' value="{$r.id}" {if isset($mail_filter.regions) && $r.id|in_array:$mail_filter.regions}checked="checked"{/if}>
-					<label for="region_{$r.id}">{$r.name}</option>
+				<div class="checkbox">
+					<label>
+						<input onchange="show_regions_tarifs('{$r.id}');" id="region_{$r.id}" type="checkbox" name='filter[regions][]' value="{$r.id}" {if isset($mail_filter.regions) && $r.id|in_array:$mail_filter.regions}checked="checked"{/if}>
+						{$r.name}
+					</label>
 				</div>
 			{/foreach}
 			</div>
 		{/foreach}
 		<div style="clear: both;"></div>
-	</td>
-</tr>
+	</div>
+</div>
 
-<tr id="tr_tarifs" {if $mail_filter.region_for.0 != 'tarif'}style="display: none;"{/if}>
-	<td>Тарифы:</TD>
-	<TD>
+<div id="tr_tarifs" class="form-group" {if $mail_filter.region_for.0 != 'tarif'}style="display: none;"{/if}>
+	<label class="col-sm-2 control-label">Тарифы</label>
+	<div class="col-sm-10">
 		{foreach from=$f_tarifs item="reg" key="k"}
 		{assign var="selected_region" value=false}
 		{if isset($mail_filter.regions) && $k|in_array:$mail_filter.regions && $mail_filter.region_for.0 == 'tarif'}
@@ -150,11 +204,13 @@ function check_all2(){ldelim}
 			{assign var="name" value="region_`$k`"}
 			{$smarty.capture.$name}
 			{foreach from=$reg item="r"}
-				<div style="float: left; margin-right: 15px; ">
+				<div style="float: left; margin-right: 15px;">
 				{foreach from=$r item="t"}
-					<div style="font-size: 11px;">
-						<input {if !$selected_region}disabled="disabled"{/if} id="tarif_{$t.id}" type="checkbox" name='filter[tarifs][]' value="{$t.id}" {if isset($mail_filter.tarifs) && $t.id|in_array:$mail_filter.tarifs}checked="checked"{/if}>
-						<label for="tarif_{$t.id}">{$t.name}</option>
+					<div class="checkbox" style="font-size: 11px;">
+						<label>
+							<input {if !$selected_region}disabled="disabled"{/if} id="tarif_{$t.id}" type="checkbox" name='filter[tarifs][]' value="{$t.id}" {if isset($mail_filter.tarifs) && $t.id|in_array:$mail_filter.tarifs}checked="checked"{/if}>
+							{$t.name}
+						</label>
 					</div>
 				{/foreach}
 				</div>
@@ -162,15 +218,30 @@ function check_all2(){ldelim}
 			<div style="clear: both;"></div>
 		</div>
 		{/foreach}
-	</td>
-</tr>
+	</div>
+</div>
 
-<tr><td colspan=2>
-<INPUT id=submit class=button type=submit value="Фильтр">
-</td></tr>
-</tbody></form></table>
+<div class="form-group">
+	<div class="col-sm-offset-2 col-sm-10">
+		<button type="submit" class="btn btn-primary">Фильтр</button>
+	</div>
+</div>
+
+</form>
 <script>
 	optools.DatePickerInit();
+	{literal}
+	$(document).ready(function() {
+		$('<style>')
+			.text('#form2 .select2-selection--single { position: relative; } #form2 .select2-selection__clear { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); z-index: 1; }')
+			.appendTo('head');
+		$('.select2-mail').select2({
+			placeholder: '(не фильтровать по этому полю)',
+			allowClear: true,
+			width: '300px'
+		});
+	});
+	{/literal}
 	{literal}
 	function show_regions_tarifs(id)
 	{
@@ -208,7 +279,7 @@ function check_all2(){ldelim}
 					}
 				});
 				break;
-			case 'NO':
+			case '':
 				$('#tr_regions').hide();
 				$('#tr_regions input[type=checkbox]').each(function(o,i){i.disabled = true;});
 				var regions = $('#all_regions input[type=checkbox]');
