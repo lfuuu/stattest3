@@ -8,9 +8,7 @@ use app\models\ClientContract;
 use app\models\Invoice;
 use app\models\InvoicePaymentLink;
 use app\models\OperationType;
-use app\modules\uu\models\AccountEntryCorrection;
 use yii\data\ArrayDataProvider;
-use yii\db\Expression;
 use yii\helpers\Url;
 use yii\widgets\Breadcrumbs;
 
@@ -30,8 +28,8 @@ use yii\widgets\Breadcrumbs;
     ],
 ]) ?>
 <style>
-
-
+    .accounting-totals .row > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .accounting-totals > .col-sm-3 { border-bottom: 1px solid gray; padding-bottom: 5px; }
 </style>
 
 <div class="row">
@@ -98,7 +96,8 @@ $currencyLabel = $account->currencyModel->symbol;
 </div>
 <?php endif; ?>
 
-<div class="row">
+<div class="row accounting-totals">
+    <?php if ($listFilter == 'income' || $listFilter == 'full'): ?>
     <div class="col-sm-3">
         <div class="row text-center"><h2>Доходные (с/ф)</h2></div>
         <div class="row">
@@ -131,6 +130,8 @@ $currencyLabel = $account->currencyModel->symbol;
                  style="color: <?= (abs($t->totalPlus) < 0.01 ? 'black' : ($t->totalPlus > 0 ? 'green' : 'red')) ?>"><?= nf($t->totalPlus) ?></div>
         </div>
     </div>
+    <?php endif; ?>
+    <?php if ($listFilter == 'outcome' || $listFilter == 'full'): ?>
     <div class="col-sm-3">
         <div class="row text-center"><h2>Расходные (счета)</h2></div>
         <div class="row">
@@ -163,16 +164,19 @@ $currencyLabel = $account->currencyModel->symbol;
                  style="color: <?= (abs($t->paysPlusSum - $t->invSum) < 0.01 ? 'black' : ($t->paysPlusSum - $invSum > 0 ? 'green' : 'red')) ?>"><?= nf($t->invoiceExtPays + $t->invoiceExtSum) ?></div>
         </div>
     </div>
+    <?php endif; ?>
 </div>
+<?php if ($listFilter == 'full'): ?>
 <div class="row">
     <div class="col-sm-3"></div>
     <div class="col-sm-6">
-        <div class="text-center" style="border-top: 1px solid gray; padding: 5px;">Итого по счетам: <span
+        <div class="text-center" style="padding: 5px;">Итого по счетам: <span
                     style="color: <?= (abs($t->totalBills) < 0.01 ? 'black' : ($t->totalBills > 0 ? 'green' : 'red')) ?>"><?= nf($t->totalBills) ?></span>
         </div>
     </div>
     <div class="col-sm-3"></div>
 </div>
+<?php endif; ?>
 <?php
 
 $d = [];
@@ -267,18 +271,20 @@ foreach ($invoices as $invoice) {
         'link' => $invoice->link,
         'date' => $invoice->date,
         'sum' => round($invoice->sum, 2),
+        'type_id' => $invoice->type_id,
         'payment_info' => $paymentInfoByInvoiceId[$invoice->id] ?? [],
         'linked_payment_ids' => $paymentIdsByInvoiceId[$invoice->id] ?? [],
 //        'is_paid' => $paysPlusInv > $invoice->sum ? 1 : ($paysPlusInv > 0 ? 2 : 0),
-        'is_paid' => $invoice->is_payed,
+        'is_paid' => $invoice->type_id == Invoice::TYPE_PREPAID ? $invoice->bill->is_payed : $invoice->is_payed,
         'type' => 'invoice',
     ];
 
-    if (!isset($sumInvoice[$invoice->bill_no])) {
-        $sumInvoice[$invoice->bill_no] = 0;
+    if ($invoice->type_id != Invoice::TYPE_PREPAID) {
+        if (!isset($sumInvoice[$invoice->bill_no])) {
+            $sumInvoice[$invoice->bill_no] = 0;
+        }
+        $sumInvoice[$invoice->bill_no] += $v['sum'];
     }
-
-    $sumInvoice[$invoice->bill_no] += $v['sum'];
 
 
     $dataInv[] = $v;
@@ -663,6 +669,7 @@ class row
 
     public $saldo = '';
     public $isListCutoffByBalance = false;
+    public $currentPaymentType = null;
 
 }
 
@@ -775,6 +782,7 @@ $nextCo = $chCo->get();
 $chPay = new ChangePaymentType($changePaymentScheme ?? []);
 $nextPay = $chPay->get();
 $paymentTypeLabel = (new ClientAccount())->getAttributeLabel('is_postpaid');
+$currentPaymentType = $nextPay ? (int)$nextPay->from : (int)$account->is_postpaid;
 
 $saldoHelper = (new SaldoHelper($saldo));
 
@@ -807,6 +815,7 @@ foreach ($d as $year => &$yearData) {
 
             $paymentTypeChangeText = '';
             while ($nextPay && $date >= $nextPay->date) {
+                $currentPaymentType = (int)$nextPay->to;
                 $to = $nextPay->to;
                 $toLabel = ClientAccount::$paymentTypes[$to] ?? $to;
                 $paymentTypeChangeText = $paymentTypeLabel . ': ' . $toLabel;
@@ -825,6 +834,7 @@ foreach ($d as $year => &$yearData) {
             $row->invoice_minus_is_paid = $invoice_minus_is_paid;
             $row->co = $isSetCo ? $prevCo : '';
             $row->payment_type_change = $paymentTypeChangeText;
+            $row->currentPaymentType = $currentPaymentType;
 
             if ($saldo && $isSaldoShown) {
                 if ($saldoHelper->getDate() <= $date) {
@@ -852,6 +862,7 @@ foreach ($d as $year => &$yearData) {
                     $row->invoice_minus_is_paid = $invoice_minus_is_paid;
                     $row->co = '';
                     $row->payment_type_change = '';
+                    $row->currentPaymentType = $currentPaymentType;
                     $row->isListCutoffByBalance = $isSaldoShown;
                 }
 
@@ -973,11 +984,15 @@ function contentNotShowInLkSpan()
     }
 
     .accounting-col-wide {
-        width: 480px;
-        max-width: 480px;
+        max-width: 300px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .accounting-col-sum {
+        white-space: nowrap;
+        min-width: 90px;
     }
 
     .text-sum-invoice-info {
@@ -1154,24 +1169,26 @@ function contentNotShowInLkSpan()
                             }
 
                             $return = '';
-                            $sumInv = null;
-                            if ($row->bill) {
-                                $sumInv = $sumInvoice[$row->bill['number']] ?? null;
-                            }
-                            if ($sumInv !== null && abs($row->bill['sum'] - $sumInv) > 0.01) {
-                                $return .= Html::tag('span', nf($sumInvoice[$row->bill['number']] ?? ''), [
-                                            'class' => 'text-danger',
-                                            'style' => ['padding-right' => '10px'],
-                                            'title' => 'Расхождение между суммой счета и суммой во всех с/ф этого счета',
-                                        ]
-                                    ) . ' ';
+                            if ($row->currentPaymentType !== ClientAccount::PAYMENT_TYPE_PREPAID_2) {
+                                $sumInv = null;
+                                if ($row->bill) {
+                                    $sumInv = $sumInvoice[$row->bill['number']] ?? null;
+                                }
+                                if ($sumInv !== null && abs($row->bill['sum'] - $sumInv) > 0.01) {
+                                    $return .= Html::tag('span', nf($sumInvoice[$row->bill['number']] ?? ''), [
+                                                'class' => 'text-danger',
+                                                'style' => ['padding-right' => '10px'],
+                                                'title' => 'Расхождение между суммой счета и суммой во всех с/ф этого счета',
+                                            ]
+                                        ) . ' ';
+                                }
                             }
 
                             $return .= $row->bill ? Html::tag('span', nf($row->bill['sum']), ['title' => 'Сумма счета']) : '';
 
                             return $return;
                         },
-                        'contentOptions' => ['class' => 'text-right'],
+                        'contentOptions' => ['class' => 'text-right accounting-col-sum'],
                     ],
                     [
                         'label' => 'С/ф +',
@@ -1210,9 +1227,16 @@ function contentNotShowInLkSpan()
                             if ($row->invoice_for_correction) {
                                 return 'корректировка с/ф';
                             }
-                            return $row->invoice ? nf($row->invoice['sum']) : '';
+                            if (!$row->invoice) {
+                                return '';
+                            }
+                            $sum = nf($row->invoice['sum']);
+                            if (($row->invoice['type_id'] ?? null) == \app\models\Invoice::TYPE_PREPAID) {
+                                return Html::tag('span', $sum, ['style' => 'color: #8cb4d8', 'title' => 'Авансовая с/ф']);
+                            }
+                            return $sum;
                         },
-                        'contentOptions' => ['class' => 'text-right'],
+                        'contentOptions' => ['class' => 'text-right accounting-col-sum'],
                     ],
 
                     [
@@ -1275,7 +1299,7 @@ function contentNotShowInLkSpan()
                         'value' => function (row $row) {
                             return $row->payment ? nf($row->payment['sum']) : '';
                         },
-                        'contentOptions' => ['class' => 'text-right'],
+                        'contentOptions' => ['class' => 'text-right accounting-col-sum'],
                     ],
                 ]);
             }
@@ -1299,7 +1323,7 @@ function contentNotShowInLkSpan()
                         'value' => function (row $row) {
                             return $row->bill_minus ? nf($row->bill_minus['sum']) : '';
                         },
-                        'contentOptions' => ['class' => 'text-right'],
+                        'contentOptions' => ['class' => 'text-right accounting-col-sum'],
                     ],
                     [
                         'label' => 'С/ф -',
@@ -1318,7 +1342,7 @@ function contentNotShowInLkSpan()
                             return $row->invoice_minus ? nf($row->invoice_minus['sum']) : '';
                         },
                         'label' => $currencyLabel . ' -',
-                        'contentOptions' => ['class' => 'text-right'],
+                        'contentOptions' => ['class' => 'text-right accounting-col-sum'],
                     ],
                     [
                         'label' => 'Платеж -',
@@ -1380,7 +1404,7 @@ function contentNotShowInLkSpan()
                         'value' => function (row $row) {
                             return $row->payment_minus ? nf($row->payment_minus['sum']) : '';
                         },
-                        'contentOptions' => ['class' => 'text-right'],
+                        'contentOptions' => ['class' => 'text-right accounting-col-sum'],
                     ],
                 ]);
             }

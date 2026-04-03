@@ -1023,7 +1023,8 @@ class ClientAccountDao extends Singleton
         $query = Invoice::find()
             ->alias('i')
             ->joinWith('bill b', true, 'INNER JOIN')
-            ->andWhere(['b.client_id' => $clientAccountId]);
+            ->andWhere(['b.client_id' => $clientAccountId])
+            ->andWhere(['!=', 'i.type_id', Invoice::TYPE_PREPAID]);
 
         if (!$withDraft) {
             $query->andWhere(['not', ['i.number' => null]]);

@@ -4,6 +4,7 @@ namespace app\classes\accounting\accounting20;
 
 use app\models\BillExternal;
 use app\models\ClientAccount;
+use app\models\Invoice;
 use app\models\Saldo;
 use yii\base\BaseObject;
 
@@ -64,7 +65,10 @@ class Totals extends BaseObject
         $saldo = Saldo::getLastSaldo($this->account->id);
         $this->saldoDate = $saldo ? $saldo->ts : null;
 
-        $this->invSum = $this->filterAndReduce($lists->invoices, fn($acum, $i) => $acum + $i->sum);
+        $this->invSum = $this->filterAndReduce(
+            array_filter($lists->invoices, fn(Invoice $i) => $i->type_id != Invoice::TYPE_PREPAID),
+            fn($acum, $i) => $acum + $i->sum
+        );
         $this->billSumPlus = $this->filterAndReduce($lists->billsPlus, fn($acum, $i) => $acum + $i->sum);
         $this->billSumMinus = $this->filterAndReduce($lists->billsMinus, fn($acum, $i) => $acum + $i->sum);
         $this->invoiceExtSum = $this->filterAndReduce($lists->invoiceExt, fn($acum, BillExternal $i) => $acum + $i->ext_vat + $i->ext_sum_without_vat);
