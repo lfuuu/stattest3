@@ -151,6 +151,14 @@ $form = ActiveForm::begin([
             [
                 'attribute' => 'client_id',
                 'label' => 'ЛС',
+                'format' => 'raw',
+                'value' => function ($row) {
+                    return Html::a(
+                        $row['client_id'],
+                        Url::toRoute(['client/view', 'id' => $row['client_id']]),
+                        ['target' => '_blank']
+                    );
+                }
             ],
             [
                 'attribute' => 'organization_id',
