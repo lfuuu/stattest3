@@ -4,7 +4,7 @@ namespace app\classes\grid\column\universal;
 
 use app\classes\grid\column\DataColumn;
 use app\classes\Html;
-use yii\helpers\Url;
+use app\models\ClientAccount;
 
 class ClientAccountColumn extends DataColumn
 {
@@ -21,7 +21,7 @@ class ClientAccountColumn extends DataColumn
 
         return Html::a(
             $value,
-            Url::to(['/client/view', 'id' => $value]),
+            ClientAccount::getUrlById($value),
             $this->isTargetBlank ? ['target' => '_blank'] : []
         );
     }

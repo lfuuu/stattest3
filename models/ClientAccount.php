@@ -1457,6 +1457,15 @@ SQL;
     }
 
     /**
+     * @param int|string $id
+     * @return string
+     */
+    public static function getUrlById($id)
+    {
+        return Url::to(['/client/view', 'id' => $id]);
+    }
+
+    /**
      * @param string $time
      * @return DateTimeImmutable
      */
