@@ -10,6 +10,7 @@
 
 use app\classes\grid\GridView;
 use app\classes\Html;
+use app\models\ClientAccount;
 use app\models\Organization;
 use kartik\grid\ExpandRowColumn;
 use DateTimeImmutable;
@@ -41,6 +42,7 @@ $buildPeriodUrl = function (DateTimeImmutable $periodStart) use ($baseUrl, $requ
         'bill_date_to' => $periodEnd->format(DateTimeZoneHelper::DATE_FORMAT),
         'service_date_from' => $periodStart->format(DateTimeZoneHelper::DATE_FORMAT),
         'service_date_to' => $periodEnd->format(DateTimeZoneHelper::DATE_FORMAT),
+        'type_of_bill' => $filterModel->type_of_bill,
     ];
 
     return Url::to(array_merge([$baseUrl], $requestParams));
@@ -63,21 +65,30 @@ $form = ActiveForm::begin([
 </div>
 
 <div class="row" style="margin-bottom: 15px;">
-    <div class="col-sm-3">
+    <div class="col-sm-2">
         Дата счета с
         <?= Html::activeInput('date', $filterModel, 'bill_date_from', ['class' => 'form-control input-sm']) ?>
     </div>
-    <div class="col-sm-3">
+    <div class="col-sm-2">
         Дата счета по
         <?= Html::activeInput('date', $filterModel, 'bill_date_to', ['class' => 'form-control input-sm']) ?>
     </div>
-    <div class="col-sm-3">
+    <div class="col-sm-2">
         Период услуги с
         <?= Html::activeInput('date', $filterModel, 'service_date_from', ['class' => 'form-control input-sm']) ?>
     </div>
-    <div class="col-sm-3">
+    <div class="col-sm-2">
         Период услуги по
         <?= Html::activeInput('date', $filterModel, 'service_date_to', ['class' => 'form-control input-sm']) ?>
+    </div>
+    <div class="col-sm-2">
+        Тип счета
+        <?= Html::activeDropDownList(
+            $filterModel,
+            'type_of_bill',
+            \app\models\filter\accounting\ClosingDocumentCoverageFilter::getTypeOfBillList(),
+            ['class' => 'form-control input-sm']
+        ) ?>
     </div>
 </div>
 
@@ -90,7 +101,8 @@ $form = ActiveForm::begin([
 <?php if ($summary !== null): ?>
     <div style="margin-bottom: 15px;">
         Период счета: <?= Html::encode($filterModel->bill_date_from) ?> - <?= Html::encode($filterModel->bill_date_to) ?>,
-        период услуги: <?= Html::encode($filterModel->service_date_from) ?> - <?= Html::encode($filterModel->service_date_to) ?>
+        период услуги: <?= Html::encode($filterModel->service_date_from) ?> - <?= Html::encode($filterModel->service_date_to) ?>,
+        тип счета: <?= Html::encode(\app\models\filter\accounting\ClosingDocumentCoverageFilter::getTypeOfBillList()[$filterModel->type_of_bill] ?? 'Все') ?>
     </div>
 
     <div class="row">
@@ -135,6 +147,7 @@ $form = ActiveForm::begin([
                     'bill_date_to' => $filterModel->bill_date_to,
                     'service_date_from' => $filterModel->service_date_from,
                     'service_date_to' => $filterModel->service_date_to,
+                    'type_of_bill' => $filterModel->type_of_bill,
                 ],
                 'contentOptions' => ['style' => 'text-align: center; vertical-align: middle; width: 50px;'],
                 'headerOptions' => ['style' => 'width: 50px;'],
@@ -165,6 +178,15 @@ $form = ActiveForm::begin([
                 'label' => 'Организация',
                 'value' => function ($row) use ($organizationList) {
                     return $organizationList[(int)$row['organization_id']] ?? $row['organization_id'];
+                }
+            ],
+            [
+                'attribute' => 'type_of_bill',
+                'label' => 'Тип счета',
+                'value' => function ($row) {
+                    return (int)$row['type_of_bill'] === (int)ClientAccount::TYPE_OF_BILL_DETAILED
+                        ? 'Полный'
+                        : 'Простой';
                 }
             ],
             [

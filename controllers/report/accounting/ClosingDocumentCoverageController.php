@@ -40,6 +40,7 @@ class ClosingDocumentCoverageController extends BaseController
         $billDateTo = $request->post('bill_date_to');
         $serviceDateFrom = $request->post('service_date_from');
         $serviceDateTo = $request->post('service_date_to');
+        $typeOfBill = $request->post('type_of_bill', ClosingDocumentCoverageFilter::TYPE_OF_BILL_ALL);
 
         if (!$expandRowKey || !$billDateFrom || !$billDateTo || !$serviceDateFrom || !$serviceDateTo) {
             return 'Не удалось загрузить строки счета';
@@ -52,6 +53,7 @@ class ClosingDocumentCoverageController extends BaseController
                 'bill_date_to' => $billDateTo,
                 'service_date_from' => $serviceDateFrom,
                 'service_date_to' => $serviceDateTo,
+                'type_of_bill' => $typeOfBill,
             ],
         ]);
 

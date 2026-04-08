@@ -18,18 +18,35 @@ use yii\db\Query;
 
 class ClosingDocumentCoverageFilter extends Model
 {
+    public const TYPE_OF_BILL_ALL = '';
+
     public $bill_date_from = '';
     public $bill_date_to = '';
     public $service_date_from = '';
     public $service_date_to = '';
+    public $type_of_bill = self::TYPE_OF_BILL_ALL;
 
     public function rules()
     {
         return [
             [['bill_date_from', 'bill_date_to', 'service_date_from', 'service_date_to'], 'required'],
             [['bill_date_from', 'bill_date_to', 'service_date_from', 'service_date_to'], 'date', 'format' => 'php:Y-m-d'],
+            [['type_of_bill'], 'in', 'range' => [
+                self::TYPE_OF_BILL_ALL,
+                (string)ClientAccount::TYPE_OF_BILL_SIMPLE,
+                (string)ClientAccount::TYPE_OF_BILL_DETAILED,
+            ]],
             ['bill_date_from', 'compare', 'compareAttribute' => 'bill_date_to', 'operator' => '<', 'type' => 'string'],
             ['service_date_from', 'compare', 'compareAttribute' => 'service_date_to', 'operator' => '<', 'type' => 'string'],
+        ];
+    }
+
+    public static function getTypeOfBillList(): array
+    {
+        return [
+            self::TYPE_OF_BILL_ALL => 'Все',
+            (string)ClientAccount::TYPE_OF_BILL_SIMPLE => 'Простой',
+            (string)ClientAccount::TYPE_OF_BILL_DETAILED => 'Полный',
         ];
     }
 
@@ -141,7 +158,8 @@ class ClosingDocumentCoverageFilter extends Model
             ->andWhere(['>', 'nbl.sum', 0])
             ->andWhere(['client.price_level' => 1])
             ->andWhere(['>=', 'nbl.date_from', $this->service_date_from])
-            ->andWhere(['<', 'nbl.date_from', $this->service_date_to]);
+            ->andWhere(['<', 'nbl.date_from', $this->service_date_to])
+            ->andFilterWhere(['client.type_of_bill' => $this->normalizeTypeOfBill()]);
     }
 
     private function buildMissingQuery(): Query
@@ -159,6 +177,7 @@ class ClosingDocumentCoverageFilter extends Model
                 'bill_date' => 'nb.bill_date',
                 'client_id' => 'nb.client_id',
                 'organization_id' => 'nb.organization_id',
+                'type_of_bill' => 'client.type_of_bill',
                 'missing_line_count' => new Expression('COUNT(*)'),
                 'missing_sum' => new Expression('SUM(nbl.sum)'),
             ])
@@ -167,9 +186,19 @@ class ClosingDocumentCoverageFilter extends Model
                 'nb.bill_date',
                 'nb.client_id',
                 'nb.organization_id',
+                'client.type_of_bill',
             ])
             ->orderBy([
                 'nb.bill_no' => SORT_ASC,
             ]);
+    }
+
+    private function normalizeTypeOfBill()
+    {
+        if ($this->type_of_bill === self::TYPE_OF_BILL_ALL || $this->type_of_bill === null) {
+            return null;
+        }
+
+        return (int)$this->type_of_bill;
     }
 }
