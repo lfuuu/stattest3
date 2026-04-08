@@ -20,24 +20,19 @@ class ClosingDocumentCoverageFilter extends Model
 {
     public const TYPE_OF_BILL_ALL = '';
 
-    public $bill_date_from = '';
-    public $bill_date_to = '';
-    public $service_date_from = '';
-    public $service_date_to = '';
+    public $month = '';
     public $type_of_bill = self::TYPE_OF_BILL_ALL;
 
     public function rules()
     {
         return [
-            [['bill_date_from', 'bill_date_to', 'service_date_from', 'service_date_to'], 'required'],
-            [['bill_date_from', 'bill_date_to', 'service_date_from', 'service_date_to'], 'date', 'format' => 'php:Y-m-d'],
+            [['month'], 'required'],
+            [['month'], 'match', 'pattern' => '/^\d{4}-\d{2}$/'],
             [['type_of_bill'], 'in', 'range' => [
                 self::TYPE_OF_BILL_ALL,
                 (string)ClientAccount::TYPE_OF_BILL_SIMPLE,
                 (string)ClientAccount::TYPE_OF_BILL_DETAILED,
             ]],
-            ['bill_date_from', 'compare', 'compareAttribute' => 'bill_date_to', 'operator' => '<', 'type' => 'string'],
-            ['service_date_from', 'compare', 'compareAttribute' => 'service_date_to', 'operator' => '<', 'type' => 'string'],
         ];
     }
 
@@ -54,16 +49,9 @@ class ClosingDocumentCoverageFilter extends Model
     {
         $requestData = $data ?? Yii::$app->request->get();
 
-        if (empty($requestData[$this->formName()])) {
-            $currentMonthStart = new DateTimeImmutable('first day of this month', new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
-            $nextMonthStart = $currentMonthStart->modify('first day of next month');
-
-            $requestData[$this->formName()] = [
-                'bill_date_from' => $currentMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
-                'bill_date_to' => $nextMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
-                'service_date_from' => $currentMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
-                'service_date_to' => $nextMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
-            ];
+        if (empty(($requestData[$this->formName()] ?? [])['month'])) {
+            $currentMonthStart = new DateTimeImmutable('now', new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
+            $requestData[$this->formName()]['month'] = $currentMonthStart->format('Y-m');
         }
 
         parent::load($requestData, $formName);
@@ -151,14 +139,14 @@ class ClosingDocumentCoverageFilter extends Model
                 "cao.client_account_id = nb.client_id AND cao.option = '" . ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK . "'"
             )
             ->where(['not', ['nb.uu_bill_id' => null]])
-            ->andWhere(['>=', 'nb.bill_date', $this->bill_date_from])
-            ->andWhere(['<', 'nb.bill_date', $this->bill_date_to])
+            ->andWhere(['>=', 'nb.bill_date', $this->getBillDateFrom()])
+            ->andWhere(['<', 'nb.bill_date', $this->getBillDateToExclusive()])
             ->andWhere(['nbl.type' => 'service'])
             ->andWhere(['=', new Expression("COALESCE(cao.value, '0')"), '1'])
             ->andWhere(['>', 'nbl.sum', 0])
             ->andWhere(['client.price_level' => 1])
-            ->andWhere(['>=', 'nbl.date_from', $this->service_date_from])
-            ->andWhere(['<', 'nbl.date_from', $this->service_date_to])
+            ->andWhere(['>=', 'nbl.date_from', $this->getServiceDateFrom()])
+            ->andWhere(['<', 'nbl.date_from', $this->getServiceDateToExclusive()])
             ->andFilterWhere(['client.type_of_bill' => $this->normalizeTypeOfBill()]);
     }
 
@@ -200,5 +188,38 @@ class ClosingDocumentCoverageFilter extends Model
         }
 
         return (int)$this->type_of_bill;
+    }
+
+    public function getServiceDateFrom(): string
+    {
+        return $this->getMonthStart()->format(DateTimeZoneHelper::DATE_FORMAT);
+    }
+
+    public function getServiceDateToExclusive(): string
+    {
+        return $this->getMonthStart()
+            ->modify('first day of next month')
+            ->format(DateTimeZoneHelper::DATE_FORMAT);
+    }
+
+    public function getBillDateFrom(): string
+    {
+        return $this->getMonthStart()->format(DateTimeZoneHelper::DATE_FORMAT);
+    }
+
+    public function getBillDateToExclusive(): string
+    {
+        return $this->getMonthStart()
+            ->modify('first day of +2 month')
+            ->format(DateTimeZoneHelper::DATE_FORMAT);
+    }
+
+    private function getMonthStart(): DateTimeImmutable
+    {
+        return DateTimeImmutable::createFromFormat(
+            '!Y-m-d',
+            $this->month . '-01',
+            new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC)
+        );
     }
 }
