@@ -1453,7 +1453,7 @@ SQL;
      */
     public function getUrl()
     {
-        return Url::to(['/client/view', 'id' => $this->id]);
+        return self::getUrlById($this->id);
     }
 
     /**
