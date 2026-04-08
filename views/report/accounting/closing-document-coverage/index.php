@@ -10,10 +10,11 @@
 
 use app\classes\grid\GridView;
 use app\classes\Html;
-use app\models\ClientAccount;
 use app\models\Organization;
 use kartik\grid\ExpandRowColumn;
 use DateTimeImmutable;
+use app\helpers\DateTimeZoneHelper;
+use DateTimeZone;
 use yii\helpers\Url;
 use yii\widgets\ActiveForm;
 use yii\widgets\Breadcrumbs;
@@ -30,20 +31,23 @@ echo Breadcrumbs::widget([
 $requestParams = Yii::$app->request->queryParams;
 unset($requestParams['page'], $requestParams['sort']);
 
-$currentMonth = new DateTimeImmutable('first day of this month');
+$currentMonth = new DateTimeImmutable('first day of this month', new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
 $previousMonth = $currentMonth->modify('first day of previous month');
 
-$buildPeriodUrl = function (string $month) use ($baseUrl, $requestParams, $filterModel) {
+$buildPeriodUrl = function (DateTimeImmutable $periodStart) use ($baseUrl, $requestParams, $filterModel) {
+    $periodEnd = $periodStart->modify('first day of next month');
     $requestParams[$filterModel->formName()] = [
-        'month' => $month,
-        'type_of_bill' => $filterModel->type_of_bill,
+        'bill_date_from' => $periodStart->format(DateTimeZoneHelper::DATE_FORMAT),
+        'bill_date_to' => $periodEnd->format(DateTimeZoneHelper::DATE_FORMAT),
+        'service_date_from' => $periodStart->format(DateTimeZoneHelper::DATE_FORMAT),
+        'service_date_to' => $periodEnd->format(DateTimeZoneHelper::DATE_FORMAT),
     ];
 
     return Url::to(array_merge([$baseUrl], $requestParams));
 };
 
-$currentMonthUrl = $buildPeriodUrl($currentMonth->format('Y-m'));
-$previousMonthUrl = $buildPeriodUrl($previousMonth->format('Y-m'));
+$currentMonthUrl = $buildPeriodUrl($currentMonth);
+$previousMonthUrl = $buildPeriodUrl($previousMonth);
 $organizationList = Organization::dao()->getList();
 
 $form = ActiveForm::begin([
@@ -60,18 +64,24 @@ $form = ActiveForm::begin([
 
 <div class="row" style="margin-bottom: 15px;">
     <div class="col-sm-3">
-        Месяц
-        <?= Html::activeInput('month', $filterModel, 'month', ['class' => 'form-control input-sm']) ?>
+        Дата счета с
+        <?= Html::activeInput('date', $filterModel, 'bill_date_from', ['class' => 'form-control input-sm']) ?>
     </div>
     <div class="col-sm-3">
-        Тип счета
-        <?= Html::activeDropDownList(
-            $filterModel,
-            'type_of_bill',
-            \app\models\filter\accounting\ClosingDocumentCoverageFilter::getTypeOfBillList(),
-            ['class' => 'form-control input-sm']
-        ) ?>
+        Дата счета по
+        <?= Html::activeInput('date', $filterModel, 'bill_date_to', ['class' => 'form-control input-sm']) ?>
     </div>
+    <div class="col-sm-3">
+        Период услуги с
+        <?= Html::activeInput('date', $filterModel, 'service_date_from', ['class' => 'form-control input-sm']) ?>
+    </div>
+    <div class="col-sm-3">
+        Период услуги по
+        <?= Html::activeInput('date', $filterModel, 'service_date_to', ['class' => 'form-control input-sm']) ?>
+    </div>
+</div>
+
+<div class="row" style="margin-bottom: 15px;">
     <div class="col-sm-3">
         <?= Html::submitButton('Сформировать отчёт', ['class' => 'btn btn-primary btn-sm', 'style' => 'margin-top: 20px']) ?>
     </div>
@@ -79,7 +89,8 @@ $form = ActiveForm::begin([
 
 <?php if ($summary !== null): ?>
     <div style="margin-bottom: 15px;">
-        Период отчета: <?= Html::encode($filterModel->getDateFrom()) ?> - <?= Html::encode($filterModel->getDateTo()) ?>
+        Период счета: <?= Html::encode($filterModel->bill_date_from) ?> - <?= Html::encode($filterModel->bill_date_to) ?>,
+        период услуги: <?= Html::encode($filterModel->service_date_from) ?> - <?= Html::encode($filterModel->service_date_to) ?>
     </div>
 
     <div class="row">
@@ -120,8 +131,10 @@ $form = ActiveForm::begin([
                 'detailRowCssClass' => GridView::TYPE_DEFAULT,
                 'detailOptions' => ['class' => 'kv-state-enable'],
                 'extraData' => [
-                    'month' => $filterModel->month,
-                    'type_of_bill' => $filterModel->type_of_bill,
+                    'bill_date_from' => $filterModel->bill_date_from,
+                    'bill_date_to' => $filterModel->bill_date_to,
+                    'service_date_from' => $filterModel->service_date_from,
+                    'service_date_to' => $filterModel->service_date_to,
                 ],
                 'contentOptions' => ['style' => 'text-align: center; vertical-align: middle; width: 50px;'],
                 'headerOptions' => ['style' => 'width: 50px;'],
@@ -152,15 +165,6 @@ $form = ActiveForm::begin([
                 'label' => 'Организация',
                 'value' => function ($row) use ($organizationList) {
                     return $organizationList[(int)$row['organization_id']] ?? $row['organization_id'];
-                }
-            ],
-            [
-                'attribute' => 'type_of_bill',
-                'label' => 'Тип счета',
-                'value' => function ($row) {
-                    return (int)$row['type_of_bill'] === (int)ClientAccount::TYPE_OF_BILL_DETAILED
-                        ? 'Полный'
-                        : 'Простой';
                 }
             ],
             [

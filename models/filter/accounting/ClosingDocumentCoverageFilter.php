@@ -7,7 +7,6 @@ use app\models\Bill;
 use app\models\BillLine;
 use app\models\ClientAccount;
 use app\models\ClientAccountOptions;
-use app\models\InvoiceLine;
 use DateTimeImmutable;
 use DateTimeZone;
 use Yii;
@@ -19,30 +18,18 @@ use yii\db\Query;
 
 class ClosingDocumentCoverageFilter extends Model
 {
-    public const TYPE_OF_BILL_ALL = '';
-
-    public $month = '';
-    public $type_of_bill = self::TYPE_OF_BILL_ALL;
+    public $bill_date_from = '';
+    public $bill_date_to = '';
+    public $service_date_from = '';
+    public $service_date_to = '';
 
     public function rules()
     {
         return [
-            [['month'], 'required'],
-            [['month'], 'match', 'pattern' => '/^\d{4}-\d{2}$/'],
-            [['type_of_bill'], 'in', 'range' => [
-                self::TYPE_OF_BILL_ALL,
-                (string)ClientAccount::TYPE_OF_BILL_SIMPLE,
-                (string)ClientAccount::TYPE_OF_BILL_DETAILED,
-            ]],
-        ];
-    }
-
-    public static function getTypeOfBillList(): array
-    {
-        return [
-            self::TYPE_OF_BILL_ALL => 'Все',
-            (string)ClientAccount::TYPE_OF_BILL_SIMPLE => 'Простой',
-            (string)ClientAccount::TYPE_OF_BILL_DETAILED => 'Полный',
+            [['bill_date_from', 'bill_date_to', 'service_date_from', 'service_date_to'], 'required'],
+            [['bill_date_from', 'bill_date_to', 'service_date_from', 'service_date_to'], 'date', 'format' => 'php:Y-m-d'],
+            ['bill_date_from', 'compare', 'compareAttribute' => 'bill_date_to', 'operator' => '<', 'type' => 'string'],
+            ['service_date_from', 'compare', 'compareAttribute' => 'service_date_to', 'operator' => '<', 'type' => 'string'],
         ];
     }
 
@@ -50,9 +37,16 @@ class ClosingDocumentCoverageFilter extends Model
     {
         $requestData = $data ?? Yii::$app->request->get();
 
-        if (empty(($requestData[$this->formName()] ?? [])['month'])) {
-            $currentMonth = new DateTimeImmutable('now', new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
-            $requestData[$this->formName()]['month'] = $currentMonth->format('Y-m');
+        if (empty($requestData[$this->formName()])) {
+            $currentMonthStart = new DateTimeImmutable('first day of this month', new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC));
+            $nextMonthStart = $currentMonthStart->modify('first day of next month');
+
+            $requestData[$this->formName()] = [
+                'bill_date_from' => $currentMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
+                'bill_date_to' => $nextMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
+                'service_date_from' => $currentMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
+                'service_date_to' => $nextMonthStart->format(DateTimeZoneHelper::DATE_FORMAT),
+            ];
         }
 
         parent::load($requestData, $formName);
@@ -63,6 +57,7 @@ class ClosingDocumentCoverageFilter extends Model
     public function getSummary(): array
     {
         $missingQuery = $this->buildMissingQuery();
+        $groupedBillsQuery = $this->buildGroupedMissingBillsQuery();
 
         return [
             'processed_line_count' => (int)$this->buildProcessedQuery()
@@ -73,44 +68,26 @@ class ClosingDocumentCoverageFilter extends Model
                 ->select(new Expression('COUNT(*)'))
                 ->orderBy([])
                 ->scalar(),
-            'bill_count' => (int)(clone $missingQuery)
-                ->select(new Expression('COUNT(DISTINCT nb.bill_no)'))
-                ->orderBy([])
-                ->scalar(),
-            'client_count' => (int)(clone $missingQuery)
-                ->select(new Expression('COUNT(DISTINCT nb.client_id)'))
-                ->orderBy([])
-                ->scalar(),
+            'bill_count' => (int)(new Query())
+                ->from(['grouped_bills' => $groupedBillsQuery])
+                ->count('*'),
+            'client_count' => (int)(new Query())
+                ->from([
+                    'grouped_clients' => $this->buildMissingQuery()
+                        ->select(['nb.client_id'])
+                        ->groupBy(['nb.client_id']),
+                ])
+                ->count('*'),
         ];
     }
 
     public function getDataProvider(): SqlDataProvider
     {
-        $query = $this->buildMissingQuery()
-            ->select([
-                'bill_no' => 'nbl.bill_no',
-                'bill_date' => 'nb.bill_date',
-                'client_id' => 'nb.client_id',
-                'organization_id' => 'nb.organization_id',
-                'type_of_bill' => 'client.type_of_bill',
-                'missing_line_count' => new Expression('COUNT(*)'),
-                'missing_sum' => new Expression('SUM(nbl.sum)'),
-            ])
-            ->groupBy([
-                'nbl.bill_no',
-                'nb.bill_date',
-                'nb.client_id',
-                'nb.organization_id',
-                'client.type_of_bill',
-            ])
-            ->orderBy([
-                'nb.bill_no' => SORT_ASC,
-            ]);
+        $query = $this->buildGroupedMissingBillsQuery();
 
-        $totalCount = (int)(clone $query)
-            ->select(new Expression('COUNT(*)'))
-            ->orderBy([])
-            ->scalar();
+        $totalCount = (int)(new Query())
+            ->from(['grouped_bills' => $query])
+            ->count('*');
 
         return new SqlDataProvider([
             'sql' => $query->createCommand()->rawSql,
@@ -156,54 +133,43 @@ class ClosingDocumentCoverageFilter extends Model
                 ['cao' => ClientAccountOptions::tableName()],
                 "cao.client_account_id = nb.client_id AND cao.option = '" . ClientAccountOptions::OPTION_UPLOAD_TO_SALES_BOOK . "'"
             )
-            ->where(['>=', 'nb.bill_date', $this->getDateFrom()])
-            ->andWhere(['<', 'nb.bill_date', $this->buildDateToExclusive()])
+            ->where(['not', ['nb.uu_bill_id' => null]])
+            ->andWhere(['>=', 'nb.bill_date', $this->bill_date_from])
+            ->andWhere(['<', 'nb.bill_date', $this->bill_date_to])
             ->andWhere(['nbl.type' => 'service'])
             ->andWhere(['=', new Expression("COALESCE(cao.value, '0')"), '1'])
             ->andWhere(['>', 'nbl.sum', 0])
             ->andWhere(['client.price_level' => 1])
-            ->andFilterWhere(['client.type_of_bill' => $this->normalizeTypeOfBill()]);
+            ->andWhere(['>=', 'nbl.date_from', $this->service_date_from])
+            ->andWhere(['<', 'nbl.date_from', $this->service_date_to]);
     }
 
     private function buildMissingQuery(): Query
     {
         return $this->buildProcessedQuery()
-            ->leftJoin(['il' => InvoiceLine::tableName()], 'il.line_id = nbl.pk')
-            ->andWhere(['il.pk' => null]);
+            ->leftJoin(['ils' => 'invoice_line_source'], 'ils.line_pk = nbl.pk')
+            ->andWhere(['ils.line_pk' => null]);
     }
 
-    private function buildDateToExclusive(): string
+    private function buildGroupedMissingBillsQuery(): Query
     {
-        return $this->getMonthStart()
-            ->modify('first day of next month')
-            ->format(DateTimeZoneHelper::DATE_FORMAT);
-    }
-
-    private function normalizeTypeOfBill()
-    {
-        if ($this->type_of_bill === self::TYPE_OF_BILL_ALL || $this->type_of_bill === null) {
-            return null;
-        }
-
-        return (int)$this->type_of_bill;
-    }
-
-    private function getMonthStart(): DateTimeImmutable
-    {
-        return DateTimeImmutable::createFromFormat(
-            '!Y-m-d',
-            $this->month . '-01',
-            new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC)
-        );
-    }
-
-    public function getDateFrom(): string
-    {
-        return $this->getMonthStart()->format(DateTimeZoneHelper::DATE_FORMAT);
-    }
-
-    public function getDateTo(): string
-    {
-        return $this->getMonthStart()->modify('last day of this month')->format(DateTimeZoneHelper::DATE_FORMAT);
+        return $this->buildMissingQuery()
+            ->select([
+                'bill_no' => 'nbl.bill_no',
+                'bill_date' => 'nb.bill_date',
+                'client_id' => 'nb.client_id',
+                'organization_id' => 'nb.organization_id',
+                'missing_line_count' => new Expression('COUNT(*)'),
+                'missing_sum' => new Expression('SUM(nbl.sum)'),
+            ])
+            ->groupBy([
+                'nbl.bill_no',
+                'nb.bill_date',
+                'nb.client_id',
+                'nb.organization_id',
+            ])
+            ->orderBy([
+                'nb.bill_no' => SORT_ASC,
+            ]);
     }
 }

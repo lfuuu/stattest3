@@ -33,5 +33,11 @@ echo GridView::widget([
             'label' => 'Период до',
         ],
     ],
+    'floatHeader' => false,
     'isFilterButton' => false,
+    'isFilterQuery' => false,
+    'exportWidget' => false,
+    'toggleData' => false,
+    'toolbar' => [],
+    'panel' => false,
 ]);

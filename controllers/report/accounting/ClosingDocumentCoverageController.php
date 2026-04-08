@@ -36,18 +36,22 @@ class ClosingDocumentCoverageController extends BaseController
     {
         $request = \Yii::$app->request;
         $expandRowKey = $request->post('expandRowKey');
-        $month = $request->post('month');
-        $type_of_bill = $request->post('type_of_bill', '');
+        $billDateFrom = $request->post('bill_date_from');
+        $billDateTo = $request->post('bill_date_to');
+        $serviceDateFrom = $request->post('service_date_from');
+        $serviceDateTo = $request->post('service_date_to');
 
-        if (!$expandRowKey || !$month) {
+        if (!$expandRowKey || !$billDateFrom || !$billDateTo || !$serviceDateFrom || !$serviceDateTo) {
             return 'Не удалось загрузить строки счета';
         }
 
         $filterModel = new ClosingDocumentCoverageFilter();
         $filterModel->load([
             $filterModel->formName() => [
-                'month' => $month,
-                'type_of_bill' => $type_of_bill,
+                'bill_date_from' => $billDateFrom,
+                'bill_date_to' => $billDateTo,
+                'service_date_from' => $serviceDateFrom,
+                'service_date_to' => $serviceDateTo,
             ],
         ]);
 
