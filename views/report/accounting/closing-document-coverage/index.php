@@ -9,6 +9,7 @@
  */
 
 use app\classes\grid\GridView;
+use app\classes\grid\column\universal\ClientAccountColumn;
 use app\classes\Html;
 use app\models\ClientAccount;
 use app\models\Organization;
@@ -151,14 +152,7 @@ $form = ActiveForm::begin([
             [
                 'attribute' => 'client_id',
                 'label' => 'ЛС',
-                'format' => 'raw',
-                'value' => function ($row) {
-                    return Html::a(
-                        $row['client_id'],
-                        Url::toRoute(['client/view', 'id' => $row['client_id']]),
-                        ['target' => '_blank']
-                    );
-                }
+                'class' => ClientAccountColumn::class,
             ],
             [
                 'attribute' => 'organization_id',
