@@ -246,6 +246,12 @@ class UpdateBalanceHelper
 
             if ($invoiceIds !== null) {
                 $query->andWhere(['invoice_id' => $invoiceIds]);
+            } else {
+                // Общий пересчет не строит links для авансовых с/ф, поэтому не трогаем их существующие связи.
+                $query
+                    ->alias('ipl')
+                    ->innerJoin(Invoice::tableName() . ' i', 'i.id = ipl.invoice_id')
+                    ->andWhere(['!=', 'i.type_id', Invoice::TYPE_PREPAID]);
             }
 
             $existing = $query->all();
