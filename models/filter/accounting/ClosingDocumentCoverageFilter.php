@@ -18,7 +18,9 @@ use yii\db\Query;
 
 class ClosingDocumentCoverageFilter extends Model
 {
-    public const TYPE_OF_BILL_ALL = '';
+    public const TYPE_OF_BILL_ALL = 'all';
+    public const TYPE_OF_BILL_SIMPLE = 'simple';
+    public const TYPE_OF_BILL_DETAILED = 'detailed';
 
     public $month = '';
     public $type_of_bill = self::TYPE_OF_BILL_ALL;
@@ -30,8 +32,8 @@ class ClosingDocumentCoverageFilter extends Model
             [['month'], 'match', 'pattern' => '/^\d{4}-\d{2}$/'],
             [['type_of_bill'], 'in', 'range' => [
                 self::TYPE_OF_BILL_ALL,
-                (string)ClientAccount::TYPE_OF_BILL_SIMPLE,
-                (string)ClientAccount::TYPE_OF_BILL_DETAILED,
+                self::TYPE_OF_BILL_SIMPLE,
+                self::TYPE_OF_BILL_DETAILED,
             ]],
         ];
     }
@@ -40,8 +42,8 @@ class ClosingDocumentCoverageFilter extends Model
     {
         return [
             self::TYPE_OF_BILL_ALL => 'Все',
-            (string)ClientAccount::TYPE_OF_BILL_SIMPLE => 'Простой',
-            (string)ClientAccount::TYPE_OF_BILL_DETAILED => 'Полный',
+            self::TYPE_OF_BILL_SIMPLE => 'Простой',
+            self::TYPE_OF_BILL_DETAILED => 'Полный',
         ];
     }
 
@@ -130,7 +132,7 @@ class ClosingDocumentCoverageFilter extends Model
 
     private function buildProcessedQuery(): Query
     {
-        return (new Query())
+        $query = (new Query())
             ->from(['nbl' => BillLine::tableName()])
             ->innerJoin(['nb' => Bill::tableName()], 'nb.bill_no = nbl.bill_no')
             ->innerJoin(['client' => ClientAccount::tableName()], 'client.id = nb.client_id')
@@ -146,8 +148,14 @@ class ClosingDocumentCoverageFilter extends Model
             ->andWhere(['>', 'nbl.sum', 0])
             ->andWhere(['client.price_level' => 1])
             ->andWhere(['>=', 'nbl.date_from', $this->getServiceDateFrom()])
-            ->andWhere(['<', 'nbl.date_from', $this->getServiceDateToExclusive()])
-            ->andFilterWhere(['client.type_of_bill' => $this->normalizeTypeOfBill()]);
+            ->andWhere(['<', 'nbl.date_from', $this->getServiceDateToExclusive()]);
+
+        $normalizedTypeOfBill = $this->normalizeTypeOfBill();
+        if ($normalizedTypeOfBill !== null) {
+            $query->andWhere(['client.type_of_bill' => $normalizedTypeOfBill]);
+        }
+
+        return $query;
     }
 
     private function buildMissingQuery(): Query
@@ -187,7 +195,15 @@ class ClosingDocumentCoverageFilter extends Model
             return null;
         }
 
-        return (int)$this->type_of_bill;
+        if ($this->type_of_bill === self::TYPE_OF_BILL_SIMPLE) {
+            return (int)ClientAccount::TYPE_OF_BILL_SIMPLE;
+        }
+
+        if ($this->type_of_bill === self::TYPE_OF_BILL_DETAILED) {
+            return (int)ClientAccount::TYPE_OF_BILL_DETAILED;
+        }
+
+        return null;
     }
 
     public function getServiceDateFrom(): string
