@@ -3,11 +3,12 @@
 namespace app\classes\behaviors\payment;
 
 use app\dao\ClientAccountDao;
+use app\exceptions\ModelValidationException;
 use app\models\Invoice;
 use app\models\InvoicePaymentLink;
 use app\models\Payment;
-use Yii;
 use yii\base\Behavior;
+use yii\db\Expression;
 use yii\db\ActiveRecord;
 
 class InvoiceSetPaymentNumber extends Behavior
@@ -29,7 +30,7 @@ class InvoiceSetPaymentNumber extends Behavior
         /** @var Invoice $invoice */
         $invoice = $event->sender;
 
-        if ((int)$invoice->type_id === Invoice::TYPE_PREPAID) {
+        if ($invoice->type_id == Invoice::TYPE_PREPAID) {
             $this->attachExactPaymentToPrepaidInvoice($invoice);
             return;
         }
@@ -52,8 +53,8 @@ class InvoiceSetPaymentNumber extends Behavior
         $link->client_account_id = $invoice->bill->client_id;
         $link->is_matched = 1;
         $link->sum = $invoice->sum;
-        if (!$link->save(false)) {
-            Yii::warning('Failed to save InvoicePaymentLink for invoice #' . $invoice->id);
+        if (!$link->save()) {
+            throw new ModelValidationException($link);
         }
 
         $this->refreshInvoicePaymentsNumber($invoice);
@@ -68,20 +69,13 @@ class InvoiceSetPaymentNumber extends Behavior
 
         return Payment::find()
             ->alias('p')
-            ->leftJoin(
-                InvoicePaymentLink::tableName() . ' l',
-                'l.payment_id = p.id'
-            )
             ->where(['p.client_id' => $clientId])
-            ->andWhere(['between', 'COALESCE(p.oper_date, p.payment_date)', $dateFrom, $dateTo])
+            ->andWhere(['between', 'p.oper_date', $dateFrom, $dateTo])
             ->andWhere(['between', 'p.sum', $invoice->sum - 0.009, $invoice->sum + 0.009])
-            ->andWhere(['l.id' => null])
             ->orderBy([
-                new \yii\db\Expression('(p.bill_no = :billNo OR p.bill_vis_no = :billNo) DESC', [':billNo' => $invoice->bill_no]),
-                'COALESCE(p.oper_date, p.payment_date)' => SORT_ASC,
+                new Expression('ABS(DATEDIFF(p.oper_date, :invoiceDate)) ASC', [':invoiceDate' => $invoice->date]),
                 'p.id' => SORT_ASC,
             ])
-            ->limit(1)
             ->one();
     }
 
