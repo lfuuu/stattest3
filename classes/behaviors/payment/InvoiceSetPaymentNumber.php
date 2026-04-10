@@ -3,6 +3,7 @@
 namespace app\classes\behaviors\payment;
 
 use app\dao\ClientAccountDao;
+use app\exceptions\ModelValidationException;
 use app\models\Invoice;
 use app\models\InvoicePaymentLink;
 use app\models\Payment;
@@ -53,7 +54,7 @@ class InvoiceSetPaymentNumber extends Behavior
         $link->is_matched = 1;
         $link->sum = $invoice->sum;
         if (!$link->save()) {
-            throw new \RuntimeException('Failed to save InvoicePaymentLink: ' . json_encode($link->getErrors()));
+            throw new ModelValidationException($link);
         }
 
         $this->refreshInvoicePaymentsNumber($invoice);
