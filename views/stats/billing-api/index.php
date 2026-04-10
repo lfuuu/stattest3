@@ -7,11 +7,13 @@
  */
 
 use app\classes\grid\column\universal\DateRangeDoubleColumn;
+use app\classes\grid\column\universal\ClientAccountColumn;
 use app\classes\grid\column\universal\DropdownColumn;
 use app\classes\grid\column\universal\IntegerRangeColumn;
 use app\classes\grid\GridView;
 use app\classes\Html;
 use app\helpers\DateTimeZoneHelper;
+use app\models\ClientAccount;
 use app\models\billing\api\ApiMethod;
 use app\models\billing\api\ApiRaw;
 use app\models\filter\BillingApiFilter;
@@ -283,7 +285,11 @@ JS
                         'data-cost_total' => (float)$detail['cost_total'],
                         'data-cost_price_total' => (float)$detail['cost_price_total'],
                     ]) .
-                        Html::tag('td', $detail['account_id']) .
+                        Html::tag('td', Html::a(
+                            $detail['account_id'],
+                            ClientAccount::getUrlById($detail['account_id']),
+                            ['target' => '_blank']
+                        )) .
                         Html::tag('td', $integerFormat($detail['api_weight_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::tag('td', $moneyFormat($detail['cost_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::tag('td', $moneyWithCurrencyFormat($detail['cost_price_total'], $detail['price_currency_id']), ['style' => 'text-align: right; white-space: nowrap;']) .
@@ -352,6 +358,7 @@ JS
         [
             'attribute' => 'account_id',
             'label' => 'ЛС',
+            'class' => ClientAccountColumn::class,
         ],
         $weightTotalColumn,
         $costTotalColumn,
@@ -396,6 +403,7 @@ JS
         $columns[] = [
             'attribute' => 'account_id',
             'label' => 'ЛС',
+            'class' => ClientAccountColumn::class,
         ];
     }
 
