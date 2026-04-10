@@ -12,6 +12,7 @@ use app\models\billing\api\ApiRaw;
 use DateTimeImmutable;
 use DateTimeZone;
 use Yii;
+use yii\data\ArrayDataProvider;
 use yii\db\Expression;
 
 class BillingApiFilter extends ApiRaw
@@ -244,6 +245,11 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['api_method_id' => SORT_ASC],
+                        'desc' => ['api_method_id' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         } elseif ($this->isGroupByAccount()) {
@@ -261,6 +267,11 @@ class BillingApiFilter extends ApiRaw
                     'cost_total' => [
                         'asc' => ['cost_total' => SORT_ASC],
                         'desc' => ['cost_total' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
+                    'cost_price_total' => [
+                        'asc' => ['account_id' => SORT_ASC],
+                        'desc' => ['account_id' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
                 ],
@@ -286,6 +297,11 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['period_group' => SORT_ASC],
+                        'desc' => ['period_group' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         } else {
@@ -309,15 +325,50 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost' => SORT_ASC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['id' => SORT_ASC],
+                        'desc' => ['id' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         }
 
+        $query = $this->makeQuery();
         $dataProvider = new ActiveDataProvider([
-            'query' => $this->makeQuery(),
+            'query' => $query,
             'db' => ApiRaw::getDb(),
             'sort' => $sort,
         ]);
+
+        $sortParam = (string)Yii::$app->request->get('sort', '');
+        if (ltrim($sortParam, '-') === 'cost_price_total') {
+            $models = $query->all();
+            foreach ($models as $model) {
+                if ($model instanceof ApiRaw) {
+                    $model->cost_price_total = $this->getCostPriceTotal($model);
+                }
+            }
+
+            usort($models, function (ApiRaw $left, ApiRaw $right) use ($sortParam) {
+                if ($left->cost_price_total == $right->cost_price_total) {
+                    return 0;
+                }
+
+                $isDesc = strpos($sortParam, '-') === 0;
+                if ($isDesc) {
+                    return ($left->cost_price_total < $right->cost_price_total) ? 1 : -1;
+                }
+
+                return ($left->cost_price_total > $right->cost_price_total) ? 1 : -1;
+            });
+
+            return new ArrayDataProvider([
+                'allModels' => $models,
+                'pagination' => $dataProvider->pagination,
+                'sort' => $sort,
+            ]);
+        }
 
         return $dataProvider;
     }
