@@ -168,7 +168,7 @@ $costPriceTotalColumn = [
     'label' => 'Себестоимость',
     'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat) {
         return $row instanceof BillingApiFilter
-            ? $moneyWithCurrencyFormat($row->cost_price_total, $row->cost_currency_id)
+            ? $moneyWithCurrencyFormat($row->cost_price_total, $row->price_currency_id)
             : null;
     }
 ] + $moneyColumnOptions;
@@ -279,7 +279,7 @@ JS
                         Html::tag('td', $detail['account_id']) .
                         Html::tag('td', $integerFormat($detail['api_weight_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::tag('td', $moneyFormat($detail['cost_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
-                        Html::tag('td', $moneyWithCurrencyFormat($detail['cost_price_total'], $detail['cost_currency_id']), ['style' => 'text-align: right; white-space: nowrap;']) .
+                        Html::tag('td', $moneyWithCurrencyFormat($detail['cost_price_total'], $detail['price_currency_id']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::endTag('tr');
                 }
 
@@ -426,7 +426,7 @@ JS
             'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat) {
                 return $moneyWithCurrencyFormat(
                     (float)$row->price_rate * (float)$row->api_weight,
-                    $row->cost_currency_id
+                    $row->price_currency_id
                 );
             }
         ] + $moneyColumnOptions

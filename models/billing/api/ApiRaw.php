@@ -24,6 +24,7 @@ use Yii;
  * @property float $rate
  * @property float $cost
  * @property float $price_rate
+ * @property string $price_currency_id
  * @property string $cost_currency_id
  * @property int $nnp_package_api_id
  * @property int $account_tariff_light_id
