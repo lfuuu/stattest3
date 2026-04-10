@@ -3,13 +3,16 @@
 namespace app\models\filter;
 
 use app\classes\grid\ActiveDataProvider;
+use app\dao\CurrencyRateDao;
 use app\helpers\DateTimeZoneHelper;
 use app\models\ClientAccount;
+use app\models\Currency;
 use app\models\Region;
 use app\models\billing\api\ApiRaw;
 use DateTimeImmutable;
 use DateTimeZone;
 use Yii;
+use yii\data\ArrayDataProvider;
 use yii\db\Expression;
 
 class BillingApiFilter extends ApiRaw
@@ -37,7 +40,12 @@ class BillingApiFilter extends ApiRaw
     public $timezone = '';
     public $api_weight_total = null;
     public $cost_total = null;
+    public $cost_price_total = null;
     public $period_group = null;
+    private $costPriceByMethod = [];
+    private $costPriceByAccount = [];
+    private $costPriceByPeriod = [];
+    private $isCostPricePrepared = false;
 
     public
         $connect_time_from = '',
@@ -179,7 +187,7 @@ class BillingApiFilter extends ApiRaw
 
         $this->api_method_id && $query->andWhere(['api_method_id' => $this->api_method_id]);
         $this->api_weight_from && $query->andWhere(['>=', 'api_weight', $this->api_weight_from]);
-        $this->api_weight_to && $query->andWhere(['<=', 'api_weight', $this->api_weight_to]);
+            $this->api_weight_to && $query->andWhere(['<=', 'api_weight', $this->api_weight_to]);
 
         if ($withGrouping && $this->isGrouped()) {
             if ($this->isGroupByMethod()) {
@@ -237,6 +245,11 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['api_method_id' => SORT_ASC],
+                        'desc' => ['api_method_id' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         } elseif ($this->isGroupByAccount()) {
@@ -254,6 +267,11 @@ class BillingApiFilter extends ApiRaw
                     'cost_total' => [
                         'asc' => ['cost_total' => SORT_ASC],
                         'desc' => ['cost_total' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
+                    'cost_price_total' => [
+                        'asc' => ['account_id' => SORT_ASC],
+                        'desc' => ['account_id' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
                 ],
@@ -279,6 +297,11 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['period_group' => SORT_ASC],
+                        'desc' => ['period_group' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         } else {
@@ -302,15 +325,50 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost' => SORT_ASC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['id' => SORT_ASC],
+                        'desc' => ['id' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         }
 
+        $query = $this->makeQuery();
         $dataProvider = new ActiveDataProvider([
-            'query' => $this->makeQuery(),
+            'query' => $query,
             'db' => ApiRaw::getDb(),
             'sort' => $sort,
         ]);
+
+        $sortParam = (string)Yii::$app->request->get('sort', '');
+        if (ltrim($sortParam, '-') === 'cost_price_total') {
+            $models = $query->all();
+            foreach ($models as $model) {
+                if ($model instanceof ApiRaw) {
+                    $model->cost_price_total = $this->getCostPriceTotal($model);
+                }
+            }
+
+            usort($models, function (ApiRaw $left, ApiRaw $right) use ($sortParam) {
+                if ($left->cost_price_total == $right->cost_price_total) {
+                    return 0;
+                }
+
+                $isDesc = strpos($sortParam, '-') === 0;
+                if ($isDesc) {
+                    return ($left->cost_price_total < $right->cost_price_total) ? 1 : -1;
+                }
+
+                return ($left->cost_price_total > $right->cost_price_total) ? 1 : -1;
+            });
+
+            return new ArrayDataProvider([
+                'allModels' => $models,
+                'pagination' => $dataProvider->pagination,
+                'sort' => $sort,
+            ]);
+        }
 
         return $dataProvider;
     }
@@ -326,20 +384,139 @@ class BillingApiFilter extends ApiRaw
 
     public function getMethodAccountDetails(int $apiMethodId): array
     {
-        return $this->makeQuery(false)
+        $rows = $this->makeQuery(false)
             ->andWhere(['api_method_id' => $apiMethodId])
             ->select([
                 'account_id',
-                'api_weight_total' => new Expression('sum(api_weight)'),
-                'cost_total' => new Expression('-sum(cost)'),
-            ])
-            ->groupBy(['account_id'])
-            ->orderBy([
-                'cost_total' => SORT_DESC,
-                'api_weight_total' => SORT_DESC,
-                'account_id' => SORT_ASC,
+                'connect_time',
+                'price_currency_id',
+                'api_weight',
+                'price_rate',
+                'cost',
             ])
             ->asArray()
             ->all();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $accountId = (int)$row['account_id'];
+            if (!isset($result[$accountId])) {
+                $result[$accountId] = [
+                    'account_id' => $accountId,
+                    'api_weight_total' => 0.0,
+                    'cost_total' => 0.0,
+                    'cost_price_total' => 0.0,
+                ];
+            }
+
+            $result[$accountId]['api_weight_total'] += (float)$row['api_weight'];
+            $result[$accountId]['cost_total'] += -(float)$row['cost'];
+            $result[$accountId]['cost_price_total'] += $this->convertToRub(
+                (float)$row['api_weight'] * (float)$row['price_rate'],
+                (string)$row['price_currency_id'],
+                (string)$row['connect_time']
+            );
+        }
+
+        usort($result, function (array $left, array $right) {
+            if ($left['cost_total'] === $right['cost_total']) {
+                if ($left['api_weight_total'] === $right['api_weight_total']) {
+                    return $left['account_id'] <=> $right['account_id'];
+                }
+                return $left['api_weight_total'] < $right['api_weight_total'] ? 1 : -1;
+            }
+
+            return $left['cost_total'] < $right['cost_total'] ? 1 : -1;
+        });
+
+        return $result;
     }
+
+    public function getCostPriceTotal(ApiRaw $row): float
+    {
+        if ($this->isGroupByMethod()) {
+            $this->prepareCostPriceAggregates();
+            return (float)($this->costPriceByMethod[(int)$row->api_method_id] ?? 0.0);
+        }
+
+        if ($this->isGroupByAccount()) {
+            $this->prepareCostPriceAggregates();
+            return (float)($this->costPriceByAccount[(int)$row->account_id] ?? 0.0);
+        }
+
+        if ($this->isGroupedByDate()) {
+            $this->prepareCostPriceAggregates();
+            return (float)($this->costPriceByPeriod[(string)$row->period_group] ?? 0.0);
+        }
+
+        return $this->convertToRub(
+            (float)$row->api_weight * (float)$row->price_rate,
+            (string)$row->price_currency_id,
+            (string)$row->connect_time
+        );
+    }
+
+    private function prepareCostPriceAggregates(): void
+    {
+        if ($this->isCostPricePrepared) {
+            return;
+        }
+        $this->isCostPricePrepared = true;
+
+        $timezone = new DateTimeZone($this->getQueryTimezone());
+        $rows = $this->makeQuery(false)
+            ->select(['api_method_id', 'account_id', 'connect_time', 'price_currency_id', 'api_weight', 'price_rate'])
+            ->asArray()
+            ->all();
+
+        foreach ($rows as $row) {
+            $rubValue = $this->convertToRub(
+                (float)$row['api_weight'] * (float)$row['price_rate'],
+                (string)$row['price_currency_id'],
+                (string)$row['connect_time']
+            );
+
+            $methodId = (int)$row['api_method_id'];
+            $accountId = (int)$row['account_id'];
+            $this->costPriceByMethod[$methodId] = ($this->costPriceByMethod[$methodId] ?? 0) + $rubValue;
+            $this->costPriceByAccount[$accountId] = ($this->costPriceByAccount[$accountId] ?? 0) + $rubValue;
+
+            if ($this->isGroupedByDate()) {
+                $period = (new DateTimeImmutable($row['connect_time'], new DateTimeZone(DateTimeZoneHelper::TIMEZONE_UTC)))
+                    ->setTimezone($timezone);
+
+                if ($this->group_by === self::GROUP_BY_YEAR) {
+                    $period = $period->setDate((int)$period->format('Y'), 1, 1)->setTime(0, 0, 0);
+                } elseif ($this->group_by === self::GROUP_BY_MONTH) {
+                    $period = $period->setDate((int)$period->format('Y'), (int)$period->format('m'), 1)->setTime(0, 0, 0);
+                } else {
+                    $period = $period->setTime(0, 0, 0);
+                }
+
+                $periodKey = $period->format('Y-m-d H:i:s');
+                $this->costPriceByPeriod[$periodKey] = ($this->costPriceByPeriod[$periodKey] ?? 0) + $rubValue;
+            }
+        }
+    }
+
+    private function convertToRub(float $amount, string $currencyId, string $connectTime): float
+    {
+        $currencyId = trim($currencyId) ?: Currency::RUB;
+        if ($currencyId === Currency::RUB) {
+            return $amount;
+        }
+
+        try {
+            $rate = CurrencyRateDao::crossRate(
+                $currencyId,
+                Currency::RUB,
+                (new DateTimeImmutable($connectTime))->format(DateTimeZoneHelper::DATE_FORMAT)
+            );
+        } catch (\Throwable $e) {
+            $rate = null;
+        }
+
+        return $amount * ($rate ?: 1.0);
+    }
+
 }

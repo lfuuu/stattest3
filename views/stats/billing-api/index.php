@@ -7,11 +7,13 @@
  */
 
 use app\classes\grid\column\universal\DateRangeDoubleColumn;
+use app\classes\grid\column\universal\ClientAccountColumn;
 use app\classes\grid\column\universal\DropdownColumn;
 use app\classes\grid\column\universal\IntegerRangeColumn;
 use app\classes\grid\GridView;
 use app\classes\Html;
 use app\helpers\DateTimeZoneHelper;
+use app\models\ClientAccount;
 use app\models\billing\api\ApiMethod;
 use app\models\billing\api\ApiRaw;
 use app\models\filter\BillingApiFilter;
@@ -158,6 +160,16 @@ $costTotalColumn = [
     }
 ] + $moneyColumnOptions;
 
+$costPriceTotalColumn = [
+    'attribute' => 'cost_price_total',
+    'label' => 'Себестоимость, RUB',
+    'value' => function (ApiRaw $row) use ($moneyFormat, $filterModel) {
+        return $row instanceof BillingApiFilter
+            ? $moneyFormat($filterModel->getCostPriceTotal($row))
+            : null;
+    }
+] + $moneyColumnOptions;
+
 $columns = [];
 
 if ($filterModel->isGroupByMethod()) {
@@ -259,10 +271,16 @@ JS
                         'data-account-id' => (int)$detail['account_id'],
                         'data-api_weight_total' => (float)$detail['api_weight_total'],
                         'data-cost_total' => (float)$detail['cost_total'],
+                        'data-cost_price_total' => (float)$detail['cost_price_total'],
                     ]) .
-                        Html::tag('td', $detail['account_id']) .
+                        Html::tag('td', Html::a(
+                            $detail['account_id'],
+                            ClientAccount::getUrlById($detail['account_id']),
+                            ['target' => '_blank']
+                        )) .
                         Html::tag('td', $integerFormat($detail['api_weight_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::tag('td', $moneyFormat($detail['cost_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
+                        Html::tag('td', $moneyFormat($detail['cost_price_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::endTag('tr');
                 }
 
@@ -295,6 +313,16 @@ JS
                                     'style' => 'color: inherit; text-decoration: none;',
                                 ]
                             ), ['style' => 'text-align: center;']) .
+                            Html::tag('th', Html::a(
+                                'Себестоимость, RUB' .
+                                Html::tag('span', '', ['class' => 'js-billing-api-method-account-sort-indicator']),
+                                '#',
+                                [
+                                    'class' => 'js-billing-api-method-account-sort',
+                                    'data-sort-field' => 'cost_price_total',
+                                    'style' => 'color: inherit; text-decoration: none;',
+                                ]
+                            ), ['style' => 'text-align: center;']) .
                         Html::endTag('tr') .
                     Html::endTag('thead') .
                     Html::beginTag('tbody') .
@@ -310,6 +338,7 @@ JS
         $methodColumn,
         $weightTotalColumn,
         $costTotalColumn,
+        $costPriceTotalColumn,
     ];
 } elseif ($filterModel->isGroupByAccount()) {
     $columns = [
@@ -317,9 +346,11 @@ JS
         [
             'attribute' => 'account_id',
             'label' => 'ЛС',
+            'class' => ClientAccountColumn::class,
         ],
         $weightTotalColumn,
         $costTotalColumn,
+        $costPriceTotalColumn,
     ];
 } elseif ($filterModel->isGroupedByDate()) {
     $periodLabels = [
@@ -353,12 +384,14 @@ JS
         ],
         $weightTotalColumn,
         $costTotalColumn,
+        $costPriceTotalColumn,
     ];
 } else {
     if (!$filterModel->accountId) {
         $columns[] = [
             'attribute' => 'account_id',
             'label' => 'ЛС',
+            'class' => ClientAccountColumn::class,
         ];
     }
 
@@ -387,6 +420,14 @@ JS
             'class' => IntegerRangeColumn::class,
             'value' => function (ApiRaw $row) use ($moneyFormat) {
                 return $moneyFormat(-$row->cost);
+            }
+        ] + $moneyColumnOptions,
+        [
+            'attribute' => 'cost_price_total',
+            'label' => 'Себестоимость, RUB',
+            'filter' => false,
+            'value' => function (ApiRaw $row) use ($moneyFormat, $filterModel) {
+                return $moneyFormat($filterModel->getCostPriceTotal($row));
             }
         ] + $moneyColumnOptions
     ]);
