@@ -66,6 +66,20 @@ $moneyWithCurrencyFormat = function ($value, ?string $currencyId) use ($moneyFor
         : sprintf('%s %s', $moneyFormat($value), $currency);
 };
 
+$resolveCostPriceCurrency = function (ApiRaw $row) use ($filterModel): ?string {
+    $currencyId = trim((string)$row->price_currency_id);
+    if ($currencyId !== '') {
+        return $currencyId;
+    }
+
+    if ($filterModel->isGroupByMethod() && !empty($row->api_method_id)) {
+        return $filterModel->getMethodPriceCurrency((int)$row->api_method_id);
+    }
+
+    $fallbackCurrency = trim((string)$row->cost_currency_id);
+    return $fallbackCurrency !== '' ? $fallbackCurrency : 'RUB';
+};
+
 $integerFormat = function ($value) {
     return number_format((float)$value, 0, '.', ' ');
 };
@@ -170,14 +184,9 @@ $costTotalColumn = [
 $costPriceTotalColumn = [
     'attribute' => 'cost_price_total',
     'label' => 'Себестоимость',
-    'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat, $filterModel) {
-        $currencyId = $row->price_currency_id;
-        if ($filterModel->isGroupByMethod() && empty($currencyId) && !empty($row->api_method_id)) {
-            $currencyId = $filterModel->getMethodPriceCurrency((int)$row->api_method_id);
-        }
-
+    'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat, $resolveCostPriceCurrency) {
         return $row instanceof BillingApiFilter
-            ? $moneyWithCurrencyFormat($row->cost_price_total, $currencyId)
+            ? $moneyWithCurrencyFormat($row->cost_price_total, $resolveCostPriceCurrency($row))
             : null;
     }
 ] + $moneyColumnOptions;
@@ -438,10 +447,10 @@ JS
             'attribute' => 'cost_price_total',
             'label' => 'Себестоимость',
             'filter' => false,
-            'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat) {
+            'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat, $resolveCostPriceCurrency) {
                 return $moneyWithCurrencyFormat(
                     (float)$row->price_rate * (float)$row->api_weight,
-                    $row->price_currency_id
+                    $resolveCostPriceCurrency($row)
                 );
             }
         ] + $moneyColumnOptions
