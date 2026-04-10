@@ -38,6 +38,7 @@ class BillingApiFilter extends ApiRaw
     public $api_weight_total = null;
     public $cost_total = null;
     public $cost_price_total = null;
+    public $cost_currency_id = null;
     public $period_group = null;
 
     public
@@ -190,6 +191,7 @@ class BillingApiFilter extends ApiRaw
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
                         'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
+                        'cost_currency_id' => new Expression("CASE WHEN count(distinct cost_currency_id) = 1 THEN min(cost_currency_id) ELSE 'MIX' END"),
                     ])
                     ->groupBy(['api_method_id']);
             } elseif ($this->isGroupByAccount()) {
@@ -199,6 +201,7 @@ class BillingApiFilter extends ApiRaw
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
                         'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
+                        'cost_currency_id' => new Expression("CASE WHEN count(distinct cost_currency_id) = 1 THEN min(cost_currency_id) ELSE 'MIX' END"),
                     ])
                     ->groupBy(['account_id']);
             } elseif ($this->isGroupedByDate()) {
@@ -211,6 +214,7 @@ class BillingApiFilter extends ApiRaw
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
                         'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
+                        'cost_currency_id' => new Expression("CASE WHEN count(distinct cost_currency_id) = 1 THEN min(cost_currency_id) ELSE 'MIX' END"),
                     ])
                     ->groupBy([$groupExpression]);
             }
@@ -357,6 +361,7 @@ class BillingApiFilter extends ApiRaw
                 'api_weight_total' => new Expression('sum(api_weight)'),
                 'cost_total' => new Expression('-sum(cost)'),
                 'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
+                'cost_currency_id' => new Expression("CASE WHEN count(distinct cost_currency_id) = 1 THEN min(cost_currency_id) ELSE 'MIX' END"),
             ])
             ->groupBy(['account_id'])
             ->orderBy([

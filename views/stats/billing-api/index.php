@@ -57,6 +57,11 @@ $moneyFormat = function ($value) {
     return number_format((float)$value, 4, '.', ' ');
 };
 
+$moneyWithCurrencyFormat = function ($value, ?string $currencyId) use ($moneyFormat) {
+    $currency = $currencyId ?: 'RUB';
+    return sprintf('%s %s', $moneyFormat($value), $currency);
+};
+
 $integerFormat = function ($value) {
     return number_format((float)$value, 0, '.', ' ');
 };
@@ -161,8 +166,10 @@ $costTotalColumn = [
 $costPriceTotalColumn = [
     'attribute' => 'cost_price_total',
     'label' => 'Себестоимость',
-    'value' => function (ApiRaw $row) use ($moneyFormat) {
-        return $row instanceof BillingApiFilter ? $moneyFormat($row->cost_price_total) : null;
+    'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat) {
+        return $row instanceof BillingApiFilter
+            ? $moneyWithCurrencyFormat($row->cost_price_total, $row->cost_currency_id)
+            : null;
     }
 ] + $moneyColumnOptions;
 
@@ -254,7 +261,7 @@ JS
             'value' => function () {
                 return GridView::ROW_COLLAPSED;
             },
-            'detail' => function (ApiRaw $row) use ($filterModel, $integerFormat, $moneyFormat) {
+            'detail' => function (ApiRaw $row) use ($filterModel, $integerFormat, $moneyFormat, $moneyWithCurrencyFormat) {
                 $details = $filterModel->getMethodAccountDetails((int)$row->api_method_id);
 
                 if (!$details) {
@@ -272,7 +279,7 @@ JS
                         Html::tag('td', $detail['account_id']) .
                         Html::tag('td', $integerFormat($detail['api_weight_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::tag('td', $moneyFormat($detail['cost_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
-                        Html::tag('td', $moneyFormat($detail['cost_price_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
+                        Html::tag('td', $moneyWithCurrencyFormat($detail['cost_price_total'], $detail['cost_currency_id']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::endTag('tr');
                 }
 
@@ -416,8 +423,11 @@ JS
             'attribute' => 'cost_price_total',
             'label' => 'Себестоимость',
             'filter' => false,
-            'value' => function (ApiRaw $row) use ($moneyFormat) {
-                return $moneyFormat((float)$row->price_rate * (float)$row->api_weight);
+            'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat) {
+                return $moneyWithCurrencyFormat(
+                    (float)$row->price_rate * (float)$row->api_weight,
+                    $row->cost_currency_id
+                );
             }
         ] + $moneyColumnOptions
     ]);
