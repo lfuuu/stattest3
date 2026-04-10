@@ -23,6 +23,7 @@ use Yii;
  * @property float $api_weight
  * @property float $rate
  * @property float $cost
+ * @property float $price_rate
  * @property int $nnp_package_api_id
  * @property int $account_tariff_light_id
  * @property string $mcn_api_call_uuid

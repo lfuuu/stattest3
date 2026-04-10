@@ -37,6 +37,7 @@ class BillingApiFilter extends ApiRaw
     public $timezone = '';
     public $api_weight_total = null;
     public $cost_total = null;
+    public $cost_price_total = null;
     public $period_group = null;
 
     public
@@ -188,6 +189,7 @@ class BillingApiFilter extends ApiRaw
                         'api_method_id',
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
+                        'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
                     ])
                     ->groupBy(['api_method_id']);
             } elseif ($this->isGroupByAccount()) {
@@ -196,6 +198,7 @@ class BillingApiFilter extends ApiRaw
                         'account_id',
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
+                        'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
                     ])
                     ->groupBy(['account_id']);
             } elseif ($this->isGroupedByDate()) {
@@ -207,6 +210,7 @@ class BillingApiFilter extends ApiRaw
                         'period_group' => $groupExpression,
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
+                        'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
                     ])
                     ->groupBy([$groupExpression]);
             }
@@ -237,6 +241,11 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['cost_price_total' => SORT_ASC],
+                        'desc' => ['cost_price_total' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         } elseif ($this->isGroupByAccount()) {
@@ -254,6 +263,11 @@ class BillingApiFilter extends ApiRaw
                     'cost_total' => [
                         'asc' => ['cost_total' => SORT_ASC],
                         'desc' => ['cost_total' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
+                    'cost_price_total' => [
+                        'asc' => ['cost_price_total' => SORT_ASC],
+                        'desc' => ['cost_price_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
                 ],
@@ -279,6 +293,11 @@ class BillingApiFilter extends ApiRaw
                         'desc' => ['cost_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
+                    'cost_price_total' => [
+                        'asc' => ['cost_price_total' => SORT_ASC],
+                        'desc' => ['cost_price_total' => SORT_DESC],
+                        'default' => SORT_DESC,
+                    ],
                 ],
             ];
         } else {
@@ -300,6 +319,11 @@ class BillingApiFilter extends ApiRaw
                     'cost' => [
                         'asc' => ['cost' => SORT_DESC],
                         'desc' => ['cost' => SORT_ASC],
+                        'default' => SORT_DESC,
+                    ],
+                    'cost_price_total' => [
+                        'asc' => ['price_rate' => SORT_ASC, 'api_weight' => SORT_ASC],
+                        'desc' => ['price_rate' => SORT_DESC, 'api_weight' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
                 ],
@@ -332,6 +356,7 @@ class BillingApiFilter extends ApiRaw
                 'account_id',
                 'api_weight_total' => new Expression('sum(api_weight)'),
                 'cost_total' => new Expression('-sum(cost)'),
+                'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
             ])
             ->groupBy(['account_id'])
             ->orderBy([
