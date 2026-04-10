@@ -163,9 +163,9 @@ $costTotalColumn = [
 $costPriceTotalColumn = [
     'attribute' => 'cost_price_total',
     'label' => 'Себестоимость, RUB',
-    'value' => function (ApiRaw $row) use ($moneyFormat) {
+    'value' => function (ApiRaw $row) use ($moneyFormat, $filterModel) {
         return $row instanceof BillingApiFilter
-            ? $moneyFormat($row->cost_price_total)
+            ? $moneyFormat($filterModel->getCostPriceTotal($row))
             : null;
     }
 ] + $moneyColumnOptions;
@@ -426,8 +426,8 @@ JS
             'attribute' => 'cost_price_total',
             'label' => 'Себестоимость, RUB',
             'filter' => false,
-            'value' => function (ApiRaw $row) use ($moneyFormat) {
-                return $moneyFormat($row->cost_price_total);
+            'value' => function (ApiRaw $row) use ($moneyFormat, $filterModel) {
+                return $moneyFormat($filterModel->getCostPriceTotal($row));
             }
         ] + $moneyColumnOptions
     ]);
