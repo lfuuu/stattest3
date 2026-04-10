@@ -372,4 +372,18 @@ class BillingApiFilter extends ApiRaw
             ->asArray()
             ->all();
     }
+
+    public function getMethodPriceCurrency(int $apiMethodId): ?string
+    {
+        $currency = $this->makeQuery(false)
+            ->andWhere(['api_method_id' => $apiMethodId])
+            ->select([
+                'price_currency_id' => new Expression(
+                    "CASE WHEN count(distinct price_currency_id) = 1 THEN min(price_currency_id) ELSE 'MIX' END"
+                ),
+            ])
+            ->scalar();
+
+        return $currency ? trim((string)$currency) : null;
+    }
 }

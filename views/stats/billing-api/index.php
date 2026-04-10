@@ -58,8 +58,10 @@ $moneyFormat = function ($value) {
 };
 
 $moneyWithCurrencyFormat = function ($value, ?string $currencyId) use ($moneyFormat) {
-    $currency = $currencyId ?: 'RUB';
-    return sprintf('%s %s', $moneyFormat($value), $currency);
+    $currency = trim((string)$currencyId);
+    return $currency === ''
+        ? $moneyFormat($value)
+        : sprintf('%s %s', $moneyFormat($value), $currency);
 };
 
 $integerFormat = function ($value) {
@@ -166,9 +168,14 @@ $costTotalColumn = [
 $costPriceTotalColumn = [
     'attribute' => 'cost_price_total',
     'label' => 'Себестоимость',
-    'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat) {
+    'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat, $filterModel) {
+        $currencyId = $row->price_currency_id;
+        if ($filterModel->isGroupByMethod() && empty($currencyId) && !empty($row->api_method_id)) {
+            $currencyId = $filterModel->getMethodPriceCurrency((int)$row->api_method_id);
+        }
+
         return $row instanceof BillingApiFilter
-            ? $moneyWithCurrencyFormat($row->cost_price_total, $row->price_currency_id)
+            ? $moneyWithCurrencyFormat($row->cost_price_total, $currencyId)
             : null;
     }
 ] + $moneyColumnOptions;
