@@ -38,7 +38,6 @@ class BillingApiFilter extends ApiRaw
     public $api_weight_total = null;
     public $cost_total = null;
     public $cost_price_total = null;
-    public $price_currency_id = null;
     public $period_group = null;
 
     public
@@ -154,6 +153,21 @@ class BillingApiFilter extends ApiRaw
     {
         $query = self::find();
         $timezone = $this->getQueryTimezone();
+        $costPriceRubExpression = "
+            api_weight * price_rate * COALESCE(
+                CASE
+                    WHEN price_currency_id = 'RUB' THEN 1
+                    ELSE (
+                        SELECT cr.rate
+                        FROM billing.currency_rate cr
+                        WHERE cr.currency::text = price_currency_id::text
+                          AND cr.date = DATE(connect_time)
+                        LIMIT 1
+                    )
+                END,
+                1
+            )
+        ";
 
         if ($this->isGroupByMethod()) {
             $query->with('method');
@@ -181,7 +195,7 @@ class BillingApiFilter extends ApiRaw
 
         $this->api_method_id && $query->andWhere(['api_method_id' => $this->api_method_id]);
         $this->api_weight_from && $query->andWhere(['>=', 'api_weight', $this->api_weight_from]);
-        $this->api_weight_to && $query->andWhere(['<=', 'api_weight', $this->api_weight_to]);
+            $this->api_weight_to && $query->andWhere(['<=', 'api_weight', $this->api_weight_to]);
 
         if ($withGrouping && $this->isGrouped()) {
             if ($this->isGroupByMethod()) {
@@ -190,8 +204,7 @@ class BillingApiFilter extends ApiRaw
                         'api_method_id',
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
-                        'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
-                        'price_currency_id' => new Expression("CASE WHEN count(distinct price_currency_id) = 1 THEN min(price_currency_id) ELSE 'MIX' END"),
+                        'cost_price_total' => new Expression('sum(' . $costPriceRubExpression . ')'),
                     ])
                     ->groupBy(['api_method_id']);
             } elseif ($this->isGroupByAccount()) {
@@ -200,8 +213,7 @@ class BillingApiFilter extends ApiRaw
                         'account_id',
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
-                        'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
-                        'price_currency_id' => new Expression("CASE WHEN count(distinct price_currency_id) = 1 THEN min(price_currency_id) ELSE 'MIX' END"),
+                        'cost_price_total' => new Expression('sum(' . $costPriceRubExpression . ')'),
                     ])
                     ->groupBy(['account_id']);
             } elseif ($this->isGroupedByDate()) {
@@ -213,11 +225,12 @@ class BillingApiFilter extends ApiRaw
                         'period_group' => $groupExpression,
                         'api_weight_total' => new Expression('sum(api_weight)'),
                         'cost_total' => new Expression('-sum(cost)'),
-                        'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
-                        'price_currency_id' => new Expression("CASE WHEN count(distinct price_currency_id) = 1 THEN min(price_currency_id) ELSE 'MIX' END"),
+                        'cost_price_total' => new Expression('sum(' . $costPriceRubExpression . ')'),
                     ])
                     ->groupBy([$groupExpression]);
             }
+        } elseif ($withGrouping) {
+            $query->addSelect(['cost_price_total' => new Expression($costPriceRubExpression)]);
         }
 
         return $query;
@@ -326,8 +339,8 @@ class BillingApiFilter extends ApiRaw
                         'default' => SORT_DESC,
                     ],
                     'cost_price_total' => [
-                        'asc' => ['price_rate' => SORT_ASC, 'api_weight' => SORT_ASC],
-                        'desc' => ['price_rate' => SORT_DESC, 'api_weight' => SORT_DESC],
+                        'asc' => ['cost_price_total' => SORT_ASC],
+                        'desc' => ['cost_price_total' => SORT_DESC],
                         'default' => SORT_DESC,
                     ],
                 ],
@@ -360,8 +373,21 @@ class BillingApiFilter extends ApiRaw
                 'account_id',
                 'api_weight_total' => new Expression('sum(api_weight)'),
                 'cost_total' => new Expression('-sum(cost)'),
-                'cost_price_total' => new Expression('sum(price_rate * api_weight)'),
-                'price_currency_id' => new Expression("CASE WHEN count(distinct price_currency_id) = 1 THEN min(price_currency_id) ELSE 'MIX' END"),
+                'cost_price_total' => new Expression("sum(
+                    api_weight * price_rate * COALESCE(
+                        CASE
+                            WHEN price_currency_id = 'RUB' THEN 1
+                            ELSE (
+                                SELECT cr.rate
+                                FROM billing.currency_rate cr
+                                WHERE cr.currency::text = price_currency_id::text
+                                  AND cr.date = DATE(connect_time)
+                                LIMIT 1
+                            )
+                        END,
+                        1
+                    )
+                )"),
             ])
             ->groupBy(['account_id'])
             ->orderBy([
@@ -373,17 +399,4 @@ class BillingApiFilter extends ApiRaw
             ->all();
     }
 
-    public function getMethodPriceCurrency(int $apiMethodId): ?string
-    {
-        $currency = $this->makeQuery(false)
-            ->andWhere(['api_method_id' => $apiMethodId])
-            ->select([
-                'price_currency_id' => new Expression(
-                    "CASE WHEN count(distinct price_currency_id) = 1 THEN min(price_currency_id) ELSE 'MIX' END"
-                ),
-            ])
-            ->scalar();
-
-        return $currency ? trim((string)$currency) : null;
-    }
 }

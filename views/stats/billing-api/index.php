@@ -59,27 +59,6 @@ $moneyFormat = function ($value) {
     return number_format((float)$value, 4, '.', ' ');
 };
 
-$moneyWithCurrencyFormat = function ($value, ?string $currencyId) use ($moneyFormat) {
-    $currency = trim((string)$currencyId);
-    return $currency === ''
-        ? $moneyFormat($value)
-        : sprintf('%s %s', $moneyFormat($value), $currency);
-};
-
-$resolveCostPriceCurrency = function (ApiRaw $row) use ($filterModel): ?string {
-    $currencyId = trim((string)$row->price_currency_id);
-    if ($currencyId !== '') {
-        return $currencyId;
-    }
-
-    if ($filterModel->isGroupByMethod() && !empty($row->api_method_id)) {
-        return $filterModel->getMethodPriceCurrency((int)$row->api_method_id);
-    }
-
-    $fallbackCurrency = trim((string)$row->cost_currency_id);
-    return $fallbackCurrency !== '' ? $fallbackCurrency : 'RUB';
-};
-
 $integerFormat = function ($value) {
     return number_format((float)$value, 0, '.', ' ');
 };
@@ -183,10 +162,10 @@ $costTotalColumn = [
 
 $costPriceTotalColumn = [
     'attribute' => 'cost_price_total',
-    'label' => 'Себестоимость',
-    'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat, $resolveCostPriceCurrency) {
+    'label' => 'Себестоимость, RUB',
+    'value' => function (ApiRaw $row) use ($moneyFormat) {
         return $row instanceof BillingApiFilter
-            ? $moneyWithCurrencyFormat($row->cost_price_total, $resolveCostPriceCurrency($row))
+            ? $moneyFormat($row->cost_price_total)
             : null;
     }
 ] + $moneyColumnOptions;
@@ -279,7 +258,7 @@ JS
             'value' => function () {
                 return GridView::ROW_COLLAPSED;
             },
-            'detail' => function (ApiRaw $row) use ($filterModel, $integerFormat, $moneyFormat, $moneyWithCurrencyFormat) {
+            'detail' => function (ApiRaw $row) use ($filterModel, $integerFormat, $moneyFormat) {
                 $details = $filterModel->getMethodAccountDetails((int)$row->api_method_id);
 
                 if (!$details) {
@@ -301,7 +280,7 @@ JS
                         )) .
                         Html::tag('td', $integerFormat($detail['api_weight_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::tag('td', $moneyFormat($detail['cost_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
-                        Html::tag('td', $moneyWithCurrencyFormat($detail['cost_price_total'], $detail['price_currency_id']), ['style' => 'text-align: right; white-space: nowrap;']) .
+                        Html::tag('td', $moneyFormat($detail['cost_price_total']), ['style' => 'text-align: right; white-space: nowrap;']) .
                         Html::endTag('tr');
                 }
 
@@ -335,7 +314,7 @@ JS
                                 ]
                             ), ['style' => 'text-align: center;']) .
                             Html::tag('th', Html::a(
-                                'Себестоимость' .
+                                'Себестоимость, RUB' .
                                 Html::tag('span', '', ['class' => 'js-billing-api-method-account-sort-indicator']),
                                 '#',
                                 [
@@ -445,13 +424,10 @@ JS
         ] + $moneyColumnOptions,
         [
             'attribute' => 'cost_price_total',
-            'label' => 'Себестоимость',
+            'label' => 'Себестоимость, RUB',
             'filter' => false,
-            'value' => function (ApiRaw $row) use ($moneyWithCurrencyFormat, $resolveCostPriceCurrency) {
-                return $moneyWithCurrencyFormat(
-                    (float)$row->price_rate * (float)$row->api_weight,
-                    $resolveCostPriceCurrency($row)
-                );
+            'value' => function (ApiRaw $row) use ($moneyFormat) {
+                return $moneyFormat($row->cost_price_total);
             }
         ] + $moneyColumnOptions
     ]);
