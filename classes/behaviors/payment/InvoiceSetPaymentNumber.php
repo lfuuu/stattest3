@@ -29,7 +29,7 @@ class InvoiceSetPaymentNumber extends Behavior
         /** @var Invoice $invoice */
         $invoice = $event->sender;
 
-        if ($invoice->type_id === Invoice::TYPE_PREPAID) {
+        if ($invoice->type_id == Invoice::TYPE_PREPAID) {
             $this->attachExactPaymentToPrepaidInvoice($invoice);
             return;
         }
