@@ -415,7 +415,7 @@ JS
         [
             'attribute' => 'cost_price_total',
             'label' => 'Себестоимость',
-            'class' => IntegerRangeColumn::class,
+            'filter' => false,
             'value' => function (ApiRaw $row) use ($moneyFormat) {
                 return $moneyFormat((float)$row->price_rate * (float)$row->api_weight);
             }
